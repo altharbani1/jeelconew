@@ -137,7 +137,9 @@ export const PurchaseModule: React.FC = () => {
 
   // Invoices
   const handleSaveInvoice = () => {
-    if (!currentInvoice.supplierId || !currentInvoice.items?.length) return alert('اختر المورد وأضف منتجات');
+    // التحقق من البيانات المطلوبة
+    if (!currentInvoice.supplierId) return alert('اختر المورد من فضلك');
+    if (!currentInvoice.items || currentInvoice.items.length === 0) return alert('أضف منتجات واحد على الأقل');
     
     const subtotal = currentInvoice.items.reduce((s, i) => s + i.total, 0);
     const taxRate = currentInvoice.taxRate ?? 15; // Default 15% VAT if not specified
@@ -768,7 +770,12 @@ export const PurchaseModule: React.FC = () => {
 
                         {/* Items Section */}
                         <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
-                            <h4 className="font-bold text-sm text-gray-700 mb-2">الأصناف</h4>
+                            <div className="flex justify-between items-center mb-2">
+                                <h4 className="font-bold text-sm text-gray-700">الأصناف المضافة</h4>
+                                <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs font-bold">
+                                    {currentInvoice.items?.length || 0} صنف
+                                </span>
+                            </div>
                             <div className="space-y-2">
                                 {currentInvoice.items?.map((item, idx) => (
                                     <div key={idx} className="flex gap-2 items-center">
@@ -785,24 +792,52 @@ export const PurchaseModule: React.FC = () => {
                                         <option value="">-- اختر منتج --</option>
                                         {products.map(p => <option key={p.id} value={p.name}>{p.name} (سعر: {p.purchasePrice})</option>)}
                                     </select>
-                                    <input id="newItemQty" type="number" className="w-20 p-2 border rounded font-bold text-sm text-center" placeholder="العدد" />
-                                    <input id="newItemPrice" type="number" className="w-24 p-2 border rounded font-bold text-sm text-center" placeholder="السعر" />
+                                    <input id="newItemQty" type="number" className="w-20 p-2 border rounded font-bold text-sm text-center" placeholder="العدد" min="1" step="0.5" />
+                                    <input id="newItemPrice" type="number" className="w-24 p-2 border rounded font-bold text-sm text-center" placeholder="السعر" min="0" step="0.5" />
                                     <button 
                                         onClick={() => {
                                             const desc = (document.getElementById('newItemDesc') as HTMLSelectElement).value;
-                                            const qty = parseFloat((document.getElementById('newItemQty') as HTMLInputElement).value);
-                                            const price = parseFloat((document.getElementById('newItemPrice') as HTMLInputElement).value);
-                                            if(desc && qty && price) {
-                                                setCurrentInvoice({
-                                                    ...currentInvoice,
-                                                    items: [...(currentInvoice.items || []), { id: Date.now().toString(), description: desc, quantity: qty, unitPrice: price, total: qty * price, details: '' }]
-                                                });
-                                                (document.getElementById('newItemDesc') as HTMLSelectElement).value = '';
-                                                (document.getElementById('newItemQty') as HTMLInputElement).value = '';
-                                                (document.getElementById('newItemPrice') as HTMLInputElement).value = '';
+                                            const qtyInput = (document.getElementById('newItemQty') as HTMLInputElement).value;
+                                            const priceInput = (document.getElementById('newItemPrice') as HTMLInputElement).value;
+                                            
+                                            // التحقق من المدخلات
+                                            if (!desc || desc.trim() === '') {
+                                                alert('اختر منتج من القائمة');
+                                                return;
                                             }
+                                            
+                                            const qty = qtyInput ? parseFloat(qtyInput) : 0;
+                                            const price = priceInput ? parseFloat(priceInput) : 0;
+                                            
+                                            if (qty <= 0) {
+                                                alert('أدخل كمية صحيحة (أكبر من 0)');
+                                                return;
+                                            }
+                                            if (price <= 0) {
+                                                alert('أدخل سعر صحيح (أكبر من 0)');
+                                                return;
+                                            }
+                                            
+                                            const newItems = [...(currentInvoice.items || []), { 
+                                                id: Date.now().toString(), 
+                                                description: desc, 
+                                                quantity: qty, 
+                                                unitPrice: price, 
+                                                total: qty * price, 
+                                                details: '' 
+                                            }];
+                                            
+                                            setCurrentInvoice({
+                                                ...currentInvoice,
+                                                items: newItems
+                                            });
+                                            
+                                            // تفريغ الحقول
+                                            (document.getElementById('newItemDesc') as HTMLSelectElement).value = '';
+                                            (document.getElementById('newItemQty') as HTMLInputElement).value = '';
+                                            (document.getElementById('newItemPrice') as HTMLInputElement).value = '';
                                         }}
-                                        className="bg-blue-600 text-white p-2 rounded hover:bg-blue-700"
+                                        className="bg-blue-600 text-white p-2 rounded hover:bg-blue-700 transition-colors font-bold"
                                     ><Plus size={16}/></button>
                                 </div>
                             </div>
