@@ -435,7 +435,7 @@ export const ContractModule: React.FC = () => {
                             <div className="text-center relative">
                                 <p className="font-bold text-sm mb-12">توقيع الطرف الأول</p>
                                 <div className="w-40 border-b-2 border-jilco-900 mx-auto"></div>
-                                {config.stamp && <img src={config.stamp} className="absolute bottom-4 left-1/2 -translate-x-1/2 w-40 h-40 opacity-90 mix-blend-multiply" />}
+                                {config.stamp && <img src={config.stamp} className="absolute bottom-4 left-1/2 -translate-x-1/2 w-56 h-56 opacity-90 mix-blend-multiply" />}
                             </div>
                             <div className="text-center">
                                 <p className="font-bold text-sm mb-12">توقيع الطرف الثاني (العميل)</p>

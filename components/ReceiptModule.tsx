@@ -323,7 +323,7 @@ export const ReceiptModule: React.FC = () => {
                    </div>
                    <div className="flex justify-between items-end mt-16 px-6">
                        <div className="text-center"><p className="text-xs font-bold text-gray-400 mb-8 uppercase">المستلم</p><div className="w-40 border-b-2 border-gray-300"></div></div>
-                       <div className="text-center relative">{config.stamp && <img src={config.stamp} className="w-40 h-40 opacity-90 mix-blend-multiply p-2" />}<p className="text-xs font-bold text-gray-400 mb-2 uppercase">الختم</p></div>
+                       <div className="text-center relative">{config.stamp && <img src={config.stamp} className="w-56 h-56 opacity-90 mix-blend-multiply p-2" />}<p className="text-xs font-bold text-gray-400 mb-2 uppercase">الختم</p></div>
                        <div className="text-center"><p className="text-xs font-bold text-gray-400 mb-8 uppercase">المحاسب</p><div className="w-40 border-b-2 border-gray-300"></div></div>
                    </div>
                </div>
