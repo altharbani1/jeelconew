@@ -176,7 +176,7 @@ export const QuotePreview: React.FC<QuotePreviewProps> = ({ items, details, tech
                         <p className="font-black text-jilco-900 text-xs uppercase">شركة جيلكو للمصاعد</p>
                         {config.stamp && (
                         <div className="absolute left-1/2 -translate-x-1/2 bottom-[30px] z-50 pointer-events-none">
-                            <img src={config.stamp} alt="stamp" className="h-32 mx-auto mix-blend-multiply opacity-95 brightness-90" />
+                            <img src={config.stamp} alt="stamp" className="h-40 w-40 mx-auto mix-blend-multiply opacity-95 brightness-90" />
                         </div>
                         )}
                     </div>
