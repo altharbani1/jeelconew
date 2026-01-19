@@ -1033,7 +1033,15 @@ export const PurchaseModule: React.FC = () => {
             </div>
         )}
 
-  const renderPrintableStatement = () => {
+        {/* Printables */}
+        {printingPayment && renderPrintablePayment()}
+        {printingInvoice && renderPrintableInvoice()}
+        {printingStatement && renderPrintableStatement()}
+    </div>
+  );
+};
+
+const renderPrintableStatement = () => {
     if (!printingStatement) return null;
     const {supplier, invoices: stmtInvoices, payments: stmtPayments, balance} = printingStatement;
 
