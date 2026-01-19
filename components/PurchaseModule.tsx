@@ -63,6 +63,7 @@ export const PurchaseModule: React.FC = () => {
   // Print State
   const [printingInvoice, setPrintingInvoice] = useState<PurchaseInvoice | null>(null);
   const [printingPayment, setPrintingPayment] = useState<SupplierPayment | null>(null);
+  const [printingStatement, setPrintingStatement] = useState<{supplier: Supplier, invoices: PurchaseInvoice[], payments: SupplierPayment[], balance: number} | null>(null);
 
   // Statement State
   const [statementSupplierId, setStatementSupplierId] = useState<string>('');
@@ -665,7 +666,122 @@ export const PurchaseModule: React.FC = () => {
       </div>
   );
 
-  return (
+  const renderStatement = () => {
+    const supplier = suppliers.find(s => s.id === statementSupplierId);
+    if (!supplier) {
+      return (
+        <div className="space-y-4">
+          <div className="flex justify-end mb-4">
+            <select className="p-2 border rounded font-bold" value={statementSupplierId} onChange={e => setStatementSupplierId(e.target.value)}>
+              <option value="">-- اختر مورد --</option>
+              {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+            </select>
+          </div>
+          <div className="bg-white p-8 rounded-xl text-center text-gray-400 font-bold">
+            اختر مورداً لعرض كشف حسابه
+          </div>
+        </div>
+      );
+    }
+
+    const supplierInvoices = invoices.filter(i => i.supplierId === supplier.id);
+    const supplierPayments = payments.filter(p => p.supplierId === supplier.id);
+    
+    const totalInvoices = supplierInvoices.reduce((sum, i) => sum + i.grandTotal, 0);
+    const totalPayments = supplierPayments.reduce((sum, p) => sum + p.amount, 0);
+    const balance = totalInvoices - totalPayments;
+
+    return (
+      <div className="space-y-4">
+        <div className="flex justify-between items-center bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+          <select className="p-2 border rounded font-bold" value={statementSupplierId} onChange={e => setStatementSupplierId(e.target.value)}>
+            <option value="">-- اختر مورد --</option>
+            {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+          </select>
+          <button onClick={() => setPrintingStatement({supplier, invoices: supplierInvoices, payments: supplierPayments, balance})} className="bg-jilco-600 text-white px-4 py-2 rounded-lg flex items-center gap-2 hover:bg-jilco-700 font-bold">
+            <Printer size={18}/> طباعة الكشف
+          </button>
+        </div>
+
+        {/* Supplier Info */}
+        <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <p className="text-xs font-bold text-gray-500 mb-1">اسم المورد</p>
+              <p className="text-lg font-bold text-jilco-900">{supplier.name}</p>
+            </div>
+            <div>
+              <p className="text-xs font-bold text-gray-500 mb-1">الهاتف</p>
+              <p className="text-lg font-bold text-gray-700">{supplier.phone}</p>
+            </div>
+            <div>
+              <p className="text-xs font-bold text-gray-500 mb-1">الرقم الضريبي</p>
+              <p className="text-lg font-bold text-gray-700">{supplier.vatNumber || '-'}</p>
+            </div>
+            <div>
+              <p className="text-xs font-bold text-gray-500 mb-1">جهة الاتصال</p>
+              <p className="text-lg font-bold text-gray-700">{supplier.contactPerson || '-'}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Transactions Table */}
+        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden shadow-sm">
+          <table className="w-full text-sm text-right">
+            <thead className="bg-gray-50 text-gray-500 font-medium">
+              <tr>
+                <th className="p-4">التاريخ</th>
+                <th className="p-4">النوع</th>
+                <th className="p-4">البيان</th>
+                <th className="p-4">المبلغ</th>
+                <th className="p-4">الحالة</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {supplierInvoices.map((inv) => (
+                <tr key={inv.id} className="hover:bg-gray-50">
+                  <td className="p-4 font-mono text-xs">{inv.date}</td>
+                  <td className="p-4"><span className="bg-red-100 text-red-700 px-2 py-1 rounded text-xs font-bold">فاتورة</span></td>
+                  <td className="p-4 font-bold">رقم {inv.number}</td>
+                  <td className="p-4 font-bold text-red-600">{inv.grandTotal.toLocaleString()}</td>
+                  <td className="p-4">
+                    <span className={`px-2 py-1 rounded text-xs font-bold ${inv.status === 'paid' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                      {inv.status === 'paid' ? 'مدفوعة' : 'مستحقة'}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+              {supplierPayments.map((pay) => (
+                <tr key={pay.id} className="hover:bg-gray-50 bg-blue-50">
+                  <td className="p-4 font-mono text-xs">{pay.date}</td>
+                  <td className="p-4"><span className="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold">دفعة</span></td>
+                  <td className="p-4 font-bold">دفعة - {pay.method}</td>
+                  <td className="p-4 font-bold text-green-600">-{pay.amount.toLocaleString()}</td>
+                  <td className="p-4"><span className="bg-green-100 text-green-700 px-2 py-1 rounded text-xs font-bold">مدفوعة</span></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Summary */}
+        <div className="grid grid-cols-3 gap-4">
+          <div className="bg-red-50 p-4 rounded-xl border border-red-200">
+            <p className="text-xs font-bold text-red-600 mb-1">إجمالي الفواتير</p>
+            <p className="text-2xl font-black text-red-700">{totalInvoices.toLocaleString()}</p>
+          </div>
+          <div className="bg-green-50 p-4 rounded-xl border border-green-200">
+            <p className="text-xs font-bold text-green-600 mb-1">إجمالي المدفوعات</p>
+            <p className="text-2xl font-black text-green-700">{totalPayments.toLocaleString()}</p>
+          </div>
+          <div className={`${balance >= 0 ? 'bg-amber-50 border-amber-200' : 'bg-green-50 border-green-200'} p-4 rounded-xl border`}>
+            <p className={`text-xs font-bold ${balance >= 0 ? 'text-amber-600' : 'text-green-600'} mb-1`}>{balance >= 0 ? 'رصيد عليك' : 'رصيد لك'}</p>
+            <p className={`text-2xl font-black ${balance >= 0 ? 'text-amber-700' : 'text-green-700'}`}>{Math.abs(balance).toLocaleString()}</p>
+          </div>
+        </div>
+      </div>
+    );
+  };
     <div className="flex-1 bg-gray-100 p-8 overflow-auto h-full animate-fade-in">
         <div className="max-w-7xl mx-auto">
             <div className="flex justify-between items-center mb-8">
@@ -678,11 +794,12 @@ export const PurchaseModule: React.FC = () => {
             </div>
 
             {/* Tabs */}
-            <div className="flex bg-white rounded-xl shadow-sm border border-gray-200 mb-6 overflow-hidden max-w-3xl">
-                <button onClick={() => setActiveTab('invoices')} className={`flex-1 py-3 text-sm font-bold flex justify-center items-center gap-2 transition-colors ${activeTab === 'invoices' ? 'bg-jilco-50 text-jilco-800 border-b-4 border-jilco-600' : 'text-gray-500 hover:bg-gray-50'}`}><FileText size={16}/> فواتير الشراء</button>
-                <button onClick={() => setActiveTab('payments')} className={`flex-1 py-3 text-sm font-bold flex justify-center items-center gap-2 transition-colors ${activeTab === 'payments' ? 'bg-jilco-50 text-jilco-800 border-b-4 border-jilco-600' : 'text-gray-500 hover:bg-gray-50'}`}><Banknote size={16}/> المدفوعات</button>
-                <button onClick={() => setActiveTab('suppliers')} className={`flex-1 py-3 text-sm font-bold flex justify-center items-center gap-2 transition-colors ${activeTab === 'suppliers' ? 'bg-jilco-50 text-jilco-800 border-b-4 border-jilco-600' : 'text-gray-500 hover:bg-gray-50'}`}><Users size={16}/> الموردين</button>
-                <button onClick={() => setActiveTab('products')} className={`flex-1 py-3 text-sm font-bold flex justify-center items-center gap-2 transition-colors ${activeTab === 'products' ? 'bg-jilco-50 text-jilco-800 border-b-4 border-jilco-600' : 'text-gray-500 hover:bg-gray-50'}`}><Package size={16}/> المنتجات</button>
+            <div className="flex bg-white rounded-xl shadow-sm border border-gray-200 mb-6 overflow-hidden max-w-full flex-wrap gap-0">
+                <button onClick={() => setActiveTab('invoices')} className={`flex-1 py-3 text-sm font-bold flex justify-center items-center gap-2 transition-colors min-w-max ${activeTab === 'invoices' ? 'bg-jilco-50 text-jilco-800 border-b-4 border-jilco-600' : 'text-gray-500 hover:bg-gray-50'}`}><FileText size={16}/> فواتير الشراء</button>
+                <button onClick={() => setActiveTab('payments')} className={`flex-1 py-3 text-sm font-bold flex justify-center items-center gap-2 transition-colors min-w-max ${activeTab === 'payments' ? 'bg-jilco-50 text-jilco-800 border-b-4 border-jilco-600' : 'text-gray-500 hover:bg-gray-50'}`}><Banknote size={16}/> المدفوعات</button>
+                <button onClick={() => setActiveTab('suppliers')} className={`flex-1 py-3 text-sm font-bold flex justify-center items-center gap-2 transition-colors min-w-max ${activeTab === 'suppliers' ? 'bg-jilco-50 text-jilco-800 border-b-4 border-jilco-600' : 'text-gray-500 hover:bg-gray-50'}`}><Users size={16}/> الموردين</button>
+                <button onClick={() => setActiveTab('products')} className={`flex-1 py-3 text-sm font-bold flex justify-center items-center gap-2 transition-colors min-w-max ${activeTab === 'products' ? 'bg-jilco-50 text-jilco-800 border-b-4 border-jilco-600' : 'text-gray-500 hover:bg-gray-50'}`}><Package size={16}/> المنتجات</button>
+                <button onClick={() => setActiveTab('statement')} className={`flex-1 py-3 text-sm font-bold flex justify-center items-center gap-2 transition-colors min-w-max ${activeTab === 'statement' ? 'bg-jilco-50 text-jilco-800 border-b-4 border-jilco-600' : 'text-gray-500 hover:bg-gray-50'}`}><ClipboardList size={16}/> كشف حساب</button>
             </div>
 
             {/* Content */}
@@ -690,6 +807,7 @@ export const PurchaseModule: React.FC = () => {
             {activeTab === 'products' && renderProducts()}
             {activeTab === 'invoices' && renderInvoices()}
             {activeTab === 'payments' && renderPayments()}
+            {activeTab === 'statement' && renderStatement()}
         </div>
 
         {/* Modals */}
@@ -915,9 +1033,172 @@ export const PurchaseModule: React.FC = () => {
             </div>
         )}
 
+  const renderPrintableStatement = () => {
+    if (!printingStatement) return null;
+    const {supplier, invoices: stmtInvoices, payments: stmtPayments, balance} = printingStatement;
+
+    return (
+      <div className="fixed inset-0 bg-gray-200 z-[200] overflow-auto flex justify-center items-start print:static print:bg-white print:p-0 print:h-full">
+        <div id="printable-statement" className="bg-white shadow-2xl w-[210mm] min-h-[297mm] relative flex flex-col p-0 print:shadow-none print:w-full print:h-[297mm] my-8 print:my-0">
+          
+          {/* Header */}
+          <div className="px-10 py-8 border-b-2 border-jilco-100">
+            <div className="flex justify-between items-center mb-6">
+              <div className="text-right">
+                <h1 className="text-2xl font-black text-jilco-900">{config.headerTitle}</h1>
+                <p className="text-xs font-bold text-gray-500 mt-1">{config.headerSubtitle}</p>
+              </div>
+              <h2 className="text-xl font-black text-jilco-900 border-2 border-jilco-900 px-4 py-2 rounded">كشف حساب</h2>
+              <div>
+                {config.logo ? <img src={config.logo} className="h-24 object-contain"/> : null}
+              </div>
+            </div>
+
+            {/* Supplier Info */}
+            <div className="bg-gray-50 p-4 rounded border border-gray-200">
+              <h3 className="font-bold text-lg text-jilco-900 mb-3">بيانات المورد</h3>
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <p className="text-xs text-gray-500 font-bold">الاسم:</p>
+                  <p className="font-bold text-gray-800">{supplier.name}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 font-bold">الهاتف:</p>
+                  <p className="font-bold text-gray-800">{supplier.phone}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 font-bold">الرقم الضريبي:</p>
+                  <p className="font-bold text-gray-800">{supplier.vatNumber || '-'}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 font-bold">الفترة:</p>
+                  <p className="font-bold text-gray-800">{new Date().toISOString().split('T')[0]}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <button onClick={() => setPrintingStatement(null)} className="absolute top-4 right-4 bg-gray-200 hover:bg-gray-300 p-2 rounded-full print:hidden z-50"><X size={20}/></button>
+          <button onClick={() => window.print()} className="absolute top-4 right-16 bg-jilco-900 text-white px-4 py-2 rounded-lg font-bold print:hidden z-50 flex items-center gap-2"><Printer size={18}/> طباعة</button>
+
+          {/* Transactions */}
+          <div className="px-10 py-8 flex-1">
+            <table className="w-full text-sm border-collapse">
+              <thead>
+                <tr className="bg-jilco-900 text-white">
+                  <th className="p-3 text-center border border-jilco-900">#</th>
+                  <th className="p-3 text-right border border-jilco-900">التاريخ</th>
+                  <th className="p-3 text-right border border-jilco-900">النوع</th>
+                  <th className="p-3 text-right border border-jilco-900">الوصف</th>
+                  <th className="p-3 text-center border border-jilco-900">المبلغ</th>
+                </tr>
+              </thead>
+              <tbody>
+                {stmtInvoices.map((inv, idx) => (
+                  <tr key={inv.id}>
+                    <td className="p-3 border border-gray-300 text-center font-bold">{idx + 1}</td>
+                    <td className="p-3 border border-gray-300 font-mono text-xs">{inv.date}</td>
+                    <td className="p-3 border border-gray-300 font-bold text-red-600">فاتورة</td>
+                    <td className="p-3 border border-gray-300 font-bold">رقم {inv.number}</td>
+                    <td className="p-3 border border-gray-300 text-center font-bold text-red-600">{inv.grandTotal.toLocaleString()}</td>
+                  </tr>
+                ))}
+                {stmtPayments.map((pay, idx) => (
+                  <tr key={pay.id} className="bg-blue-50">
+                    <td className="p-3 border border-gray-300 text-center font-bold">{stmtInvoices.length + idx + 1}</td>
+                    <td className="p-3 border border-gray-300 font-mono text-xs">{pay.date}</td>
+                    <td className="p-3 border border-gray-300 font-bold text-green-600">دفعة</td>
+                    <td className="p-3 border border-gray-300 font-bold">{pay.method === 'cash' ? 'نقداً' : pay.method === 'check' ? 'شيك' : 'تحويل'}</td>
+                    <td className="p-3 border border-gray-300 text-center font-bold text-green-600">-{pay.amount.toLocaleString()}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            {/* Summary */}
+            <div className="mt-8 flex justify-end">
+              <div className="w-80">
+                <div className="flex justify-between py-2 border-b border-gray-200">
+                  <span className="font-bold">إجمالي الفواتير</span>
+                  <span className="font-mono font-bold">{stmtInvoices.reduce((s, i) => s + i.grandTotal, 0).toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between py-2 border-b border-gray-200">
+                  <span className="font-bold">إجمالي المدفوعات</span>
+                  <span className="font-mono font-bold">{stmtPayments.reduce((s, p) => s + p.amount, 0).toLocaleString()}</span>
+                </div>
+                <div className={`flex justify-between py-3 px-4 rounded-lg mt-2 ${balance >= 0 ? 'bg-amber-50 border-amber-200 border' : 'bg-green-50 border-green-200 border'}`}>
+                  <span className="font-black">{balance >= 0 ? 'الرصيد عليك' : 'الرصيد لك'}</span>
+                  <span className={`font-mono font-black text-lg ${balance >= 0 ? 'text-amber-700' : 'text-green-700'}`}>{Math.abs(balance).toLocaleString()}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Footer */}
+          <div className="mt-auto px-10 pb-6">
+            <div className="border-t border-gray-200 pt-4 flex justify-between items-center text-[10px] text-gray-500 font-bold">
+              <div>{config.contactPhone}</div>
+              <div>{config.footerText}</div>
+              <div>jilco-elevators.com</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="flex-1 bg-gray-100 p-8 overflow-auto h-full animate-fade-in">
+        <div className="max-w-7xl mx-auto">
+            <div className="flex justify-between items-center mb-8">
+                <div>
+                    <h1 className="text-2xl font-bold text-jilco-900 flex items-center gap-2">
+                        <ShoppingBag className="text-gold-500" /> إدارة المشتريات والموردين
+                    </h1>
+                    <p className="text-gray-500 text-sm mt-1">متابعة فواتير الشراء، حسابات الموردين، والمدفوعات</p>
+                </div>
+            </div>
+
+            {/* Tabs */}
+            <div className="flex bg-white rounded-xl shadow-sm border border-gray-200 mb-6 overflow-hidden max-w-full flex-wrap gap-0">
+                <button onClick={() => setActiveTab('invoices')} className={`flex-1 py-3 text-sm font-bold flex justify-center items-center gap-2 transition-colors min-w-max ${activeTab === 'invoices' ? 'bg-jilco-50 text-jilco-800 border-b-4 border-jilco-600' : 'text-gray-500 hover:bg-gray-50'}`}><FileText size={16}/> فواتير الشراء</button>
+                <button onClick={() => setActiveTab('payments')} className={`flex-1 py-3 text-sm font-bold flex justify-center items-center gap-2 transition-colors min-w-max ${activeTab === 'payments' ? 'bg-jilco-50 text-jilco-800 border-b-4 border-jilco-600' : 'text-gray-500 hover:bg-gray-50'}`}><Banknote size={16}/> المدفوعات</button>
+                <button onClick={() => setActiveTab('suppliers')} className={`flex-1 py-3 text-sm font-bold flex justify-center items-center gap-2 transition-colors min-w-max ${activeTab === 'suppliers' ? 'bg-jilco-50 text-jilco-800 border-b-4 border-jilco-600' : 'text-gray-500 hover:bg-gray-50'}`}><Users size={16}/> الموردين</button>
+                <button onClick={() => setActiveTab('products')} className={`flex-1 py-3 text-sm font-bold flex justify-center items-center gap-2 transition-colors min-w-max ${activeTab === 'products' ? 'bg-jilco-50 text-jilco-800 border-b-4 border-jilco-600' : 'text-gray-500 hover:bg-gray-50'}`}><Package size={16}/> المنتجات</button>
+                <button onClick={() => setActiveTab('statement')} className={`flex-1 py-3 text-sm font-bold flex justify-center items-center gap-2 transition-colors min-w-max ${activeTab === 'statement' ? 'bg-jilco-50 text-jilco-800 border-b-4 border-jilco-600' : 'text-gray-500 hover:bg-gray-50'}`}><ClipboardList size={16}/> كشف حساب</button>
+            </div>
+
+            {/* Content */}
+            {activeTab === 'suppliers' && renderSuppliers()}
+            {activeTab === 'products' && renderProducts()}
+            {activeTab === 'invoices' && renderInvoices()}
+            {activeTab === 'payments' && renderPayments()}
+            {activeTab === 'statement' && renderStatement()}
+        </div>
+
+        {/* Modals */}
+        {/* Supplier Modal */}
+        {showSupplierModal && (
+            <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
+                    <h3 className="font-bold text-lg mb-4 text-jilco-900">بيانات المورد</h3>
+                    <div className="space-y-3">
+                        <input type="text" className="w-full p-2 border rounded font-bold" placeholder="اسم المورد / الشركة" value={currentSupplier.name || ''} onChange={e => setCurrentSupplier({...currentSupplier, name: e.target.value})} />
+                        <input type="text" className="w-full p-2 border rounded font-bold" placeholder="الشخص المسؤول" value={currentSupplier.contactPerson || ''} onChange={e => setCurrentSupplier({...currentSupplier, contactPerson: e.target.value})} />
+                        <input type="text" className="w-full p-2 border rounded font-bold" placeholder="رقم الهاتف" value={currentSupplier.phone || ''} onChange={e => setCurrentSupplier({...currentSupplier, phone: e.target.value})} />
+                        <input type="text" className="w-full p-2 border rounded font-bold" placeholder="الرقم الضريبي" value={currentSupplier.vatNumber || ''} onChange={e => setCurrentSupplier({...currentSupplier, vatNumber: e.target.value})} />
+                    </div>
+                    <div className="flex justify-end gap-2 mt-6">
+                        <button onClick={() => setShowSupplierModal(false)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded font-bold">إلغاء</button>
+                        <button onClick={handleSaveSupplier} className="px-4 py-2 bg-jilco-600 text-white rounded hover:bg-jilco-700 font-bold">حفظ</button>
+                    </div>
+                </div>
+            </div>
+        )}
+
         {/* Printables */}
         {printingPayment && renderPrintablePayment()}
         {printingInvoice && renderPrintableInvoice()}
+        {printingStatement && renderPrintableStatement()}
     </div>
   );
-};
