@@ -1039,7 +1039,6 @@ export const PurchaseModule: React.FC = () => {
         {printingStatement && renderPrintableStatement()}
     </div>
   );
-};
 
   const renderPrintableStatement = () => {
     if (!printingStatement) return null;
