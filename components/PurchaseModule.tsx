@@ -140,7 +140,8 @@ export const PurchaseModule: React.FC = () => {
     if (!currentInvoice.supplierId || !currentInvoice.items?.length) return alert('اختر المورد وأضف منتجات');
     
     const subtotal = currentInvoice.items.reduce((s, i) => s + i.total, 0);
-    const tax = subtotal * 0.15;
+    const taxRate = currentInvoice.taxRate ?? 15; // Default 15% VAT if not specified
+    const tax = subtotal * (taxRate / 100);
     const grandTotal = subtotal + tax;
 
     const proj = projects.find(p => p.id === currentInvoice.projectId);
@@ -149,6 +150,7 @@ export const PurchaseModule: React.FC = () => {
       ...currentInvoice as PurchaseInvoice,
       id: currentInvoice.id || Date.now().toString(),
       totalAmount: subtotal,
+      taxRate: taxRate,
       taxAmount: tax,
       grandTotal: grandTotal,
       status: currentInvoice.status || 'pending',
@@ -418,7 +420,7 @@ export const PurchaseModule: React.FC = () => {
                                 <span className="font-mono font-bold">{printingInvoice.totalAmount.toLocaleString()}</span>
                             </div>
                             <div className="flex justify-between py-2 border-b border-gray-200">
-                                <span className="font-bold text-gray-600">ضريبة القيمة المضافة (15%)</span>
+                                <span className="font-bold text-gray-600">ضريبة القيمة المضافة ({printingInvoice.taxRate ?? 15}%)</span>
                                 <span className="font-mono font-bold text-red-600">{printingInvoice.taxAmount.toLocaleString()}</span>
                             </div>
                             <div className="flex justify-between py-3 bg-jilco-900 text-white px-4 rounded-lg mt-2 shadow-sm">
@@ -779,13 +781,15 @@ export const PurchaseModule: React.FC = () => {
                                 
                                 {/* Quick Add Item Row */}
                                 <div className="flex gap-2 items-center mt-2 pt-2 border-t border-gray-200">
-                                    <input id="newItemDesc" type="text" className="flex-1 p-2 border rounded font-bold text-sm" placeholder="اسم الصنف" list="prodList" />
-                                    <datalist id="prodList">{products.map(p => <option key={p.id} value={p.name}/>)}</datalist>
+                                    <select id="newItemDesc" className="flex-1 p-2 border rounded font-bold text-sm focus:ring-2 focus:ring-jilco-500 outline-none">
+                                        <option value="">-- اختر منتج --</option>
+                                        {products.map(p => <option key={p.id} value={p.name}>{p.name} (سعر: {p.purchasePrice})</option>)}
+                                    </select>
                                     <input id="newItemQty" type="number" className="w-20 p-2 border rounded font-bold text-sm text-center" placeholder="العدد" />
                                     <input id="newItemPrice" type="number" className="w-24 p-2 border rounded font-bold text-sm text-center" placeholder="السعر" />
                                     <button 
                                         onClick={() => {
-                                            const desc = (document.getElementById('newItemDesc') as HTMLInputElement).value;
+                                            const desc = (document.getElementById('newItemDesc') as HTMLSelectElement).value;
                                             const qty = parseFloat((document.getElementById('newItemQty') as HTMLInputElement).value);
                                             const price = parseFloat((document.getElementById('newItemPrice') as HTMLInputElement).value);
                                             if(desc && qty && price) {
@@ -793,7 +797,7 @@ export const PurchaseModule: React.FC = () => {
                                                     ...currentInvoice,
                                                     items: [...(currentInvoice.items || []), { id: Date.now().toString(), description: desc, quantity: qty, unitPrice: price, total: qty * price, details: '' }]
                                                 });
-                                                (document.getElementById('newItemDesc') as HTMLInputElement).value = '';
+                                                (document.getElementById('newItemDesc') as HTMLSelectElement).value = '';
                                                 (document.getElementById('newItemQty') as HTMLInputElement).value = '';
                                                 (document.getElementById('newItemPrice') as HTMLInputElement).value = '';
                                             }
@@ -804,7 +808,11 @@ export const PurchaseModule: React.FC = () => {
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-3 gap-4">
+                            <div>
+                                <label className="block text-xs font-bold text-gray-500 mb-1">نسبة الضريبة (%)</label>
+                                <input type="number" min="0" max="100" step="0.5" className="w-full p-2 border rounded font-bold" value={currentInvoice.taxRate ?? 15} onChange={e => setCurrentInvoice({...currentInvoice, taxRate: parseFloat(e.target.value) || 0})} placeholder="15" />
+                            </div>
                             <div>
                                 <label className="block text-xs font-bold text-gray-500 mb-1">حالة الدفع</label>
                                 <select className="w-full p-2 border rounded font-bold" value={currentInvoice.status || 'pending'} onChange={e => setCurrentInvoice({...currentInvoice, status: e.target.value as any})}>

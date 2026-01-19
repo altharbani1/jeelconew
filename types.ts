@@ -185,6 +185,7 @@ export interface PurchaseInvoice {
   date: string;
   items: QuoteItem[]; // Reuse QuoteItem structure
   totalAmount: number;
+  taxRate?: number; // Tax rate percentage (e.g., 15 for 15%)
   taxAmount: number;
   grandTotal: number;
   status: 'paid' | 'pending' | 'partial';
