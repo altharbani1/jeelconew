@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { 
   ShoppingBag, Users, Package, FileText, Banknote, 
   Plus, Search, Edit, Trash2, Save, X, Filter, 
-  ArrowLeft, ArrowDown, ArrowUp, Calendar, Truck, Upload, ImageIcon, Paperclip, Download, Briefcase, Printer, MapPin, Phone, Mail, Globe, CreditCard
+  ArrowLeft, ArrowDown, ArrowUp, Calendar, Truck, Upload, ImageIcon, Paperclip, Download, Briefcase, Printer, MapPin, Phone, Mail, Globe, CreditCard, ClipboardList
 } from 'lucide-react';
 import { Supplier, SupplierProduct, PurchaseInvoice, SupplierPayment, QuoteItem, Attachment, Project, CompanyConfig } from '../types';
 
