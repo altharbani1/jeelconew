@@ -896,6 +896,8 @@ export const PurchaseModule: React.FC = () => {
       </div>
     );
   };
+
+  return (
     <div className="flex-1 bg-gray-100 p-8 overflow-auto h-full animate-fade-in">
         <div className="max-w-7xl mx-auto">
             <div className="flex justify-between items-center mb-8">
