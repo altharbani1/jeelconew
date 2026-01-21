@@ -644,10 +644,28 @@ export const PurchaseModule: React.FC = () => {
                     {inv.status === 'paid' ? 'مدفوعة' : 'مستحقة'}
                   </span>
                 </td>
-                <td className="p-4 text-center flex justify-center gap-2">
-                   <button onClick={() => setPrintingInvoice(inv)} className="p-2 text-gray-500 hover:bg-gray-100 rounded-full" title="طباعة"><Printer size={16}/></button>
-                   <button onClick={() => { setCurrentInvoice(inv); setShowInvoiceEditor(true); }} className="p-2 text-blue-500 hover:bg-blue-50 rounded-full"><Edit size={16}/></button>
-                   <button onClick={() => setInvoices(invoices.filter(i => i.id !== inv.id))} className="p-2 text-red-500 hover:bg-red-50 rounded-full"><Trash2 size={16}/></button>
+                <td className="p-4 text-center">
+                  <div className="flex justify-center gap-1">
+                    <button 
+                      onClick={() => {
+                        setCurrentPayment({
+                          supplierId: inv.supplierId,
+                          amount: inv.grandTotal,
+                          date: new Date().toISOString().split('T')[0],
+                          method: 'transfer',
+                          notes: `دفعة لفاتورة رقم ${inv.number}`
+                        });
+                        setShowPaymentModal(true);
+                      }} 
+                      className="p-2 text-green-600 hover:bg-green-50 rounded-full" 
+                      title="دفعة سريعة"
+                    >
+                      <Banknote size={16}/>
+                    </button>
+                    <button onClick={() => setPrintingInvoice(inv)} className="p-2 text-gray-500 hover:bg-gray-100 rounded-full" title="طباعة"><Printer size={16}/></button>
+                    <button onClick={() => { setCurrentInvoice(inv); setShowInvoiceEditor(true); }} className="p-2 text-blue-500 hover:bg-blue-50 rounded-full" title="تعديل"><Edit size={16}/></button>
+                    <button onClick={() => setInvoices(invoices.filter(i => i.id !== inv.id))} className="p-2 text-red-500 hover:bg-red-50 rounded-full" title="حذف"><Trash2 size={16}/></button>
+                  </div>
                 </td>
               </tr>
             ))}
