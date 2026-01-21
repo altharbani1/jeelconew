@@ -170,6 +170,8 @@ export const PurchaseModule: React.FC = () => {
   const handleSaveInvoice = () => {
     // التحقق من البيانات المطلوبة
     if (!currentInvoice.supplierId) return alert('اختر المورد من فضلك');
+    if (!currentInvoice.number || currentInvoice.number.trim() === '') return alert('أدخل رقم الفاتورة من فضلك');
+    if (!currentInvoice.date) return alert('اختر تاريخ الفاتورة من فضلك');
     if (!currentInvoice.items || currentInvoice.items.length === 0) return alert('أضف منتجات واحد على الأقل');
     
     const subtotal = currentInvoice.items.reduce((s, i) => s + i.total, 0);
@@ -182,6 +184,9 @@ export const PurchaseModule: React.FC = () => {
     const invoiceData: PurchaseInvoice = {
       ...currentInvoice as PurchaseInvoice,
       id: currentInvoice.id || Date.now().toString(),
+      number: currentInvoice.number,
+      date: currentInvoice.date,
+      supplierId: currentInvoice.supplierId,
       totalAmount: subtotal,
       taxRate: taxRate,
       taxAmount: tax,
@@ -189,6 +194,7 @@ export const PurchaseModule: React.FC = () => {
       status: currentInvoice.status || 'pending',
       paymentType: currentInvoice.paymentType || 'credit',
       attachments: currentInvoice.attachments || [],
+      projectId: currentInvoice.projectId,
       projectName: proj ? proj.name : undefined
     };
 
@@ -597,7 +603,9 @@ export const PurchaseModule: React.FC = () => {
         </div>
         <button 
           onClick={() => { 
+            const invoiceNumber = `PI-${Date.now().toString().slice(-8)}`;
             setCurrentInvoice({ 
+              number: invoiceNumber,
               date: new Date().toISOString().split('T')[0], 
               items: [],
               status: 'pending',
