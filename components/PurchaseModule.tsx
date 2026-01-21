@@ -60,6 +60,10 @@ export const PurchaseModule: React.FC = () => {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [currentPayment, setCurrentPayment] = useState<Partial<SupplierPayment>>({ method: 'transfer', date: new Date().toISOString().split('T')[0] });
 
+  // Quick Add Product Modal (from Invoice Editor)
+  const [showQuickProductModal, setShowQuickProductModal] = useState(false);
+  const [quickProduct, setQuickProduct] = useState<Partial<SupplierProduct>>({});
+
   // Print State
   const [printingInvoice, setPrintingInvoice] = useState<PurchaseInvoice | null>(null);
   const [printingPayment, setPrintingPayment] = useState<SupplierPayment | null>(null);
@@ -134,6 +138,32 @@ export const PurchaseModule: React.FC = () => {
     }
     setShowProductModal(false);
     setCurrentProduct({});
+  };
+
+  // Quick Add Product (from Invoice)
+  const handleSaveQuickProduct = () => {
+    if (!quickProduct.name || !quickProduct.purchasePrice) {
+      alert('يجب ملء اسم المنتج والسعر على الأقل');
+      return;
+    }
+    
+    const newProd: SupplierProduct = { 
+      ...quickProduct as SupplierProduct, 
+      id: Date.now().toString(),
+      supplierId: currentInvoice.supplierId || '',
+      unit: quickProduct.unit || 'قطعة'
+    };
+    
+    setProducts([...products, newProd]);
+    
+    // Auto-fill the invoice item with the new product
+    (document.getElementById('newItemDesc') as HTMLSelectElement).value = newProd.name;
+    (document.getElementById('newItemPrice') as HTMLInputElement).value = newProd.purchasePrice.toString();
+    
+    setShowQuickProductModal(false);
+    setQuickProduct({});
+    
+    alert('تم إضافة المنتج بنجاح! يمكنك الآن اختياره من القائمة');
   };
 
   // Invoices
@@ -1022,10 +1052,26 @@ export const PurchaseModule: React.FC = () => {
                                 
                                 {/* Quick Add Item Row */}
                                 <div className="flex gap-2 items-center mt-2 pt-2 border-t border-gray-200">
-                                    <select id="newItemDesc" className="flex-1 p-2 border rounded font-bold text-sm focus:ring-2 focus:ring-jilco-500 outline-none">
-                                        <option value="">-- اختر منتج --</option>
-                                        {products.map(p => <option key={p.id} value={p.name}>{p.name} (سعر: {p.purchasePrice})</option>)}
-                                    </select>
+                                    <div className="flex-1 flex gap-1">
+                                        <select id="newItemDesc" className="flex-1 p-2 border rounded font-bold text-sm focus:ring-2 focus:ring-jilco-500 outline-none">
+                                            <option value="">-- اختر منتج --</option>
+                                            {products.filter(p => !currentInvoice.supplierId || p.supplierId === currentInvoice.supplierId || p.supplierId === '').map(p => <option key={p.id} value={p.name}>{p.name} (سعر: {p.purchasePrice})</option>)}
+                                        </select>
+                                        <button
+                                            onClick={() => {
+                                                if (!currentInvoice.supplierId) {
+                                                    alert('اختر المورد أولاً');
+                                                    return;
+                                                }
+                                                setQuickProduct({ supplierId: currentInvoice.supplierId });
+                                                setShowQuickProductModal(true);
+                                            }}
+                                            className="bg-green-600 text-white p-2 rounded hover:bg-green-700 transition-colors font-bold shrink-0"
+                                            title="إضافة منتج جديد"
+                                        >
+                                            <Plus size={16}/>
+                                        </button>
+                                    </div>
                                     <input id="newItemQty" type="number" className="w-20 p-2 border rounded font-bold text-sm text-center" placeholder="العدد" min="1" step="0.5" />
                                     <input id="newItemPrice" type="number" className="w-24 p-2 border rounded font-bold text-sm text-center" placeholder="السعر" min="0" step="0.5" />
                                     <button 
@@ -1144,6 +1190,78 @@ export const PurchaseModule: React.FC = () => {
                     <div className="flex justify-end gap-2 mt-6">
                         <button onClick={() => setShowPaymentModal(false)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded font-bold">إلغاء</button>
                         <button onClick={handleSavePayment} className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 font-bold">حفظ الدفعة</button>
+                    </div>
+                </div>
+            </div>
+        )}
+
+        {/* Quick Add Product Modal (from Invoice Editor) */}
+        {showQuickProductModal && (
+            <div className="fixed inset-0 bg-black/50 z-[60] flex items-center justify-center p-4">
+                <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6 border-4 border-green-500">
+                    <div className="flex items-center gap-2 mb-4">
+                        <div className="bg-green-100 p-2 rounded-lg">
+                            <Plus size={20} className="text-green-600"/>
+                        </div>
+                        <h3 className="font-bold text-lg text-gray-900">إضافة منتج جديد سريع</h3>
+                    </div>
+                    <div className="space-y-3">
+                        <div>
+                            <label className="block text-xs font-bold text-gray-600 mb-1">اسم المنتج *</label>
+                            <input 
+                                type="text" 
+                                className="w-full p-2 border-2 border-gray-300 rounded-lg font-bold focus:border-green-500 focus:ring-2 focus:ring-green-200 outline-none" 
+                                placeholder="مثال: كابل كهرباء 3x2.5" 
+                                value={quickProduct.name || ''} 
+                                onChange={e => setQuickProduct({...quickProduct, name: e.target.value})} 
+                                autoFocus
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-gray-600 mb-1">سعر الشراء *</label>
+                            <input 
+                                type="number" 
+                                className="w-full p-2 border-2 border-gray-300 rounded-lg font-bold focus:border-green-500 focus:ring-2 focus:ring-green-200 outline-none" 
+                                placeholder="0.00" 
+                                value={quickProduct.purchasePrice || ''} 
+                                onChange={e => setQuickProduct({...quickProduct, purchasePrice: parseFloat(e.target.value)})} 
+                                step="0.01"
+                                min="0"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold text-gray-600 mb-1">الوحدة</label>
+                            <input 
+                                type="text" 
+                                className="w-full p-2 border-2 border-gray-300 rounded-lg font-bold focus:border-green-500 focus:ring-2 focus:ring-green-200 outline-none" 
+                                placeholder="قطعة، متر، كرتون..." 
+                                value={quickProduct.unit || ''} 
+                                onChange={e => setQuickProduct({...quickProduct, unit: e.target.value})} 
+                            />
+                        </div>
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                            <p className="text-xs text-blue-700 font-bold">
+                                💡 المنتج سيتم إضافته مباشرة وربطه بالمورد المختار في الفاتورة
+                            </p>
+                        </div>
+                    </div>
+                    <div className="flex justify-end gap-2 mt-6">
+                        <button 
+                            onClick={() => {
+                                setShowQuickProductModal(false);
+                                setQuickProduct({});
+                            }} 
+                            className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg font-bold transition-colors"
+                        >
+                            إلغاء
+                        </button>
+                        <button 
+                            onClick={handleSaveQuickProduct} 
+                            className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-bold flex items-center gap-2 transition-colors shadow-lg"
+                        >
+                            <Plus size={18}/>
+                            حفظ وإضافة
+                        </button>
                     </div>
                 </div>
             </div>
