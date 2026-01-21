@@ -1059,11 +1059,7 @@ export const PurchaseModule: React.FC = () => {
                                         </select>
                                         <button
                                             onClick={() => {
-                                                if (!currentInvoice.supplierId) {
-                                                    alert('اختر المورد أولاً');
-                                                    return;
-                                                }
-                                                setQuickProduct({ supplierId: currentInvoice.supplierId });
+                                                setQuickProduct({ supplierId: currentInvoice.supplierId || '' });
                                                 setShowQuickProductModal(true);
                                             }}
                                             className="bg-green-600 text-white p-2 rounded hover:bg-green-700 transition-colors font-bold shrink-0"
@@ -1207,6 +1203,17 @@ export const PurchaseModule: React.FC = () => {
                     </div>
                     <div className="space-y-3">
                         <div>
+                            <label className="block text-xs font-bold text-gray-600 mb-1">المورد (اختياري)</label>
+                            <select 
+                                className="w-full p-2 border-2 border-gray-300 rounded-lg font-bold focus:border-green-500 focus:ring-2 focus:ring-green-200 outline-none"
+                                value={quickProduct.supplierId || ''} 
+                                onChange={e => setQuickProduct({...quickProduct, supplierId: e.target.value})}
+                            >
+                                <option value="">-- بدون مورد محدد (متاح من عدة موردين) --</option>
+                                {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+                            </select>
+                        </div>
+                        <div>
                             <label className="block text-xs font-bold text-gray-600 mb-1">اسم المنتج *</label>
                             <input 
                                 type="text" 
@@ -1241,7 +1248,7 @@ export const PurchaseModule: React.FC = () => {
                         </div>
                         <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
                             <p className="text-xs text-blue-700 font-bold">
-                                💡 المنتج سيتم إضافته مباشرة وربطه بالمورد المختار في الفاتورة
+                                💡 يمكنك ربط المنتج بمورد محدد أو تركه عام (متاح من عدة موردين)
                             </p>
                         </div>
                     </div>
