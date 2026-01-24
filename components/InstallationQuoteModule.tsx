@@ -568,7 +568,7 @@ export const InstallationQuoteModule: React.FC = () => {
               {/* Left Column - Terms & Conditions */}
               <div>
                 <h2 className="text-sm font-bold text-jilco-900 mb-2 bg-jilco-100 p-2 rounded">الشروط والأحكام</h2>
-                <div className="text-[9px] leading-relaxed text-gray-700 space-y-1">
+                <div className="text-[9px] leading-relaxed text-gray-900 font-bold space-y-1">
                   <p>• مدة صلاحية هذا العرض (15) يوماً من تاريخه.</p>
                   <p>• جميع الأسعار شاملة ضريبة القيمة المضافة.</p>
                   <p>• يتم التسليم حسب جدول الدفعات المتفق عليه.</p>
@@ -602,11 +602,11 @@ export const InstallationQuoteModule: React.FC = () => {
                           <div className="space-y-0.5 text-[9px]">
                             <div>
                               <span className="text-gray-500">رقم الحساب: </span>
-                              <span className="font-mono font-bold" dir="ltr">{account.accountNumber}</span>
+                              <span className="font-mono font-black text-gray-900" dir="ltr">{account.accountNumber}</span>
                             </div>
                             <div>
                               <span className="text-gray-500">IBAN: </span>
-                              <span className="font-mono font-bold" dir="ltr">{account.iban}</span>
+                              <span className="font-mono font-black text-gray-900" dir="ltr">{account.iban}</span>
                             </div>
                           </div>
                         </div>
