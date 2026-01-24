@@ -563,7 +563,7 @@ export const InstallationQuoteModule: React.FC = () => {
             )}
 
             {/* Bottom Section - Notes, Bank Accounts & Terms */}
-            <div className="grid grid-cols-2 gap-4 mt-auto">
+            <div className="grid grid-cols-2 gap-4 mt-3">
               
               {/* Left Column - Terms & Conditions */}
               <div>
@@ -623,8 +623,8 @@ export const InstallationQuoteModule: React.FC = () => {
             <footer className="w-full bg-white shrink-0 mt-auto relative">
               {/* Company Stamp in corner */}
               {stamp && (
-                <div className="absolute left-10 -top-12 z-10">
-                  <img src={stamp} alt="Company Stamp" className="w-24 h-24 object-contain opacity-70" />
+                <div className="absolute left-10 -top-16 z-10">
+                  <img src={stamp} alt="Company Stamp" className="w-32 h-32 object-contain opacity-70" />
                 </div>
               )}
               <div className="bg-jilco-900 text-white py-3 px-10 flex justify-between items-center text-[10px] font-bold h-[45px]">
