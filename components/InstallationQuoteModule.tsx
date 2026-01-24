@@ -458,76 +458,80 @@ export const InstallationQuoteModule: React.FC = () => {
               </div>
 
             {/* Content Area */}
-            <div className="px-10 py-6 flex-1 flex flex-col">
+            <div className="px-10 py-4 flex-1 flex flex-col">
               
-              {/* Quote Info */}
-              <div className="grid grid-cols-2 gap-6 mb-8 bg-gray-50/80 p-5 rounded-xl border border-gray-100">
+              {/* Quote Info - Compact */}
+              <div className="grid grid-cols-4 gap-3 mb-5 bg-gray-50/80 p-3 rounded-lg border border-gray-100 text-sm">
               <div>
-                <p className="text-sm text-gray-500 mb-1">رقم العرض</p>
-                <p className="font-bold text-lg text-jilco-900">{quoteNumber}</p>
+                <p className="text-[10px] text-gray-500 mb-0.5">رقم العرض</p>
+                <p className="font-bold text-sm text-jilco-900">{quoteNumber}</p>
               </div>
               <div>
-                <p className="text-sm text-gray-500 mb-1">التاريخ</p>
-                <p className="font-bold text-lg">{date}</p>
+                <p className="text-[10px] text-gray-500 mb-0.5">التاريخ</p>
+                <p className="font-bold text-sm">{date}</p>
               </div>
               <div>
-                <p className="text-sm text-gray-500 mb-1">العميل</p>
-                <p className="font-bold text-lg">{customerName}</p>
+                <p className="text-[10px] text-gray-500 mb-0.5">العميل</p>
+                <p className="font-bold text-sm">{customerName}</p>
               </div>
               <div>
-                <p className="text-sm text-gray-500 mb-1">المشروع</p>
-                <p className="font-bold text-lg">{projectName || '-'}</p>
+                <p className="text-[10px] text-gray-500 mb-0.5">المشروع</p>
+                <p className="font-bold text-sm">{projectName || '-'}</p>
               </div>
-              {customerAddress && (
-                <div className="col-span-2">
-                  <p className="text-sm text-gray-500 mb-1">العنوان</p>
-                  <p className="text-gray-700">{customerAddress}</p>
-                </div>
-              )}
-              {customerPhone && (
-                <div>
-                  <p className="text-sm text-gray-500 mb-1">الهاتف</p>
-                  <p className="text-gray-700" dir="ltr">{customerPhone}</p>
+              {(customerAddress || customerPhone) && (
+                <div className="col-span-4 pt-2 border-t border-gray-200 grid grid-cols-2 gap-2">
+                  {customerAddress && (
+                    <div>
+                      <p className="text-[10px] text-gray-500 mb-0.5">العنوان</p>
+                      <p className="text-xs text-gray-700">{customerAddress}</p>
+                    </div>
+                  )}
+                  {customerPhone && (
+                    <div>
+                      <p className="text-[10px] text-gray-500 mb-0.5">الهاتف</p>
+                      <p className="text-xs text-gray-700" dir="ltr">{customerPhone}</p>
+                    </div>
+                  )}
                 </div>
               )}
             </div>
 
             {/* Items Table */}
-            <div className="mb-8">
-              <h2 className="text-xl font-bold text-jilco-900 mb-4">البنود</h2>
-              <table className="w-full border border-gray-300">
+            <div className="mb-4">
+              <h2 className="text-base font-bold text-jilco-900 mb-2">البنود</h2>
+              <table className="w-full border border-gray-300 text-xs">
                 <thead className="bg-jilco-50">
                   <tr>
-                    <th className="border border-gray-300 p-3 text-right w-12">#</th>
-                    <th className="border border-gray-300 p-3 text-right">الوصف</th>
-                    <th className="border border-gray-300 p-3 text-center w-24">الكمية</th>
-                    <th className="border border-gray-300 p-3 text-center w-32">السعر</th>
-                    <th className="border border-gray-300 p-3 text-center w-32">الإجمالي</th>
+                    <th className="border border-gray-300 p-1.5 text-right w-8">#</th>
+                    <th className="border border-gray-300 p-1.5 text-right">الوصف</th>
+                    <th className="border border-gray-300 p-1.5 text-center w-16">الكمية</th>
+                    <th className="border border-gray-300 p-1.5 text-center w-24">السعر</th>
+                    <th className="border border-gray-300 p-1.5 text-center w-24">الإجمالي</th>
                   </tr>
                 </thead>
                 <tbody>
                   {items.map((item, index) => (
                     <tr key={item.id}>
-                      <td className="border border-gray-300 p-3 text-center">{index + 1}</td>
-                      <td className="border border-gray-300 p-3">{item.description}</td>
-                      <td className="border border-gray-300 p-3 text-center">{item.quantity}</td>
-                      <td className="border border-gray-300 p-3 text-center">{item.unitPrice.toLocaleString('ar-SA')}</td>
-                      <td className="border border-gray-300 p-3 text-center font-bold">{item.total.toLocaleString('ar-SA')}</td>
+                      <td className="border border-gray-300 p-1.5 text-center">{index + 1}</td>
+                      <td className="border border-gray-300 p-1.5">{item.description}</td>
+                      <td className="border border-gray-300 p-1.5 text-center">{item.quantity}</td>
+                      <td className="border border-gray-300 p-1.5 text-center">{item.unitPrice.toLocaleString('ar-SA')}</td>
+                      <td className="border border-gray-300 p-1.5 text-center font-bold">{item.total.toLocaleString('ar-SA')}</td>
                     </tr>
                   ))}
                 </tbody>
                 <tfoot>
                   <tr>
-                    <td colSpan={4} className="border border-gray-300 p-3 text-left font-bold">المجموع الفرعي</td>
-                    <td className="border border-gray-300 p-3 text-center font-bold">{subtotal.toLocaleString('ar-SA')} ريال</td>
+                    <td colSpan={4} className="border border-gray-300 p-1.5 text-left font-bold">المجموع الفرعي</td>
+                    <td className="border border-gray-300 p-1.5 text-center font-bold">{subtotal.toLocaleString('ar-SA')} ريال</td>
                   </tr>
                   <tr>
-                    <td colSpan={4} className="border border-gray-300 p-3 text-left font-bold">ضريبة القيمة المضافة ({taxRate}%)</td>
-                    <td className="border border-gray-300 p-3 text-center font-bold">{taxAmount.toLocaleString('ar-SA')} ريال</td>
+                    <td colSpan={4} className="border border-gray-300 p-1.5 text-left font-bold">ضريبة القيمة المضافة ({taxRate}%)</td>
+                    <td className="border border-gray-300 p-1.5 text-center font-bold">{taxAmount.toLocaleString('ar-SA')} ريال</td>
                   </tr>
                   <tr className="bg-jilco-100">
-                    <td colSpan={4} className="border border-gray-300 p-3 text-left font-bold text-lg">الإجمالي النهائي</td>
-                    <td className="border border-gray-300 p-3 text-center font-bold text-lg text-jilco-900">{total.toLocaleString('ar-SA')} ريال</td>
+                    <td colSpan={4} className="border border-gray-300 p-1.5 text-left font-bold">الإجمالي النهائي</td>
+                    <td className="border border-gray-300 p-1.5 text-center font-bold text-jilco-900">{total.toLocaleString('ar-SA')} ريال</td>
                   </tr>
                 </tfoot>
               </table>
@@ -535,22 +539,22 @@ export const InstallationQuoteModule: React.FC = () => {
 
             {/* Payment Schedule */}
             {paymentSchedule.length > 0 && (
-              <div className="mb-8">
-                <h2 className="text-xl font-bold text-jilco-900 mb-4">جدول الدفعات</h2>
-                <table className="w-full border border-gray-300">
+              <div className="mb-4">
+                <h2 className="text-base font-bold text-jilco-900 mb-2">جدول الدفعات</h2>
+                <table className="w-full border border-gray-300 text-xs">
                   <thead className="bg-jilco-50">
                     <tr>
-                      <th className="border border-gray-300 p-3 text-right">الدفعة</th>
-                      <th className="border border-gray-300 p-3 text-center w-32">النسبة</th>
-                      <th className="border border-gray-300 p-3 text-center w-32">المبلغ</th>
+                      <th className="border border-gray-300 p-1.5 text-right">الدفعة</th>
+                      <th className="border border-gray-300 p-1.5 text-center w-20">النسبة</th>
+                      <th className="border border-gray-300 p-1.5 text-center w-24">المبلغ</th>
                     </tr>
                   </thead>
                   <tbody>
                     {scheduleWithAmounts.map((payment, index) => (
                       <tr key={payment.id}>
-                        <td className="border border-gray-300 p-3">{payment.name}</td>
-                        <td className="border border-gray-300 p-3 text-center">{payment.percentage}%</td>
-                        <td className="border border-gray-300 p-3 text-center font-bold">{payment.amount?.toLocaleString('ar-SA')} ريال</td>
+                        <td className="border border-gray-300 p-1.5">{payment.name}</td>
+                        <td className="border border-gray-300 p-1.5 text-center">{payment.percentage}%</td>
+                        <td className="border border-gray-300 p-1.5 text-center font-bold">{payment.amount?.toLocaleString('ar-SA')} ريال</td>
                       </tr>
                     ))}
                   </tbody>
@@ -558,51 +562,71 @@ export const InstallationQuoteModule: React.FC = () => {
               </div>
             )}
 
-            {/* Notes */}
-            {notes && (
-              <div className="mb-8">
-                <h2 className="text-xl font-bold text-jilco-900 mb-4">ملاحظات</h2>
-                <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                  <p className="text-gray-700 whitespace-pre-wrap">{notes}</p>
+            {/* Bottom Section - Notes, Bank Accounts & Terms */}
+            <div className="grid grid-cols-2 gap-4 mt-auto">
+              
+              {/* Left Column - Terms & Conditions */}
+              <div>
+                <h2 className="text-sm font-bold text-jilco-900 mb-2 bg-jilco-100 p-2 rounded">الشروط والأحكام</h2>
+                <div className="text-[9px] leading-relaxed text-gray-700 space-y-1">
+                  <p>• مدة صلاحية هذا العرض (15) يوماً من تاريخه.</p>
+                  <p>• جميع الأسعار شاملة ضريبة القيمة المضافة.</p>
+                  <p>• يتم التسليم حسب جدول الدفعات المتفق عليه.</p>
+                  <p>• يتحمل العميل مسؤولية توفير الموقع الجاهز للتركيب.</p>
+                  <p>• لا يشمل العرض أعمال التشطيبات والدهانات.</p>
+                  <p>• يجب تأمين مكان آمن للمواد خلال فترة التركيب.</p>
+                  <p>• الضمان يبدأ من تاريخ التسليم النهائي.</p>
+                  <p>• أي تعديلات على العرض تتطلب موافقة كتابية.</p>
                 </div>
-              </div>
-            )}
 
-            {/* Bank Accounts */}
-            {bankAccounts.length > 0 && (
-              <div className="mb-8">
-                <h2 className="text-xl font-bold text-jilco-900 mb-4">الحسابات البنكية</h2>
-                <div className="space-y-3">
-                  {bankAccounts.map(account => (
-                    <div key={account.id} className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                      <p className="font-bold text-jilco-900 mb-2">{account.bankName}</p>
-                      <div className="grid grid-cols-2 gap-3 text-sm">
-                        <div>
-                          <span className="text-gray-500">رقم الحساب: </span>
-                          <span className="font-mono" dir="ltr">{account.accountNumber}</span>
-                        </div>
-                        <div>
-                          <span className="text-gray-500">IBAN: </span>
-                          <span className="font-mono" dir="ltr">{account.iban}</span>
-                        </div>
-                      </div>
+                {/* Notes if exists */}
+                {notes && (
+                  <div className="mt-3">
+                    <h3 className="text-sm font-bold text-jilco-900 mb-1">ملاحظات إضافية</h3>
+                    <div className="bg-gray-50 p-2 rounded text-[9px] text-gray-700">
+                      <p className="whitespace-pre-wrap">{notes}</p>
                     </div>
-                  ))}
-                </div>
+                  </div>
+                )}
               </div>
-            )}
+
+              {/* Right Column - Bank Accounts */}
+              <div>
+                {bankAccounts.length > 0 && (
+                  <div>
+                    <h2 className="text-sm font-bold text-jilco-900 mb-2 bg-jilco-100 p-2 rounded">الحسابات البنكية</h2>
+                    <div className="space-y-2">
+                      {bankAccounts.map(account => (
+                        <div key={account.id} className="bg-gray-50 p-2 rounded border border-gray-200">
+                          <p className="font-bold text-jilco-900 text-xs mb-1">{account.bankName}</p>
+                          <div className="space-y-0.5 text-[9px]">
+                            <div>
+                              <span className="text-gray-500">رقم الحساب: </span>
+                              <span className="font-mono font-bold" dir="ltr">{account.accountNumber}</span>
+                            </div>
+                            <div>
+                              <span className="text-gray-500">IBAN: </span>
+                              <span className="font-mono font-bold" dir="ltr">{account.iban}</span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
 
             </div>
 
-            {/* Company Stamp */}
-            {stamp && (
-              <div className="flex justify-center mt-8 mb-8">
-                <img src={stamp} alt="Company Stamp" className="max-w-xs opacity-80" />
-              </div>
-            )}
-
             {/* Company Footer */}
-            <footer className="w-full bg-white shrink-0 mt-auto">
+            <footer className="w-full bg-white shrink-0 mt-auto relative">
+              {/* Company Stamp in corner */}
+              {stamp && (
+                <div className="absolute left-10 -top-12 z-10">
+                  <img src={stamp} alt="Company Stamp" className="w-24 h-24 object-contain opacity-70" />
+                </div>
+              )}
               <div className="bg-jilco-900 text-white py-3 px-10 flex justify-between items-center text-[10px] font-bold h-[45px]">
                 <div className="flex items-center gap-2">
                   <MapPin size={12} className="text-gold-400"/>
