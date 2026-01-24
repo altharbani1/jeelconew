@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { LayoutDashboard, FileText, Receipt, ScrollText, Briefcase, Calculator, Settings, LogOut, Building, Database, Users, ShoppingBag, ShieldCheck, Scale, FileWarning, Wallet, UserCog, QrCode, Lock, ClipboardCheck, Languages, FolderOpen, Cloud, CloudRain, CloudOff, Wifi, CheckCircle2, Activity } from 'lucide-react';
+import { LayoutDashboard, FileText, Receipt, ScrollText, Briefcase, Calculator, Settings, LogOut, Building, Database, Users, ShoppingBag, ShieldCheck, Scale, FileWarning, Wallet, UserCog, QrCode, Lock, ClipboardCheck, Languages, FolderOpen, Cloud, CloudRain, CloudOff, Wifi, CheckCircle2, Activity, Wrench } from 'lucide-react';
 import { SystemView, Permission } from '../types';
 import { useAuth } from '../contexts/AuthContext.tsx';
 import { useLanguage } from '../contexts/LanguageContext.tsx';
@@ -19,6 +19,7 @@ export const SystemNav: React.FC<SystemNavProps> = ({ currentView, setView, sync
     { id: 'dashboard', label: t('dashboard'), icon: LayoutDashboard, permission: 'view_dashboard' },
     { id: 'customers', label: t('customers'), icon: Users, permission: 'view_customers' },
     { id: 'quotes', label: t('quotes'), icon: Calculator, permission: 'view_quotes' },
+    { id: 'installation_quotes', label: 'عروض تركيبات', icon: Wrench, permission: 'view_quotes' },
     { id: 'contracts', label: t('contracts'), icon: ScrollText, permission: 'view_contracts' },
     { id: 'projects', label: t('projects'), icon: Briefcase, permission: 'view_projects' },
     { id: 'invoices', label: t('invoices'), icon: FileText, permission: 'view_invoices' },

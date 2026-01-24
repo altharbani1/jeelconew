@@ -438,7 +438,7 @@ export enum AIRequestType {
   IMPROVE_TEXT = 'IMPROVE_TEXT'
 }
 
-export type SystemView = 'dashboard' | 'quotes' | 'invoices' | 'receipts' | 'contracts' | 'projects' | 'company_profile' | 'specs_manager' | 'customers' | 'purchases' | 'warranties' | 'calculator' | 'claims' | 'expenses' | 'hr' | 'smart_elevator' | 'users' | 'forms' | 'documents' | 'activity_log';
+export type SystemView = 'dashboard' | 'quotes' | 'installation_quotes' | 'invoices' | 'receipts' | 'contracts' | 'projects' | 'company_profile' | 'specs_manager' | 'customers' | 'purchases' | 'warranties' | 'calculator' | 'claims' | 'expenses' | 'hr' | 'smart_elevator' | 'users' | 'forms' | 'documents' | 'activity_log';
 
 // --- PERMISSIONS CONFIGURATION ---
 export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {

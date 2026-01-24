@@ -4,6 +4,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext.tsx';
 import { LanguageProvider } from './contexts/LanguageContext.tsx';
 import { SystemNav } from './components/SystemNav.tsx';
 import { QuoteModule } from './components/QuoteModule.tsx';
+import { InstallationQuoteModule } from './components/InstallationQuoteModule.tsx';
 import { Dashboard } from './components/Dashboard.tsx';
 import { ReceiptModule } from './components/ReceiptModule.tsx';
 import { InvoiceModule } from './components/InvoiceModule.tsx';
@@ -87,6 +88,7 @@ const MainApp: React.FC = () => {
         {currentView === 'customers' && <CustomerModule />}
         {currentView === 'calculator' && <CostCalculatorModule />}
         {currentView === 'quotes' && <QuoteModule />}
+        {currentView === 'installation_quotes' && <InstallationQuoteModule />}
         {currentView === 'invoices' && <InvoiceModule />}
         {currentView === 'claims' && <FinancialClaimModule />}
         {currentView === 'receipts' && <ReceiptModule />}
