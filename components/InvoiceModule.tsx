@@ -308,6 +308,7 @@ export const InvoiceModule: React.FC = () => {
                         <div className="w-1/3 text-right">
                             <h1 className="text-2xl font-black text-jilco-900 mb-0.5">{config.headerTitle}</h1>
                             <p className="text-[10px] font-bold text-gray-500 mb-3">{config.headerSubtitle}</p>
+                            {config.vatNumber && <p className="text-[9px] font-bold text-gray-600">رقم الضريبة: {config.vatNumber}</p>}
                         </div>
                         <div className="w-1/3 flex justify-center">
                             {config.logo && <img src={config.logo} alt="Logo" className="h-32 w-auto object-contain" />}
@@ -315,6 +316,7 @@ export const InvoiceModule: React.FC = () => {
                         <div className="w-1/3 text-left flex flex-col items-end" dir="ltr">
                             <h2 className="text-lg font-black text-jilco-900 tracking-tighter uppercase">Tax Invoice</h2>
                             <p className="text-[10px] text-gray-400 font-bold">فاتورة ضريبية</p>
+                            {config.vatNumber && <p className="text-[9px] font-bold text-gray-600 mt-1">VAT: {config.vatNumber}</p>}
                         </div>
                     </header>
 

@@ -305,9 +305,17 @@ export const ReceiptModule: React.FC = () => {
            <div className="absolute inset-[18px] border border-gold-500 pointer-events-none z-0"></div>
            <div className="relative z-10 flex flex-col flex-1 m-[28px] bg-white">
                <header className="px-10 py-6 border-b-2 border-jilco-100 flex justify-between items-center h-[160px] shrink-0">
-                    <div className="w-1/3 text-right"><h1 className="text-2xl font-black text-jilco-900 mb-0.5">{config.headerTitle}</h1><p className="text-[10px] font-bold text-gray-500">{config.headerSubtitle}</p></div>
+                    <div className="w-1/3 text-right">
+                        <h1 className="text-2xl font-black text-jilco-900 mb-0.5">{config.headerTitle}</h1>
+                        <p className="text-[10px] font-bold text-gray-500">{config.headerSubtitle}</p>
+                        {config.vatNumber && <p className="text-[9px] font-bold text-gray-600 mt-1">رقم الضريبة: {config.vatNumber}</p>}
+                    </div>
                     <div className="w-1/3 flex justify-center">{config.logo && <img src={config.logo} className="h-32 w-auto object-contain" />}</div>
-                    <div className="w-1/3 text-left flex flex-col items-end" dir="ltr"><h2 className="text-lg font-black text-jilco-900 tracking-tighter uppercase">Receipt Voucher</h2><p className="text-[10px] text-gray-400 font-bold">سند قبض</p></div>
+                    <div className="w-1/3 text-left flex flex-col items-end" dir="ltr">
+                        <h2 className="text-lg font-black text-jilco-900 tracking-tighter uppercase">Receipt Voucher</h2>
+                        <p className="text-[10px] text-gray-400 font-bold">سند قبض</p>
+                        {config.vatNumber && <p className="text-[9px] font-bold text-gray-600 mt-1">VAT: {config.vatNumber}</p>}
+                    </div>
                 </header>
                <div className="px-10 flex-1 flex flex-col relative py-8">
                    <div className="flex justify-between items-center mb-10">

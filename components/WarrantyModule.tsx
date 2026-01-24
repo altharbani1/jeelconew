@@ -331,6 +331,7 @@ export const WarrantyModule: React.FC = () => {
                         {config.logo && <img src={config.logo} alt="Logo" className="h-28 mx-auto mb-4 object-contain" />}
                         <h1 className="text-4xl font-black text-jilco-900 tracking-wider mb-2 font-serif">شهادة ضمان</h1>
                         <p className="text-gold-600 text-lg font-serif uppercase tracking-[0.3em]">Warranty Certificate</p>
+                        {config.vatNumber && <p className="text-gray-500 text-xs mt-2">رقم الضريبة: {config.vatNumber}</p>}
                     </div>
 
                     {/* Certificate Body */}

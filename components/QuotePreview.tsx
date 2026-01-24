@@ -18,7 +18,11 @@ const QuoteHeader: React.FC<{ config: CompanyConfig }> = ({ config }) => (
       <p className="text-[10px] font-bold text-gray-500 mb-3">{config.headerSubtitle || 'للمصاعد والسلالم الكهربائية'}</p>
       <div className="text-[9px] text-gray-400 font-bold border-r-2 border-gold-500 pr-2 leading-tight">
         <p>سجل تجاري: ١٠١٠٧٢٤٥٨٢</p>
-        <p>الرقم الضريبي: ٣١٠٢٤٥٦٧٨٩٠٠٠٠٣</p>
+        {config.vatNumber ? (
+          <p>الرقم الضريبي: {config.vatNumber}</p>
+        ) : (
+          <p>الرقم الضريبي: ٣١٠٢٤٥٦٧٨٩٠٠٠٠٣</p>
+        )}
       </div>
     </div>
     <div className="w-1/3 flex justify-center">

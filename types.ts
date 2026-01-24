@@ -72,6 +72,7 @@ export interface CompanyConfig {
   footerText: string;
   contactPhone: string;
   contactEmail: string;
+  vatNumber?: string; // رقم الضريبة / السجل التجاري
   bankAccounts: BankAccount[]; 
 }
 

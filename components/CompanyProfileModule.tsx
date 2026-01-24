@@ -384,6 +384,13 @@ export const CompanyProfileModule: React.FC = () => {
                                     <input type="email" value={config.contactEmail} onChange={e => setConfig({...config, contactEmail: e.target.value})} className="w-full pr-9 pl-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-jilco-500 outline-none text-sm text-black font-bold" dir="ltr" />
                                 </div>
                             </div>
+                            <div className="md:col-span-2">
+                                <label className="block text-xs font-bold text-gray-500 mb-1">رقم الضريبة / السجل التجاري</label>
+                                <div className="relative">
+                                    <CreditCard size={16} className="absolute right-3 top-3 text-gray-400"/>
+                                    <input type="text" value={config.vatNumber || ''} onChange={e => setConfig({...config, vatNumber: e.target.value})} placeholder="مثال: 300000000000003" className="w-full pr-9 pl-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-jilco-500 outline-none text-sm text-black font-bold" dir="ltr" />
+                                </div>
+                            </div>
                         </div>
                     </div>
 
