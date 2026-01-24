@@ -415,12 +415,12 @@ export const InstallationQuoteModule: React.FC = () => {
             {/* Content */}
             <div className="relative z-10 flex flex-col flex-1 m-[28px] bg-white" dir="rtl">
               
-              {/* Company Header */}
-              <header className="px-10 py-6 border-b-2 border-jilco-100 flex justify-between items-center bg-white h-[160px] relative overflow-hidden shrink-0">
+              {/* Company Header - Compact */}
+              <header className="px-8 py-3 border-b border-jilco-100 flex justify-between items-center bg-white h-[100px] relative overflow-hidden shrink-0">
                 <div className="w-1/3 text-right">
-                  <h1 className="text-2xl font-black text-jilco-900 mb-0.5">{config.headerTitle || 'جيلكو للمصاعد'}</h1>
-                  <p className="text-[10px] font-bold text-gray-500 mb-3">{config.headerSubtitle || 'للمصاعد والسلالم الكهربائية'}</p>
-                  <div className="text-[9px] text-gray-400 font-bold border-r-2 border-gold-500 pr-2 leading-tight">
+                  <h1 className="text-lg font-black text-jilco-900 mb-0">{config.headerTitle || 'جيلكو للمصاعد'}</h1>
+                  <p className="text-[8px] font-bold text-gray-500 mb-1">{config.headerSubtitle || 'للمصاعد والسلالم الكهربائية'}</p>
+                  <div className="text-[8px] text-gray-400 font-bold border-r border-gold-500 pr-1.5 leading-tight">
                     <p>سجل تجاري: ١٠١٠٧٢٤٥٨٢</p>
                     {config.vatNumber ? (
                       <p>الرقم الضريبي: {config.vatNumber}</p>
@@ -431,37 +431,37 @@ export const InstallationQuoteModule: React.FC = () => {
                 </div>
                 <div className="w-1/3 flex justify-center">
                   {config.logo ? (
-                    <img src={config.logo} alt="Logo" className="h-32 w-auto object-contain" />
+                    <img src={config.logo} alt="Logo" className="h-20 w-auto object-contain" />
                   ) : (
-                    <div className="h-24 w-24 bg-gray-50 border border-dashed border-gray-200 rounded-full flex items-center justify-center text-[8px] text-gray-300 uppercase">Logo</div>
+                    <div className="h-16 w-16 bg-gray-50 border border-dashed border-gray-200 rounded-full flex items-center justify-center text-[8px] text-gray-300 uppercase">Logo</div>
                   )}
                 </div>
                 <div className="w-1/3 text-left flex flex-col items-end" dir="ltr">
-                  <h2 className="text-lg font-black text-jilco-900 tracking-tighter">JILCO ELEVATORS</h2>
-                  <div className="mt-3 space-y-1">
-                    <div className="flex items-center gap-2 text-[10px] font-black text-gray-700 bg-gray-50 px-2 py-1 rounded-l-full border-r-2 border-jilco-600">
+                  <h2 className="text-sm font-black text-jilco-900 tracking-tighter">JILCO ELEVATORS</h2>
+                  <div className="mt-1.5 space-y-0.5">
+                    <div className="flex items-center gap-1.5 text-[8px] font-black text-gray-700 bg-gray-50 px-1.5 py-0.5 rounded-l-full border-r border-jilco-600">
                         <span>{config.contactPhone}</span>
-                        <Phone size={10} className="text-jilco-600"/>
+                        <Phone size={8} className="text-jilco-600"/>
                     </div>
-                    <div className="flex items-center gap-2 text-[10px] font-black text-gray-700 bg-gray-50 px-2 py-1 rounded-l-full border-r-2 border-gold-500">
+                    <div className="flex items-center gap-1.5 text-[8px] font-black text-gray-700 bg-gray-50 px-1.5 py-0.5 rounded-l-full border-r border-gold-500">
                         <span>{config.contactEmail}</span>
-                        <Mail size={10} className="text-gold-600"/>
+                        <Mail size={8} className="text-gold-600"/>
                     </div>
                   </div>
                 </div>
               </header>
 
-              {/* Title Section */}
-              <div className="text-center mb-6 mt-8">
-                <h2 className="text-xl font-black text-white bg-jilco-900 py-2.5 px-12 rounded-lg inline-block shadow-md border-b-4 border-gold-500 uppercase tracking-tighter">عرض سعر تركيب</h2>
-                <p className="text-xs text-gray-400 mt-2">INSTALLATION QUOTATION</p>
+              {/* Title Section - Compact */}
+              <div className="text-center mb-3 mt-3">
+                <h2 className="text-base font-black text-white bg-jilco-900 py-1.5 px-8 rounded-lg inline-block shadow-md border-b-2 border-gold-500 uppercase tracking-tighter">عرض سعر تركيب</h2>
+                <p className="text-[10px] text-gray-400 mt-1">INSTALLATION QUOTATION</p>
               </div>
 
             {/* Content Area */}
-            <div className="px-10 py-4 flex-1 flex flex-col">
+            <div className="px-8 py-2 flex-1 flex flex-col">
               
               {/* Quote Info - Compact */}
-              <div className="grid grid-cols-4 gap-3 mb-5 bg-gray-50/80 p-3 rounded-lg border border-gray-100 text-sm">
+              <div className="grid grid-cols-4 gap-2 mb-3 bg-gray-50/80 p-2 rounded-lg border border-gray-100 text-sm">
               <div>
                 <p className="text-[10px] text-gray-500 mb-0.5">رقم العرض</p>
                 <p className="font-bold text-sm text-jilco-900">{quoteNumber}</p>
