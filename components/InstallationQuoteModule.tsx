@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, Printer, Save, ArrowLeft, Upload, Image as ImageIcon } from 'lucide-react';
+import { Plus, Edit, Trash2, Printer, Save, ArrowLeft, Upload, Image as ImageIcon, Phone, Mail, MapPin, FileText } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext.tsx';
 import { loggerService } from '../services/loggerService.ts';
+import { CompanyConfig } from '../types.ts';
 
 interface InstallationItem {
   id: string;
@@ -73,6 +74,17 @@ export const InstallationQuoteModule: React.FC = () => {
   const [notes, setNotes] = useState('');
   const [stamp, setStamp] = useState<string | null>(null);
   const [bankAccounts, setBankAccounts] = useState<BankAccount[]>([]);
+  const [config, setConfig] = useState<CompanyConfig>({
+    logo: null,
+    stamp: null,
+    headerTitle: 'جيلكو للمصاعد',
+    headerSubtitle: 'JILCO ELEVATORS',
+    footerText: '',
+    contactPhone: '',
+    contactEmail: '',
+    bankAccounts: [],
+    vatNumber: ''
+  });
 
   // Item Form States
   const [newItemDesc, setNewItemDesc] = useState('');
@@ -84,12 +96,13 @@ export const InstallationQuoteModule: React.FC = () => {
   }, [savedQuotes]);
 
   useEffect(() => {
-    // Load company stamp and bank accounts from company config
+    // Load company config from localStorage
     const savedConfig = localStorage.getItem('jilco_quote_data');
     if (savedConfig) {
       try {
         const parsed = JSON.parse(savedConfig);
         if (parsed.config) {
+          setConfig(parsed.config);
           setStamp(parsed.config.stamp || null);
           setBankAccounts(parsed.config.bankAccounts || []);
         }
@@ -390,16 +403,65 @@ export const InstallationQuoteModule: React.FC = () => {
             </button>
           </div>
 
-          {/* Printable Content */}
-          <div className="bg-white rounded-xl shadow-lg p-12 print:shadow-none print:rounded-none" dir="rtl">
-            {/* Header */}
-            <div className="text-center border-b-2 border-jilco-600 pb-6 mb-8">
-              <h1 className="text-3xl font-black text-jilco-900 mb-2">عرض سعر تركيب</h1>
-              <p className="text-sm text-gray-500">INSTALLATION QUOTATION</p>
-            </div>
+          {/* Printable Content - A4 Page */}
+          <div id="printable-area">
+            <div className="a4-page bg-white shadow-2xl print:shadow-none mx-auto flex flex-col relative">
+            
+            {/* Royal Frame */}
+            <div className="absolute inset-3 border-[6px] border-jilco-900 pointer-events-none z-0"></div>
+            <div className="absolute inset-[18px] border border-gold-500 pointer-events-none z-0"></div>
+            <div className="absolute inset-[24px] border border-gray-100 pointer-events-none z-0"></div>
 
-            {/* Quote Info */}
-            <div className="grid grid-cols-2 gap-6 mb-8">
+            {/* Content */}
+            <div className="relative z-10 flex flex-col flex-1 m-[28px] bg-white" dir="rtl">
+              
+              {/* Company Header */}
+              <header className="px-10 py-6 border-b-2 border-jilco-100 flex justify-between items-center bg-white h-[160px] relative overflow-hidden shrink-0">
+                <div className="w-1/3 text-right">
+                  <h1 className="text-2xl font-black text-jilco-900 mb-0.5">{config.headerTitle || 'جيلكو للمصاعد'}</h1>
+                  <p className="text-[10px] font-bold text-gray-500 mb-3">{config.headerSubtitle || 'للمصاعد والسلالم الكهربائية'}</p>
+                  <div className="text-[9px] text-gray-400 font-bold border-r-2 border-gold-500 pr-2 leading-tight">
+                    <p>سجل تجاري: ١٠١٠٧٢٤٥٨٢</p>
+                    {config.vatNumber ? (
+                      <p>الرقم الضريبي: {config.vatNumber}</p>
+                    ) : (
+                      <p>الرقم الضريبي: ٣١٠٢٤٥٦٧٨٩٠٠٠٠٣</p>
+                    )}
+                  </div>
+                </div>
+                <div className="w-1/3 flex justify-center">
+                  {config.logo ? (
+                    <img src={config.logo} alt="Logo" className="h-32 w-auto object-contain" />
+                  ) : (
+                    <div className="h-24 w-24 bg-gray-50 border border-dashed border-gray-200 rounded-full flex items-center justify-center text-[8px] text-gray-300 uppercase">Logo</div>
+                  )}
+                </div>
+                <div className="w-1/3 text-left flex flex-col items-end" dir="ltr">
+                  <h2 className="text-lg font-black text-jilco-900 tracking-tighter">JILCO ELEVATORS</h2>
+                  <div className="mt-3 space-y-1">
+                    <div className="flex items-center gap-2 text-[10px] font-black text-gray-700 bg-gray-50 px-2 py-1 rounded-l-full border-r-2 border-jilco-600">
+                        <span>{config.contactPhone}</span>
+                        <Phone size={10} className="text-jilco-600"/>
+                    </div>
+                    <div className="flex items-center gap-2 text-[10px] font-black text-gray-700 bg-gray-50 px-2 py-1 rounded-l-full border-r-2 border-gold-500">
+                        <span>{config.contactEmail}</span>
+                        <Mail size={10} className="text-gold-600"/>
+                    </div>
+                  </div>
+                </div>
+              </header>
+
+              {/* Title Section */}
+              <div className="text-center mb-6 mt-8">
+                <h2 className="text-xl font-black text-white bg-jilco-900 py-2.5 px-12 rounded-lg inline-block shadow-md border-b-4 border-gold-500 uppercase tracking-tighter">عرض سعر تركيب</h2>
+                <p className="text-xs text-gray-400 mt-2">INSTALLATION QUOTATION</p>
+              </div>
+
+            {/* Content Area */}
+            <div className="px-10 py-6 flex-1 flex flex-col">
+              
+              {/* Quote Info */}
+              <div className="grid grid-cols-2 gap-6 mb-8 bg-gray-50/80 p-5 rounded-xl border border-gray-100">
               <div>
                 <p className="text-sm text-gray-500 mb-1">رقم العرض</p>
                 <p className="font-bold text-lg text-jilco-900">{quoteNumber}</p>
@@ -530,12 +592,31 @@ export const InstallationQuoteModule: React.FC = () => {
               </div>
             )}
 
+            </div>
+
             {/* Company Stamp */}
             {stamp && (
-              <div className="flex justify-center mt-12">
+              <div className="flex justify-center mt-8 mb-8">
                 <img src={stamp} alt="Company Stamp" className="max-w-xs opacity-80" />
               </div>
             )}
+
+            {/* Company Footer */}
+            <footer className="w-full bg-white shrink-0 mt-auto">
+              <div className="bg-jilco-900 text-white py-3 px-10 flex justify-between items-center text-[10px] font-bold h-[45px]">
+                <div className="flex items-center gap-2">
+                  <MapPin size={12} className="text-gold-400"/>
+                  <span>{config.footerText || 'المملكة العربية السعودية - الرياض'}</span>
+                </div>
+                <div className="flex items-center gap-2" dir="ltr">
+                  <FileText size={12} className="text-gold-400"/>
+                  <span>www.jilco-elevators.com</span>
+                </div>
+              </div>
+            </footer>
+
+            </div>
+          </div>
           </div>
         </div>
       </div>
