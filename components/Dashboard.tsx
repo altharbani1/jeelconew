@@ -54,7 +54,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ setView }) => {
         const totalRevenue = receipts.reduce((sum, r) => sum + (r.amount || 0), 0);
 
         // Calculate Total Expenses
-        const savedExpenses = localStorage.getItem('jilco_expenses');
+        const savedExpenses = localStorage.getItem('jilco_expenses_archive');
         const expenses: Expense[] = savedExpenses ? JSON.parse(savedExpenses) : [];
         const totalExpenses = expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
 
