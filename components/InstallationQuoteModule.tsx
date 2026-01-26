@@ -591,7 +591,7 @@ export const InstallationQuoteModule: React.FC = () => {
               </div>
 
               {/* Right Column - Bank Accounts */}
-              <div>
+              <div className="-mt-4">
                 {bankAccounts.length > 0 && (
                   <div>
                     <h2 className="text-sm font-bold text-jilco-900 mb-2 bg-jilco-100 p-2 rounded">الحسابات البنكية</h2>
@@ -623,8 +623,8 @@ export const InstallationQuoteModule: React.FC = () => {
             <footer className="w-full bg-white shrink-0 mt-auto relative">
               {/* Company Stamp in corner */}
               {stamp && (
-                <div className="absolute left-10 -top-16 z-10">
-                  <img src={stamp} alt="Company Stamp" className="w-32 h-32 object-contain opacity-70" />
+                <div className="absolute left-10 -top-20 z-10">
+                  <img src={stamp} alt="Company Stamp" className="w-40 h-40 object-contain opacity-70" />
                 </div>
               )}
               <div className="bg-jilco-900 text-white py-3 px-10 flex justify-between items-center text-[10px] font-bold h-[45px]">
