@@ -461,17 +461,18 @@ export const ContractModule: React.FC = () => {
                                     <p className="font-bold border-r-4 border-gold-500 pr-3 bg-gray-50 p-2 mt-6">جدول الدفعات:</p>
                                     <div className="grid grid-cols-2 gap-4">
                                         {currentContract.paymentTerms.map((t, i) => (
-                                            <div key={i} className="flex justify-between items-center p-2 border border-gray-100 rounded group">
+                                            <div key={i} className="flex justify-between items-center gap-2 p-2 border border-gray-100 rounded hover:border-green-200 hover:bg-green-50 transition-colors">
                                                 <div className="flex-1">
                                                     <span className="text-[10px] text-gray-500 block">{t.name}</span>
                                                     <span className="font-bold">{t.percentage}% - {((currentContract.totalValue * t.percentage)/100).toLocaleString()}</span>
                                                 </div>
                                                 <button 
                                                     onClick={() => handleGenerateInvoice({data: currentContract, specs: currentSpecs}, t, i)}
-                                                    className="opacity-0 group-hover:opacity-100 transition-opacity bg-green-600 text-white p-1.5 rounded hover:bg-green-700 print:hidden"
+                                                    className="bg-green-600 text-white p-2 rounded hover:bg-green-700 print:hidden transition-colors flex items-center gap-1 text-xs font-bold shrink-0"
                                                     title="إصدار فاتورة ضريبية"
                                                 >
-                                                    <Receipt size={14}/>
+                                                    <Receipt size={16}/>
+                                                    <span className="hidden sm:inline">فاتورة</span>
                                                 </button>
                                             </div>
                                         ))}
