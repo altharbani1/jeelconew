@@ -1,7 +1,7 @@
 
 import React, { useEffect, useState } from 'react';
-import { TrendingUp, Users, Briefcase, FileCheck, AlertCircle, Clock, CheckCircle2, Wallet, ArrowLeftRight, Settings, ShieldCheck, Calculator, ArrowRight, Building, Sparkles, Trash2, Edit, Cloud, Download } from 'lucide-react';
-import { InvoiceData, Project, QuoteDetails, SystemView, ProjectPhase, ReceiptData } from '../types';
+import { TrendingUp, Users, Briefcase, FileCheck, AlertCircle, Clock, CheckCircle2, Wallet, ArrowLeftRight, Settings, ShieldCheck, Calculator, ArrowRight, Building, Sparkles, Trash2, Edit, Cloud, Download, ShoppingBag, DollarSign, TrendingDown, CreditCard } from 'lucide-react';
+import { InvoiceData, Project, QuoteDetails, SystemView, ProjectPhase, ReceiptData, Expense, PurchaseInvoice } from '../types';
 import { useAuth } from '../contexts/AuthContext.tsx';
 import { cloudService } from '../services/cloudService.ts';
 
@@ -18,6 +18,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ setView }) => {
     quotesCount: 0,
     activeProjects: 0,
     totalRevenue: 0,
+    totalExpenses: 0,
+    totalPurchases: 0,
+    customersDue: 0,
     customersCount: 0,
     recentProjects: [] as Project[]
   });
@@ -45,11 +48,30 @@ export const Dashboard: React.FC<DashboardProps> = ({ setView }) => {
         const projects: Project[] = savedProjects ? JSON.parse(savedProjects) : [];
         const activeProjects = projects.filter(p => p?.status === 'in_progress' || p?.status === 'not_started').length;
 
-        // FIX: Calculate Revenue based on RECEIPTS (Actual Cash Flow), not Invoices
+        // Calculate Revenue based on RECEIPTS (Actual Cash Flow)
         const savedReceipts = localStorage.getItem('jilco_receipts_archive');
         const receipts: ReceiptData[] = savedReceipts ? JSON.parse(savedReceipts) : [];
-        
         const totalRevenue = receipts.reduce((sum, r) => sum + (r.amount || 0), 0);
+
+        // Calculate Total Expenses
+        const savedExpenses = localStorage.getItem('jilco_expenses');
+        const expenses: Expense[] = savedExpenses ? JSON.parse(savedExpenses) : [];
+        const totalExpenses = expenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+
+        // Calculate Total Purchases
+        const savedPurchases = localStorage.getItem('jilco_purchase_invoices');
+        const purchases: PurchaseInvoice[] = savedPurchases ? JSON.parse(savedPurchases) : [];
+        const totalPurchases = purchases.reduce((sum, p) => sum + (p.grandTotal || 0), 0);
+
+        // Calculate Customers Due (Invoices - Receipts)
+        const savedInvoices = localStorage.getItem('jilco_invoices_archive');
+        const invoices: InvoiceData[] = savedInvoices ? JSON.parse(savedInvoices) : [];
+        const totalInvoiced = invoices.reduce((sum, inv) => {
+            const subtotal = inv.items?.reduce((s, i) => s + (i.total || 0), 0) || 0;
+            const tax = subtotal * ((inv as any).taxRate || 15) / 100;
+            return sum + subtotal + tax;
+        }, 0);
+        const customersDue = totalInvoiced - totalRevenue;
 
         const savedCustomers = localStorage.getItem('jilco_customers');
         const customersCount = savedCustomers ? JSON.parse(savedCustomers).length : 0;
@@ -58,6 +80,9 @@ export const Dashboard: React.FC<DashboardProps> = ({ setView }) => {
           quotesCount,
           activeProjects,
           totalRevenue,
+          totalExpenses,
+          totalPurchases,
+          customersDue: customersDue > 0 ? customersDue : 0,
           customersCount,
           recentProjects: projects.slice(0, 5)
         });
@@ -65,7 +90,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ setView }) => {
     } catch (error) {
         console.error("Error loading dashboard stats:", error);
         setStats({
-            quotesCount: 0, activeProjects: 0, totalRevenue: 0, customersCount: 0, recentProjects: []
+            quotesCount: 0, activeProjects: 0, totalRevenue: 0, totalExpenses: 0, 
+            totalPurchases: 0, customersDue: 0, customersCount: 0, recentProjects: []
         });
     }
   };
@@ -193,38 +219,73 @@ export const Dashboard: React.FC<DashboardProps> = ({ setView }) => {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200 flex items-start justify-between hover:shadow-md transition-shadow group">
           <div>
-            <p className="text-sm text-gray-500 mb-1">إجمالي العروض</p>
-            <h3 className="text-3xl font-black text-jilco-900">{stats.quotesCount}</h3>
-            <p className="text-xs text-gray-400 mt-2">عرض سعر محفوظ</p>
-          </div>
-          <div className="p-4 bg-blue-50 rounded-2xl text-jilco-600 group-hover:bg-jilco-600 group-hover:text-white transition-all"><FileCheck size={24} /></div>
-        </div>
-
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200 flex items-start justify-between hover:shadow-md transition-shadow group">
-          <div>
-            <p className="text-sm text-gray-500 mb-1">المشاريع النشطة</p>
-            <h3 className="text-3xl font-black text-jilco-900">{stats.activeProjects}</h3>
-            <p className="text-xs text-amber-500 mt-2">قيد التنفيذ</p>
-          </div>
-          <div className="p-4 bg-amber-50 rounded-2xl text-amber-600 group-hover:bg-amber-600 group-hover:text-white transition-all"><Briefcase size={24} /></div>
-        </div>
-
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200 flex items-start justify-between hover:shadow-md transition-shadow group">
-          <div>
-            <p className="text-sm text-gray-500 mb-1">قاعدة العملاء</p>
-            <h3 className="text-3xl font-black text-jilco-900">{stats.customersCount}</h3>
-            <p className="text-xs text-green-500 flex items-center mt-2"><Users size={12} className="ml-1"/> عميل مسجل</p>
-          </div>
-          <div className="p-4 bg-purple-50 rounded-2xl text-purple-600 group-hover:bg-purple-600 group-hover:text-white transition-all"><Users size={24} /></div>
-        </div>
-
-        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200 flex items-start justify-between hover:shadow-md transition-shadow group">
-          <div>
             <p className="text-sm text-gray-500 mb-1">الإيرادات المحصلة</p>
             <h3 className="text-2xl font-black text-emerald-700">{stats.totalRevenue.toLocaleString()}</h3>
-            <p className="text-xs text-gray-400 mt-2">من سندات القبض</p>
+            <p className="text-xs text-gray-400 mt-2">ريال سعودي</p>
           </div>
           <div className="p-4 bg-emerald-50 rounded-2xl text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white transition-all"><Wallet size={24} /></div>
+        </div>
+
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200 flex items-start justify-between hover:shadow-md transition-shadow group">
+          <div>
+            <p className="text-sm text-gray-500 mb-1">إجمالي المصروفات</p>
+            <h3 className="text-2xl font-black text-red-700">{stats.totalExpenses.toLocaleString()}</h3>
+            <p className="text-xs text-gray-400 mt-2">ريال سعودي</p>
+          </div>
+          <div className="p-4 bg-red-50 rounded-2xl text-red-600 group-hover:bg-red-600 group-hover:text-white transition-all"><TrendingDown size={24} /></div>
+        </div>
+
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200 flex items-start justify-between hover:shadow-md transition-shadow group">
+          <div>
+            <p className="text-sm text-gray-500 mb-1">إجمالي المشتريات</p>
+            <h3 className="text-2xl font-black text-orange-700">{stats.totalPurchases.toLocaleString()}</h3>
+            <p className="text-xs text-gray-400 mt-2">ريال سعودي</p>
+          </div>
+          <div className="p-4 bg-orange-50 rounded-2xl text-orange-600 group-hover:bg-orange-600 group-hover:text-white transition-all"><ShoppingBag size={24} /></div>
+        </div>
+
+        <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-200 flex items-start justify-between hover:shadow-md transition-shadow group">
+          <div>
+            <p className="text-sm text-gray-500 mb-1">المتبقي لدى العملاء</p>
+            <h3 className="text-2xl font-black text-amber-700">{stats.customersDue.toLocaleString()}</h3>
+            <p className="text-xs text-gray-400 mt-2">ريال سعودي</p>
+          </div>
+          <div className="p-4 bg-amber-50 rounded-2xl text-amber-600 group-hover:bg-amber-600 group-hover:text-white transition-all"><CreditCard size={24} /></div>
+        </div>
+      </div>
+
+      {/* Financial Summary Card */}
+      <div className="mb-8 bg-gradient-to-br from-jilco-900 via-jilco-800 to-jilco-900 rounded-2xl p-6 text-white shadow-xl">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-bold text-lg flex items-center gap-2">
+            <DollarSign size={24} className="text-gold-400"/>
+            الملخص المالي السريع
+          </h3>
+          <span className="text-xs bg-white/10 px-3 py-1 rounded-full backdrop-blur-sm">تحديث فوري</span>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+          <div className="bg-white/10 backdrop-blur-sm p-4 rounded-xl border border-white/20">
+            <p className="text-xs text-blue-200 mb-1">الإيرادات</p>
+            <p className="text-xl font-black text-emerald-300">{stats.totalRevenue.toLocaleString()}</p>
+          </div>
+          <div className="bg-white/10 backdrop-blur-sm p-4 rounded-xl border border-white/20">
+            <p className="text-xs text-blue-200 mb-1">المصروفات</p>
+            <p className="text-xl font-black text-red-300">{stats.totalExpenses.toLocaleString()}</p>
+          </div>
+          <div className="bg-white/10 backdrop-blur-sm p-4 rounded-xl border border-white/20">
+            <p className="text-xs text-blue-200 mb-1">المشتريات</p>
+            <p className="text-xl font-black text-orange-300">{stats.totalPurchases.toLocaleString()}</p>
+          </div>
+          <div className="bg-white/10 backdrop-blur-sm p-4 rounded-xl border border-white/20">
+            <p className="text-xs text-blue-200 mb-1">مستحقات العملاء</p>
+            <p className="text-xl font-black text-amber-300">{stats.customersDue.toLocaleString()}</p>
+          </div>
+          <div className="bg-gradient-to-br from-gold-500 to-gold-600 p-4 rounded-xl border-2 border-gold-400 shadow-lg">
+            <p className="text-xs text-gold-900 mb-1 font-bold">الربح التشغيلي</p>
+            <p className="text-xl font-black text-white">
+              {(stats.totalRevenue - stats.totalExpenses - stats.totalPurchases).toLocaleString()}
+            </p>
+          </div>
         </div>
       </div>
 
