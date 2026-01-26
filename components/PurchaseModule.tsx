@@ -175,9 +175,12 @@ export const PurchaseModule: React.FC = () => {
     if (!currentInvoice.items || currentInvoice.items.length === 0) return alert('أضف منتجات واحد على الأقل');
     
     const subtotal = currentInvoice.items.reduce((s, i) => s + i.total, 0);
+    const discountRate = currentInvoice.discountRate ?? 0; // Default 0% discount
+    const discountAmount = subtotal * (discountRate / 100);
+    const afterDiscount = subtotal - discountAmount;
     const taxRate = currentInvoice.taxRate ?? 15; // Default 15% VAT if not specified
-    const tax = subtotal * (taxRate / 100);
-    const grandTotal = subtotal + tax;
+    const tax = afterDiscount * (taxRate / 100);
+    const grandTotal = afterDiscount + tax;
 
     const proj = projects.find(p => p.id === currentInvoice.projectId);
 
@@ -188,6 +191,8 @@ export const PurchaseModule: React.FC = () => {
       date: currentInvoice.date,
       supplierId: currentInvoice.supplierId,
       totalAmount: subtotal,
+      discountRate: discountRate,
+      discountAmount: discountAmount,
       taxRate: taxRate,
       taxAmount: tax,
       grandTotal: grandTotal,
@@ -458,6 +463,12 @@ export const PurchaseModule: React.FC = () => {
                                 <span className="font-bold text-gray-600">المجموع الفرعي</span>
                                 <span className="font-mono font-bold">{printingInvoice.totalAmount.toLocaleString()}</span>
                             </div>
+                            {printingInvoice.discountRate && printingInvoice.discountRate > 0 ? (
+                            <div className="flex justify-between py-2 border-b border-gray-200">
+                                <span className="font-bold text-green-600">الخصم ({printingInvoice.discountRate}%)</span>
+                                <span className="font-mono font-bold text-green-600">-{(printingInvoice.discountAmount || 0).toLocaleString()}</span>
+                            </div>
+                            ) : null}
                             <div className="flex justify-between py-2 border-b border-gray-200">
                                 <span className="font-bold text-gray-600">ضريبة القيمة المضافة ({printingInvoice.taxRate ?? 15}%)</span>
                                 <span className="font-mono font-bold text-red-600">{printingInvoice.taxAmount.toLocaleString()}</span>
@@ -1145,11 +1156,17 @@ export const PurchaseModule: React.FC = () => {
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-3 gap-4">
+                        <div className="grid grid-cols-2 gap-4 mb-4">
+                            <div>
+                                <label className="block text-xs font-bold text-gray-500 mb-1">نسبة الخصم (%)</label>
+                                <input type="number" min="0" max="100" step="0.5" className="w-full p-2 border rounded font-bold" value={currentInvoice.discountRate ?? 0} onChange={e => setCurrentInvoice({...currentInvoice, discountRate: parseFloat(e.target.value) || 0})} placeholder="0" />
+                            </div>
                             <div>
                                 <label className="block text-xs font-bold text-gray-500 mb-1">نسبة الضريبة (%)</label>
                                 <input type="number" min="0" max="100" step="0.5" className="w-full p-2 border rounded font-bold" value={currentInvoice.taxRate ?? 15} onChange={e => setCurrentInvoice({...currentInvoice, taxRate: parseFloat(e.target.value) || 0})} placeholder="15" />
                             </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
                             <div>
                                 <label className="block text-xs font-bold text-gray-500 mb-1">حالة الدفع</label>
                                 <select className="w-full p-2 border rounded font-bold" value={currentInvoice.status || 'pending'} onChange={e => setCurrentInvoice({...currentInvoice, status: e.target.value as any})}>
