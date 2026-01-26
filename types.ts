@@ -97,6 +97,9 @@ export interface InvoiceData {
   customerVatNumber: string;
   items: QuoteItem[];
   status: 'paid' | 'pending' | 'overdue';
+  contractId?: string; // ربط بالعقد
+  contractNumber?: string; // رقم العقد للعرض
+  paymentTermName?: string; // اسم الدفعة
 }
 
 export interface ContractData {

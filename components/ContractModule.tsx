@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
-import { Printer, FileSignature, Building, User, ShieldCheck, FileText, Phone, Mail, Globe, MapPin, AlertCircle, ClipboardList, ChevronDown, ArrowLeft, Plus, Search, Edit, Trash2, Save, Send, Import, X, DollarSign, Cpu, Settings, Zap } from 'lucide-react';
-import { ContractData, CompanyConfig, TechnicalSpecs, SpecsDatabase, Customer, QuoteItem, QuoteDetails } from '../types';
+import { Printer, FileSignature, Building, User, ShieldCheck, FileText, Phone, Mail, Globe, MapPin, AlertCircle, ClipboardList, ChevronDown, ArrowLeft, Plus, Search, Edit, Trash2, Save, Send, Import, X, DollarSign, Cpu, Settings, Zap, Receipt } from 'lucide-react';
+import { ContractData, CompanyConfig, TechnicalSpecs, SpecsDatabase, Customer, QuoteItem, QuoteDetails, InvoiceData } from '../types';
 
 // Interface for saved quotes structure in localStorage
 interface SavedQuote {
@@ -162,6 +162,43 @@ export const ContractModule: React.FC = () => {
         elevatorType: '', capacity: '', speed: '', stops: '', driveType: '', controlSystem: '', powerSupply: '', cabin: '', doors: '', machineRoom: '', rails: '', ropes: '', safety: '', emergency: ''
     });
     setViewMode('editor');
+  };
+
+  // Generate Invoice from Payment Term
+  const handleGenerateInvoice = (contract: {data: ContractData, specs: TechnicalSpecs}, paymentTerm: {name: string, percentage: number}, termIndex: number) => {
+    const paymentAmount = (contract.data.totalValue * paymentTerm.percentage) / 100;
+    const subtotal = paymentAmount / 1.15; // Remove VAT to get subtotal
+    const tax = paymentAmount - subtotal;
+
+    const invoiceItem: QuoteItem = {
+      id: Date.now().toString(),
+      description: `${paymentTerm.name} - عقد رقم ${contract.data.number}`,
+      details: `عقد توريد وتركيب ${contract.data.elevatorCount || 1} مصعد - ${contract.specs.elevatorType || 'مصعد'}`,
+      quantity: 1,
+      unitPrice: subtotal,
+      total: subtotal
+    };
+
+    const newInvoice: InvoiceData = {
+      number: `INV-${Date.now().toString().slice(-8)}`,
+      date: new Date().toISOString().split('T')[0],
+      dueDate: new Date(Date.now() + 30*24*60*60*1000).toISOString().split('T')[0], // 30 days
+      customerName: contract.data.secondPartyName,
+      customerVatNumber: contract.data.secondPartyId || '',
+      items: [invoiceItem],
+      status: 'pending',
+      contractId: contract.data.number,
+      contractNumber: contract.data.number,
+      paymentTermName: paymentTerm.name
+    };
+
+    // Save to localStorage
+    const savedInvoices = localStorage.getItem('jilco_invoices_archive');
+    const invoices: InvoiceData[] = savedInvoices ? JSON.parse(savedInvoices) : [];
+    invoices.unshift(newInvoice);
+    localStorage.setItem('jilco_invoices_archive', JSON.stringify(invoices));
+
+    alert(`✅ تم إصدار فاتورة ضريبية رقم ${newInvoice.number}\n\nالمبلغ: ${paymentAmount.toLocaleString()} ر.س (شامل الضريبة)\n\nيمكنك طباعتها من قسم الفواتير`);
   };
 
   const handleImportQuote = (quote: SavedQuote) => {
@@ -424,9 +461,18 @@ export const ContractModule: React.FC = () => {
                                     <p className="font-bold border-r-4 border-gold-500 pr-3 bg-gray-50 p-2 mt-6">جدول الدفعات:</p>
                                     <div className="grid grid-cols-2 gap-4">
                                         {currentContract.paymentTerms.map((t, i) => (
-                                            <div key={i} className="flex justify-between items-center p-2 border border-gray-100 rounded">
-                                                <span className="text-[10px] text-gray-500">{t.name}</span>
-                                                <span className="font-bold">{t.percentage}% - {((currentContract.totalValue * t.percentage)/100).toLocaleString()}</span>
+                                            <div key={i} className="flex justify-between items-center p-2 border border-gray-100 rounded group">
+                                                <div className="flex-1">
+                                                    <span className="text-[10px] text-gray-500 block">{t.name}</span>
+                                                    <span className="font-bold">{t.percentage}% - {((currentContract.totalValue * t.percentage)/100).toLocaleString()}</span>
+                                                </div>
+                                                <button 
+                                                    onClick={() => handleGenerateInvoice({data: currentContract, specs: currentSpecs}, t, i)}
+                                                    className="opacity-0 group-hover:opacity-100 transition-opacity bg-green-600 text-white p-1.5 rounded hover:bg-green-700 print:hidden"
+                                                    title="إصدار فاتورة ضريبية"
+                                                >
+                                                    <Receipt size={14}/>
+                                                </button>
                                             </div>
                                         ))}
                                     </div>
