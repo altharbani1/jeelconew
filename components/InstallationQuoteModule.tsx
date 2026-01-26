@@ -483,13 +483,13 @@ export const InstallationQuoteModule: React.FC = () => {
                   {customerAddress && (
                     <div>
                       <p className="text-[10px] text-gray-500 mb-0.5">العنوان</p>
-                      <p className="text-xs text-gray-700">{customerAddress}</p>
+                      <p className="text-xs font-bold text-gray-900">{customerAddress}</p>
                     </div>
                   )}
                   {customerPhone && (
                     <div>
                       <p className="text-[10px] text-gray-500 mb-0.5">الهاتف</p>
-                      <p className="text-xs text-gray-700" dir="ltr">{customerPhone}</p>
+                      <p className="text-xs font-bold text-gray-900" dir="ltr">{customerPhone}</p>
                     </div>
                   )}
                 </div>
@@ -615,7 +615,7 @@ export const InstallationQuoteModule: React.FC = () => {
                     {/* Company Stamp */}
                     {stamp && (
                       <div className="mt-3 flex justify-center">
-                        <img src={stamp} alt="Company Stamp" className="w-24 h-24 object-contain opacity-80" />
+                        <img src={stamp} alt="Company Stamp" className="w-27 h-27 object-contain opacity-80" />
                       </div>
                     )}
                   </div>
