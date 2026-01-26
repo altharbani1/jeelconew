@@ -623,8 +623,8 @@ export const InstallationQuoteModule: React.FC = () => {
             <footer className="w-full bg-white shrink-0 mt-auto relative">
               {/* Company Stamp in corner */}
               {stamp && (
-                <div className="absolute left-10 -top-20 z-10">
-                  <img src={stamp} alt="Company Stamp" className="w-40 h-40 object-contain opacity-70" />
+                <div className="absolute left-10 -top-28 z-10">
+                  <img src={stamp} alt="Company Stamp" className="w-54 h-54 object-contain opacity-70" />
                 </div>
               )}
               <div className="bg-jilco-900 text-white py-3 px-10 flex justify-between items-center text-[10px] font-bold h-[45px]">
