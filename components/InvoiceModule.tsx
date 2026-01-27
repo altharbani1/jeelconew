@@ -283,60 +283,41 @@ export const InvoiceModule: React.FC = () => {
                 </div>
 
                 {currentInvoice.items.length > 0 && (
-                    <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-sm">
-                                <thead className="bg-jilco-900 text-white">
-                                    <tr>
-                                        <th className="p-3 text-center w-12 border-l border-white/10">#</th>
-                                        <th className="p-3 text-right border-l border-white/10">البيان</th>
-                                        <th className="p-3 text-center w-20 border-l border-white/10">الكمية</th>
-                                        <th className="p-3 text-center w-28 border-l border-white/10">سعر الوحدة</th>
-                                        <th className="p-3 text-center w-28 border-l border-white/10">الإجمالي</th>
-                                        <th className="p-3 text-center w-12"></th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-gray-100">
-                                    {currentInvoice.items.map((item, idx) => (
-                                        <tr key={item.id} className="hover:bg-gray-50 group transition-colors">
-                                            <td className="p-3 text-center font-bold text-gray-500">{idx + 1}</td>
-                                            <td className="p-3">
-                                                <p className="font-bold text-gray-900">{item.description}</p>
-                                                {item.details && <p className="text-[10px] text-gray-400 mt-0.5">{item.details}</p>}
-                                            </td>
-                                            <td className="p-3 text-center font-bold text-gray-800">{item.quantity}</td>
-                                            <td className="p-3 text-center font-mono font-bold text-gray-800">{item.unitPrice.toLocaleString()}</td>
-                                            <td className="p-3 text-center font-mono font-black text-jilco-900">{item.total.toLocaleString()}</td>
-                                            <td className="p-3 text-center">
-                                                <button 
-                                                    onClick={() => setCurrentInvoice({...currentInvoice, items: currentInvoice.items.filter(i => i.id !== item.id)})} 
-                                                    className="text-red-400 hover:text-red-600 p-1.5 rounded-lg hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-all"
-                                                    title="حذف البند"
-                                                >
-                                                    <Trash2 size={16}/>
-                                                </button>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                                <tfoot className="bg-gray-50 border-t-2 border-gray-200">
-                                    <tr>
-                                        <td colSpan={4} className="p-3 text-left font-bold text-gray-700">المجموع قبل الضريبة:</td>
-                                        <td className="p-3 text-center font-mono font-black text-jilco-900">{subtotal.toLocaleString()}</td>
-                                        <td></td>
-                                    </tr>
-                                    <tr>
-                                        <td colSpan={4} className="p-3 text-left font-bold text-gray-700">ضريبة القيمة المضافة 15%:</td>
-                                        <td className="p-3 text-center font-mono font-black text-red-600">{tax.toLocaleString()}</td>
-                                        <td></td>
-                                    </tr>
-                                    <tr className="bg-jilco-900 text-white">
-                                        <td colSpan={4} className="p-3 text-left font-black uppercase">المجموع الإجمالي:</td>
-                                        <td className="p-3 text-center font-mono font-black text-xl">{grandTotal.toLocaleString()}</td>
-                                        <td></td>
-                                    </tr>
-                                </tfoot>
-                            </table>
+                    <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                        <div className="flex items-center justify-between mb-3">
+                            <h3 className="text-xs font-bold text-blue-900">البنود المضافة ({currentInvoice.items.length})</h3>
+                            <span className="text-[10px] font-bold text-blue-600">شاهد التفاصيل في الفاتورة ←</span>
+                        </div>
+                        <div className="space-y-2 max-h-40 overflow-y-auto">
+                            {currentInvoice.items.map((item, idx) => (
+                                <div key={item.id} className="bg-white p-2 rounded-lg border border-blue-100 flex justify-between items-center group hover:border-blue-300 transition-all">
+                                    <div className="flex-1">
+                                        <p className="text-xs font-bold text-gray-900">{idx + 1}. {item.description}</p>
+                                        <p className="text-[10px] text-gray-500 font-bold">{item.quantity} × {item.unitPrice.toLocaleString()} = {item.total.toLocaleString()} ريال</p>
+                                    </div>
+                                    <button 
+                                        onClick={() => setCurrentInvoice({...currentInvoice, items: currentInvoice.items.filter(i => i.id !== item.id)})} 
+                                        className="text-red-400 hover:text-red-600 p-1.5 rounded-lg hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-all"
+                                        title="حذف البند"
+                                    >
+                                        <Trash2 size={14}/>
+                                    </button>
+                                </div>
+                            ))}
+                        </div>
+                        <div className="mt-3 pt-3 border-t border-blue-200 space-y-1">
+                            <div className="flex justify-between text-[10px] font-bold text-gray-600">
+                                <span>المجموع:</span>
+                                <span className="font-mono">{subtotal.toLocaleString()} ريال</span>
+                            </div>
+                            <div className="flex justify-between text-[10px] font-bold text-gray-600">
+                                <span>الضريبة 15%:</span>
+                                <span className="font-mono text-red-600">{tax.toLocaleString()} ريال</span>
+                            </div>
+                            <div className="flex justify-between text-sm font-black text-jilco-900">
+                                <span>الإجمالي:</span>
+                                <span className="font-mono">{grandTotal.toLocaleString()} ريال</span>
+                            </div>
                         </div>
                     </div>
                 )}
