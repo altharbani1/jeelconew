@@ -377,12 +377,12 @@ export const InvoiceModule: React.FC = () => {
                             </thead>
                             <tbody>
                                 {currentInvoice.items.map((item, idx) => (
-                                    <tr key={idx} className="border-b border-gray-200 hover:bg-gray-50">
-                                        <td className="p-3 text-center font-bold text-gray-500 bg-gray-50 border-l border-r border-gray-200">{idx + 1}</td>
-                                        <td className="p-3 font-bold text-gray-900 text-sm border-r border-gray-200">{item.description}</td>
-                                        <td className="p-3 text-center font-bold text-gray-800 bg-blue-50/30 border-r border-gray-200">{item.quantity}</td>
-                                        <td className="p-3 text-center font-mono font-bold text-gray-900 border-r border-gray-200">{item.unitPrice.toLocaleString()}</td>
-                                        <td className="p-3 text-center font-mono font-black text-jilco-900 bg-green-50/30 border-r border-gray-200">{item.total.toLocaleString()}</td>
+                                    <tr key={idx} className="bg-gray-100 border-b border-gray-200">
+                                        <td className="p-3 text-center font-black text-black border-l border-r border-gray-200">{idx + 1}</td>
+                                        <td className="p-3 font-black text-black text-sm border-r border-gray-200">{item.description}</td>
+                                        <td className="p-3 text-center font-black text-black border-r border-gray-200">{item.quantity}</td>
+                                        <td className="p-3 text-center font-mono font-black text-black border-r border-gray-200">{item.unitPrice.toLocaleString()}</td>
+                                        <td className="p-3 text-center font-mono font-black text-black border-r border-gray-200">{item.total.toLocaleString()}</td>
                                     </tr>
                                 ))}
                                 {currentInvoice.items.length === 0 && (
