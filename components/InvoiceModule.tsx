@@ -63,6 +63,7 @@ export const InvoiceModule: React.FC = () => {
   });
 
   const [availableQuotes, setAvailableQuotes] = useState<SavedQuote[]>([]);
+  const [priceIncludesVat, setPriceIncludesVat] = useState(false);
   const [currentItem, setCurrentItem] = useState<QuoteItem>({
       id: '', description: '', details: '', quantity: 1, unitPrice: 0, total: 0
   });
@@ -268,10 +269,18 @@ export const InvoiceModule: React.FC = () => {
                             <input type="number" placeholder="الكمية" value={currentItem.quantity} onChange={e => setCurrentItem({...currentItem, quantity: parseFloat(e.target.value) || 1})} className="p-2 border rounded text-sm text-center bg-white font-bold" />
                             <input type="number" placeholder="سعر الوحدة" value={currentItem.unitPrice} onChange={e => setCurrentItem({...currentItem, unitPrice: parseFloat(e.target.value) || 0})} className="p-2 border rounded text-sm text-center bg-white font-bold" />
                         </div>
+                        <label className="flex items-center gap-2 text-xs font-bold text-gray-700 cursor-pointer bg-amber-50 p-2 rounded border border-amber-200">
+                            <input type="checkbox" checked={priceIncludesVat} onChange={e => setPriceIncludesVat(e.target.checked)} className="w-4 h-4" />
+                            <span>السعر شامل الضريبة (سيتم خصم 15% تلقائياً)</span>
+                        </label>
                         <button 
                             onClick={() => {
                                 if(!currentItem.description || !currentItem.unitPrice) return;
-                                const item = { ...currentItem, id: Date.now().toString(), total: currentItem.quantity * currentItem.unitPrice };
+                                let finalPrice = currentItem.unitPrice;
+                                if(priceIncludesVat) {
+                                    finalPrice = currentItem.unitPrice / 1.15;
+                                }
+                                const item = { ...currentItem, id: Date.now().toString(), unitPrice: finalPrice, total: currentItem.quantity * finalPrice };
                                 setCurrentInvoice({...currentInvoice, items: [...currentInvoice.items, item]});
                                 setCurrentItem({id: '', description: '', details: '', quantity: 1, unitPrice: 0, total: 0});
                             }}
@@ -419,10 +428,8 @@ export const InvoiceModule: React.FC = () => {
                             </div>
                         </div>
 
-                        <div className="mt-8 border-t-2 border-gray-100 pt-4">
-                            <p className="text-xs text-gray-400 font-bold mb-1 text-center">المبلغ كتابة: <span className="text-jilco-900 font-black">{tafqit(grandTotal)}</span></p>
-                            
-                            <div className="flex justify-between items-end mt-8 px-4">
+                        <div className="mt-8 border-t-2 border-gray-100 pt-6">
+                            <div className="flex justify-between items-end px-4">
                                 <div className="text-center">
                                     <div className="border-t-2 border-gray-300 w-48 mb-2"></div>
                                     <p className="text-[10px] font-bold text-gray-500">التوقيع / Signature</p>
@@ -430,17 +437,17 @@ export const InvoiceModule: React.FC = () => {
                                 
                                 {config.stamp && (
                                     <div className="flex flex-col items-center">
-                                        <img src={config.stamp} alt="Stamp" className="h-24 w-24 object-contain opacity-80" />
-                                        <p className="text-[8px] font-bold text-gray-400 mt-1">الختم الرسمي</p>
+                                        <img src={config.stamp} alt="Stamp" className="h-40 w-40 object-contain" />
+                                        <p className="text-[9px] font-bold text-gray-500 mt-1">الختم الرسمي / Official Stamp</p>
                                     </div>
                                 )}
                                 
                                 {!config.stamp && (
                                     <div className="flex flex-col items-center">
-                                        <div className="h-24 w-24 border-2 border-dashed border-gray-300 rounded-full flex items-center justify-center">
-                                            <p className="text-[10px] text-gray-300 font-bold text-center">الختم</p>
+                                        <div className="h-40 w-40 border-2 border-dashed border-gray-300 rounded-full flex items-center justify-center">
+                                            <p className="text-xs text-gray-300 font-bold text-center">الختم</p>
                                         </div>
-                                        <p className="text-[8px] font-bold text-gray-400 mt-1">Company Stamp</p>
+                                        <p className="text-[9px] font-bold text-gray-400 mt-1">Company Stamp</p>
                                     </div>
                                 )}
                             </div>
