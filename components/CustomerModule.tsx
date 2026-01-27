@@ -396,7 +396,8 @@ export const CustomerModule: React.FC = () => {
                             <input type="text" value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-jilco-500 outline-none font-bold text-black" placeholder="المدينة، الحي" />
                         </div>
                         <div><label className="block text-xs font-black text-gray-500 mb-2 uppercase">رقم الهوية / السجل</label><input type="text" value={formData.nationalId || ''} onChange={e => setFormData({...formData, nationalId: e.target.value})} className="w-full p-3 border border-gray-300 rounded-xl font-bold text-black" /></div>
-                        <div><label className="block text-xs font-black text-gray-500 mb-2 uppercase">الحالة</label>
+                        <div><label className="block text-xs font-black text-gray-500 mb-2 uppercase">الرقم الضريبي</label><input type="text" value={formData.vatNumber || ''} onChange={e => setFormData({...formData, vatNumber: e.target.value})} className="w-full p-3 border border-gray-300 rounded-xl font-bold text-black" placeholder="اختياري" /></div>
+                        <div className="md:col-span-2"><label className="block text-xs font-black text-gray-500 mb-2 uppercase">الحالة</label>
                             <select value={formData.status} onChange={e => setFormData({...formData, status: e.target.value as any})} className="w-full p-3 border border-gray-300 rounded-xl font-bold text-black bg-white outline-none">
                                 {Object.entries(STATUS_LABELS).map(([k,v]) => <option key={k} value={k}>{v.label}</option>)}
                             </select>
