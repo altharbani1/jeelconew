@@ -158,10 +158,10 @@ export const InvoiceModule: React.FC = () => {
   };
 
   const subtotal = currentInvoice.items.reduce((s, i) => s + i.total, 0);
+  const tax = subtotal * 0.15;
+  const totalWithTax = subtotal + tax;
   const discountAmount = showDiscount && currentInvoice.discount ? currentInvoice.discount : 0;
-  const afterDiscount = subtotal - discountAmount;
-  const tax = afterDiscount * 0.15;
-  const grandTotal = afterDiscount + tax;
+  const grandTotal = totalWithTax - discountAmount;
 
   if (viewMode === 'list') {
       return (
@@ -202,8 +202,9 @@ export const InvoiceModule: React.FC = () => {
                                     <td className="p-4 font-mono text-xs">{inv.date}</td>
                                     <td className="p-4 font-black text-green-700">{(() => {
                                         const sub = inv.items.reduce((s, it) => s + it.total, 0);
+                                        const withTax = sub * 1.15;
                                         const disc = inv.discount || 0;
-                                        return ((sub - disc) * 1.15).toLocaleString();
+                                        return (withTax - disc).toLocaleString();
                                     })()}</td>
                                     <td className="p-4">
                                         <span className={`px-2 py-1 rounded text-[10px] font-bold ${inv.status === 'paid' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
@@ -331,16 +332,16 @@ export const InvoiceModule: React.FC = () => {
                                 <span>المجموع:</span>
                                 <span className="font-mono">{subtotal.toLocaleString()} ريال</span>
                             </div>
+                            <div className="flex justify-between text-[10px] font-bold text-gray-600">
+                                <span>الضريبة 15%:</span>
+                                <span className="font-mono text-red-600">{tax.toLocaleString()} ريال</span>
+                            </div>
                             {showDiscount && discountAmount > 0 && (
                                 <div className="flex justify-between text-[10px] font-bold text-green-600">
                                     <span>الخصم:</span>
                                     <span className="font-mono">- {discountAmount.toLocaleString()} ريال</span>
                                 </div>
                             )}
-                            <div className="flex justify-between text-[10px] font-bold text-gray-600">
-                                <span>الضريبة 15%:</span>
-                                <span className="font-mono text-red-600">{tax.toLocaleString()} ريال</span>
-                            </div>
                             <div className="flex justify-between text-sm font-black text-jilco-900">
                                 <span>الإجمالي:</span>
                                 <span className="font-mono">{grandTotal.toLocaleString()} ريال</span>
@@ -376,7 +377,7 @@ export const InvoiceModule: React.FC = () => {
                                 min="0"
                                 step="0.01"
                             />
-                            <p className="text-[9px] text-gray-500 font-bold text-center">سيتم خصم المبلغ من المجموع قبل احتساب الضريبة</p>
+                            <p className="text-[9px] text-gray-500 font-bold text-center">سيتم خصم المبلغ من الإجمالي بعد احتساب الضريبة</p>
                         </div>
                     )}
                 </div>
@@ -464,16 +465,16 @@ export const InvoiceModule: React.FC = () => {
                                     <span>المجموع / Subtotal:</span>
                                     <span className="font-mono text-black">{subtotal.toLocaleString()}</span>
                                 </div>
+                                <div className="flex justify-between text-[10px] font-black text-gray-500 uppercase">
+                                    <span>الضريبة / VAT 15%:</span>
+                                    <span className="font-mono text-red-600">{tax.toLocaleString()}</span>
+                                </div>
                                 {showDiscount && discountAmount > 0 && (
                                     <div className="flex justify-between text-[10px] font-black text-green-600 uppercase">
                                         <span>الخصم / Discount:</span>
                                         <span className="font-mono">- {discountAmount.toLocaleString()}</span>
                                     </div>
                                 )}
-                                <div className="flex justify-between text-[10px] font-black text-gray-500 uppercase">
-                                    <span>الضريبة / VAT 15%:</span>
-                                    <span className="font-mono text-red-600">{tax.toLocaleString()}</span>
-                                </div>
                                 <div className="border-t-2 border-gray-100 pt-3 flex justify-between items-center">
                                     <span className="font-black text-jilco-900 text-xs uppercase">Grand Total:</span>
                                     <div className="text-left">
