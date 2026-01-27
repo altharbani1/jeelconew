@@ -98,6 +98,7 @@ export interface InvoiceData {
   items: QuoteItem[];
   status: 'paid' | 'pending' | 'overdue';
   contractId?: string; // ربط بالعقد
+  discount?: number; // مبلغ الخصم
   contractNumber?: string; // رقم العقد للعرض
   paymentTermName?: string; // اسم الدفعة
 }

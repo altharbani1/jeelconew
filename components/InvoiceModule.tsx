@@ -59,11 +59,13 @@ export const InvoiceModule: React.FC = () => {
     customerName: '',
     customerVatNumber: '',
     items: [],
-    status: 'pending'
+    status: 'pending',
+    discount: 0
   });
 
   const [availableQuotes, setAvailableQuotes] = useState<SavedQuote[]>([]);
   const [priceIncludesVat, setPriceIncludesVat] = useState(false);
+  const [showDiscount, setShowDiscount] = useState(false);
   const [currentItem, setCurrentItem] = useState<QuoteItem>({
       id: '', description: '', details: '', quantity: 1, unitPrice: 0, total: 0
   });
@@ -102,9 +104,11 @@ export const InvoiceModule: React.FC = () => {
         customerName: '',
         customerVatNumber: '',
         items: [],
-        status: 'pending'
+        status: 'pending',
+        discount: 0
     });
     setAvailableQuotes([]);
+    setShowDiscount(false);
     setViewMode('editor');
   };
 
@@ -154,8 +158,10 @@ export const InvoiceModule: React.FC = () => {
   };
 
   const subtotal = currentInvoice.items.reduce((s, i) => s + i.total, 0);
-  const tax = subtotal * 0.15;
-  const grandTotal = subtotal + tax;
+  const discountAmount = showDiscount && currentInvoice.discount ? currentInvoice.discount : 0;
+  const afterDiscount = subtotal - discountAmount;
+  const tax = afterDiscount * 0.15;
+  const grandTotal = afterDiscount + tax;
 
   if (viewMode === 'list') {
       return (
@@ -194,15 +200,19 @@ export const InvoiceModule: React.FC = () => {
                                     <td className="p-4 font-mono font-bold text-jilco-900">{inv.number}</td>
                                     <td className="p-4 font-bold">{inv.customerName}</td>
                                     <td className="p-4 font-mono text-xs">{inv.date}</td>
-                                    <td className="p-4 font-black text-green-700">{(inv.items.reduce((s, it) => s + it.total, 0) * 1.15).toLocaleString()}</td>
+                                    <td className="p-4 font-black text-green-700">{(() => {
+                                        const sub = inv.items.reduce((s, it) => s + it.total, 0);
+                                        const disc = inv.discount || 0;
+                                        return ((sub - disc) * 1.15).toLocaleString();
+                                    })()}</td>
                                     <td className="p-4">
                                         <span className={`px-2 py-1 rounded text-[10px] font-bold ${inv.status === 'paid' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
                                             {inv.status === 'paid' ? 'مدفوعة' : 'بانتظار الدفع'}
                                         </span>
                                     </td>
                                     <td className="p-4 flex justify-center gap-2">
-                                        <button onClick={() => { setCurrentInvoice(inv); setViewMode('editor'); }} className="p-2 text-blue-600 hover:bg-blue-50 rounded-full"><Edit size={16}/></button>
-                                        <button onClick={() => { setCurrentInvoice(inv); setViewMode('editor'); setTimeout(() => window.print(), 500); }} className="p-2 text-gray-600 hover:bg-gray-50 rounded-full"><Printer size={16}/></button>
+                                        <button onClick={() => { setCurrentInvoice(inv); setShowDiscount(!!inv.discount && inv.discount > 0); setViewMode('editor'); }} className="p-2 text-blue-600 hover:bg-blue-50 rounded-full"><Edit size={16}/></button>
+                                        <button onClick={() => { setCurrentInvoice(inv); setShowDiscount(!!inv.discount && inv.discount > 0); setViewMode('editor'); setTimeout(() => window.print(), 500); }} className="p-2 text-gray-600 hover:bg-gray-50 rounded-full"><Printer size={16}/></button>
                                         <button onClick={() => handleDeleteInvoice(inv.number)} className="p-2 text-red-500 hover:bg-red-50 rounded-full"><Trash2 size={16}/></button>
                                     </td>
                                 </tr>
@@ -262,7 +272,9 @@ export const InvoiceModule: React.FC = () => {
                 </div>
 
                 <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                    <h3 className="text-xs font-bold text-gray-700 mb-4">إضافة أصناف يدوياً</h3>
+                    <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-xs font-bold text-gray-700">إضافة أصناف يدوياً</h3>
+                    </div>
                     <div className="space-y-3">
                         <input type="text" placeholder="اسم الصنف / الوصف" value={currentItem.description} onChange={e => setCurrentItem({...currentItem, description: e.target.value})} className="w-full p-2 border rounded text-sm bg-white font-bold" />
                         <div className="grid grid-cols-2 gap-3">
@@ -319,6 +331,12 @@ export const InvoiceModule: React.FC = () => {
                                 <span>المجموع:</span>
                                 <span className="font-mono">{subtotal.toLocaleString()} ريال</span>
                             </div>
+                            {showDiscount && discountAmount > 0 && (
+                                <div className="flex justify-between text-[10px] font-bold text-green-600">
+                                    <span>الخصم:</span>
+                                    <span className="font-mono">- {discountAmount.toLocaleString()} ريال</span>
+                                </div>
+                            )}
                             <div className="flex justify-between text-[10px] font-bold text-gray-600">
                                 <span>الضريبة 15%:</span>
                                 <span className="font-mono text-red-600">{tax.toLocaleString()} ريال</span>
@@ -330,6 +348,38 @@ export const InvoiceModule: React.FC = () => {
                         </div>
                     </div>
                 )}
+
+                <div className="bg-gradient-to-br from-green-50 to-emerald-50 p-4 rounded-lg border border-green-200">
+                    <label className="flex items-center gap-2 text-xs font-bold text-gray-700 cursor-pointer mb-3">
+                        <input 
+                            type="checkbox" 
+                            checked={showDiscount} 
+                            onChange={e => {
+                                setShowDiscount(e.target.checked);
+                                if (!e.target.checked) {
+                                    setCurrentInvoice({...currentInvoice, discount: 0});
+                                }
+                            }} 
+                            className="w-4 h-4" 
+                        />
+                        <span>تفعيل الخصم على الفاتورة</span>
+                    </label>
+                    {showDiscount && (
+                        <div className="space-y-2">
+                            <label className="block text-[10px] font-bold text-gray-500">مبلغ الخصم (ريال)</label>
+                            <input 
+                                type="number" 
+                                placeholder="0.00" 
+                                value={currentInvoice.discount || ''} 
+                                onChange={e => setCurrentInvoice({...currentInvoice, discount: parseFloat(e.target.value) || 0})} 
+                                className="w-full p-2 border rounded text-sm bg-white font-bold text-center" 
+                                min="0"
+                                step="0.01"
+                            />
+                            <p className="text-[9px] text-gray-500 font-bold text-center">سيتم خصم المبلغ من المجموع قبل احتساب الضريبة</p>
+                        </div>
+                    )}
+                </div>
             </div>
         </div>
 
@@ -414,6 +464,12 @@ export const InvoiceModule: React.FC = () => {
                                     <span>المجموع / Subtotal:</span>
                                     <span className="font-mono text-black">{subtotal.toLocaleString()}</span>
                                 </div>
+                                {showDiscount && discountAmount > 0 && (
+                                    <div className="flex justify-between text-[10px] font-black text-green-600 uppercase">
+                                        <span>الخصم / Discount:</span>
+                                        <span className="font-mono">- {discountAmount.toLocaleString()}</span>
+                                    </div>
+                                )}
                                 <div className="flex justify-between text-[10px] font-black text-gray-500 uppercase">
                                     <span>الضريبة / VAT 15%:</span>
                                     <span className="font-mono text-red-600">{tax.toLocaleString()}</span>
