@@ -419,8 +419,31 @@ export const InvoiceModule: React.FC = () => {
                             </div>
                         </div>
 
-                        <div className="mt-8 border-t-2 border-gray-100 pt-4 text-center">
-                            <p className="text-xs text-gray-400 font-bold mb-1">المبلغ كتابة: <span className="text-jilco-900 font-black">{tafqit(grandTotal)}</span></p>
+                        <div className="mt-8 border-t-2 border-gray-100 pt-4">
+                            <p className="text-xs text-gray-400 font-bold mb-1 text-center">المبلغ كتابة: <span className="text-jilco-900 font-black">{tafqit(grandTotal)}</span></p>
+                            
+                            <div className="flex justify-between items-end mt-8 px-4">
+                                <div className="text-center">
+                                    <div className="border-t-2 border-gray-300 w-48 mb-2"></div>
+                                    <p className="text-[10px] font-bold text-gray-500">التوقيع / Signature</p>
+                                </div>
+                                
+                                {config.stamp && (
+                                    <div className="flex flex-col items-center">
+                                        <img src={config.stamp} alt="Stamp" className="h-24 w-24 object-contain opacity-80" />
+                                        <p className="text-[8px] font-bold text-gray-400 mt-1">الختم الرسمي</p>
+                                    </div>
+                                )}
+                                
+                                {!config.stamp && (
+                                    <div className="flex flex-col items-center">
+                                        <div className="h-24 w-24 border-2 border-dashed border-gray-300 rounded-full flex items-center justify-center">
+                                            <p className="text-[10px] text-gray-300 font-bold text-center">الختم</p>
+                                        </div>
+                                        <p className="text-[8px] font-bold text-gray-400 mt-1">Company Stamp</p>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
                     
