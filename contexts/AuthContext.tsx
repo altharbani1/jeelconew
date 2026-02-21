@@ -91,7 +91,13 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     if (!user) {
       try {
         console.log("User not found locally, checking cloud...");
-        const cloudData = await cloudService.downloadData();
+        // 🛠️ FIX: Try to download from 'admin' backup first, as admin is the one who creates users
+        let cloudData = await cloudService.downloadData('admin');
+
+        // If no admin backup, fallback to default or the user's own backup
+        if (!cloudData) {
+          cloudData = await cloudService.downloadData();
+        }
 
         if (cloudData && cloudData['jilco_system_users']) {
           const cloudUsers: User[] = JSON.parse(cloudData['jilco_system_users']);
