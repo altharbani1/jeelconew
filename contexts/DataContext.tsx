@@ -6,6 +6,7 @@ interface DataContextType {
     setQuotes: React.Dispatch<React.SetStateAction<any[]>>;
     saveQuote: (id: string, quote: any) => Promise<boolean>;
     deleteQuote: (id: string) => Promise<boolean>;
+    migrateAllLocalData: () => Promise<boolean>;
     syncStatus: 'idle' | 'syncing' | 'synced' | 'error';
 }
 
@@ -129,8 +130,54 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
     };
 
+    const migrateAllLocalData = async (): Promise<boolean> => {
+        setSyncStatus('syncing');
+        try {
+            const collectionsToMigrate = [
+                'jilco_quotes_archive',
+                'jilco_customers',
+                'jilco_projects',
+                'jilco_phases',
+                'jilco_invoices_archive',
+                'jilco_receipts_archive',
+                'jilco_contracts_archive',
+                'jilco_expenses_archive',
+                'jilco_claims_archive'
+            ];
+
+            let totalMigrated = 0;
+
+            for (const collection of collectionsToMigrate) {
+                const localData = localStorage.getItem(collection);
+                if (localData) {
+                    const parsedArray = JSON.parse(localData);
+                    if (Array.isArray(parsedArray)) {
+                        for (const item of parsedArray) {
+                            // Ensure the item has an ID
+                            const itemId = item.id || Date.now().toString() + Math.random().toString(36).substring(7);
+                            await cloudService.saveRecord(collection, itemId, item);
+                            totalMigrated++;
+                        }
+                    }
+                }
+            }
+
+            console.log(`✅ Migration Complete: Migrated ${totalMigrated} records to Real-Time Cloud.`);
+            setSyncStatus('synced');
+
+            // Reload quotes if they were just migrated
+            await loadQuotes();
+            return true;
+
+        } catch (e) {
+            console.error('Migration failed:', e);
+            setSyncStatus('error');
+            return false;
+        }
+    };
+
     return (
-        <DataContext.Provider value={{ quotes, setQuotes, saveQuote, deleteQuote, syncStatus }}>
+        <DataContext.Provider value={{ quotes, setQuotes, saveQuote, deleteQuote, migrateAllLocalData, syncStatus }}>
             {children}
         </DataContext.Provider>
     );

@@ -3,6 +3,7 @@ import React, { useEffect, useState } from 'react';
 import { TrendingUp, Users, Briefcase, FileCheck, AlertCircle, Clock, CheckCircle2, Wallet, ArrowLeftRight, Settings, ShieldCheck, Calculator, ArrowRight, Building, Sparkles, Trash2, Edit, Cloud, Download } from 'lucide-react';
 import { InvoiceData, Project, QuoteDetails, SystemView, ProjectPhase, ReceiptData } from '../types';
 import { useAuth } from '../contexts/AuthContext.tsx';
+import { useData } from '../contexts/DataContext.tsx';
 import { cloudService } from '../services/cloudService.ts';
 
 interface DashboardProps {
@@ -14,6 +15,7 @@ const DEFAULT_NEON_CONN = 'postgresql://neondb_owner:npg_daR6gtonfr7V@ep-blue-bu
 
 export const Dashboard: React.FC<DashboardProps> = ({ setView }) => {
   const { currentUser } = useAuth();
+  const { migrateAllLocalData } = useData();
   const [stats, setStats] = useState({
     quotesCount: 0,
     activeProjects: 0,
@@ -24,6 +26,7 @@ export const Dashboard: React.FC<DashboardProps> = ({ setView }) => {
 
   const [aiStatus, setAiStatus] = useState<'connected' | 'checking' | 'missing'>('checking');
   const [isRestoring, setIsRestoring] = useState(false);
+  const [isMigrating, setIsMigrating] = useState(false);
 
   useEffect(() => {
     // Check AI Key
@@ -133,6 +136,26 @@ export const Dashboard: React.FC<DashboardProps> = ({ setView }) => {
           <p className="text-gray-500 text-sm">مرحباً بك، إليك ملخص أداء المؤسسة اليوم</p>
         </div>
         <div className="flex gap-4">
+          {/* 🌟 ZER AL-TARHEEL AL-SHAMEL (Globale Migration Button) 🌟 */}
+          {currentUser?.role === 'admin' && (
+            <button
+              onClick={async () => {
+                if (window.confirm("تحذير: هذه العملية ستقوم برفع كافة البيانات المحلية المخزنة في جهازك (عروض، مشاريع، فواتير) إلى جدول المزامنة الحية (Real-Time) الجديد في السحابة. هل تريد المتابعة؟")) {
+                  setIsMigrating(true);
+                  const res = await migrateAllLocalData();
+                  setIsMigrating(false);
+                  if (res) alert("تم ترحيل جميع بياناتك للسحابة الحية بنجاح!");
+                }
+              }}
+              disabled={isMigrating}
+              className={`bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-xl flex items-center gap-2 shadow-sm font-bold text-sm transition-all
+                            ${isMigrating ? 'opacity-50 cursor-not-allowed' : ''}`}
+            >
+              <Cloud size={18} />
+              {isMigrating ? 'جاري الترحيل...' : 'ترحيل النظام للسحابة'}
+            </button>
+          )}
+
           <div className="bg-white px-4 py-2 rounded-xl border border-gray-200 shadow-sm flex items-center gap-3">
             <div className="text-right">
               <p className="text-[10px] text-gray-400 font-bold uppercase leading-none mb-1">مرحباً بك</p>
@@ -304,8 +327,8 @@ export const Dashboard: React.FC<DashboardProps> = ({ setView }) => {
                       <td className="p-4 text-gray-600">{project.clientName}</td>
                       <td className="p-4">
                         <span className={`px-2.5 py-1 rounded-full text-[10px] font-black ${project.status === 'completed' ? 'bg-green-100 text-green-700 border border-green-200' :
-                            project.status === 'in_progress' ? 'bg-blue-100 text-blue-700 border border-blue-200' :
-                              'bg-gray-100 text-gray-500'
+                          project.status === 'in_progress' ? 'bg-blue-100 text-blue-700 border border-blue-200' :
+                            'bg-gray-100 text-gray-500'
                           }`}>
                           {project.status === 'completed' ? 'مكتمل' : project.status === 'in_progress' ? 'قيد التنفيذ' : 'لم يبدأ'}
                         </span>

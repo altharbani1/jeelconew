@@ -222,7 +222,10 @@ export const cloudService = {
           { onConflict: 'collection, record_id' }
         );
 
-      if (error) throw error;
+      if (error) {
+        console.error(`Supabase Upsert Error in ${collection}:`, error);
+        throw error;
+      }
       return true;
     } catch (e) {
       console.error(`Failed to save record ${recordId} in ${collection}:`, e);
