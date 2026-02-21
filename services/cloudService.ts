@@ -170,5 +170,80 @@ export const cloudService = {
   getImageUrl(path: string): string {
     const { data } = supabase.storage.from(BUCKET).getPublicUrl(path);
     return data.publicUrl;
+  },
+
+  // ==========================================
+  // 🌟 NEW REAL-TIME DOCUMENT STORE METHODS
+  // ==========================================
+
+  // 9. الاستماع للتغييرات الحية على مجموعة معينة (Subscribe)
+  subscribeToCollection(collection: string, onUpdate: (payload: any) => void) {
+    const channel = supabase.channel(`realtime_${collection}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'jilco_realtime_data', filter: `collection=eq.${collection}` },
+        (payload) => onUpdate(payload)
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  },
+
+  // 10. تحميل مجموعة كاملة (مثل: جميع عروض الأسعار)
+  async loadCollection(collection: string) {
+    try {
+      const { data, error } = await supabase
+        .from('jilco_realtime_data')
+        .select('record_id, data')
+        .eq('collection', collection);
+
+      if (error) throw error;
+      return data || [];
+    } catch (e) {
+      console.error(`Failed to load collection ${collection}:`, e);
+      return [];
+    }
+  },
+
+  // 11. إضافة أو تحديث سجل واحد فقط (Upsert Record)
+  async saveRecord(collection: string, recordId: string, dataObj: any) {
+    try {
+      const { error } = await supabase
+        .from('jilco_realtime_data')
+        .upsert(
+          {
+            collection,
+            record_id: recordId,
+            data: dataObj,
+            updated_at: new Date().toISOString()
+          },
+          { onConflict: 'collection, record_id' }
+        );
+
+      if (error) throw error;
+      return true;
+    } catch (e) {
+      console.error(`Failed to save record ${recordId} in ${collection}:`, e);
+      return false;
+    }
+  },
+
+  // 12. حذف سجل
+  async deleteRecord(collection: string, recordId: string) {
+    try {
+      const { error } = await supabase
+        .from('jilco_realtime_data')
+        .delete()
+        .eq('collection', collection)
+        .eq('record_id', recordId);
+
+      if (error) throw error;
+      return true;
+    } catch (e) {
+      console.error(`Failed to delete record ${recordId} in ${collection}:`, e);
+      return false;
+    }
   }
 };

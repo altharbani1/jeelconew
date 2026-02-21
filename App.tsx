@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext.tsx';
+import { DataProvider } from './contexts/DataContext.tsx';
 import { LanguageProvider } from './contexts/LanguageContext.tsx';
 import { SystemNav } from './components/SystemNav.tsx';
 import { QuoteModule } from './components/QuoteModule.tsx';
@@ -25,59 +26,10 @@ import { ActivityLogModule } from './components/ActivityLogModule.tsx';
 import { LoginScreen } from './components/LoginScreen.tsx';
 
 import { SystemView } from './types.ts';
-import { cloudService } from './services/cloudService.ts';
-
-
 const MainApp: React.FC = () => {
   const { currentUser } = useAuth();
   const [currentView, setCurrentView] = useState<SystemView>('dashboard');
   const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'synced' | 'error'>('idle');
-
-
-  // --- Auto Restore on First Load ---
-  useEffect(() => {
-    const localData = cloudService.getLocalData();
-    const isEmpty = Object.keys(localData).length === 0;
-
-    if (isEmpty) {
-      setSyncStatus('syncing');
-      // محاولة استرجاع من نسخة جهاز افتراضية أولاً
-      cloudService.downloadData('default').then((remoteData) => {
-        if (remoteData && typeof remoteData === 'object') {
-          Object.entries(remoteData).forEach(([key, value]) => {
-            if (typeof value === 'string') localStorage.setItem(key, value);
-          });
-          setSyncStatus('synced');
-          setTimeout(() => { setSyncStatus('idle'); window.location.reload(); }, 1000);
-        } else {
-          setSyncStatus('idle');
-        }
-      }).catch(() => setSyncStatus('error'));
-    }
-  }, []);
-
-  // --- Auto Sync (كل 30 ثانية، مخصص لكل مستخدم) ---
-  useEffect(() => {
-    const syncInterval = setInterval(async () => {
-      if (!currentUser) return;
-      try {
-        const currentData = cloudService.getLocalData();
-        if (Object.keys(currentData).length > 0) {
-          setSyncStatus('syncing');
-          await cloudService.uploadData(currentData, currentUser.username);
-          setSyncStatus('synced');
-          setTimeout(() => setSyncStatus('idle'), 2000);
-        }
-      } catch (e) {
-        console.error('Auto-sync failed:', e);
-        setSyncStatus('error');
-      }
-    }, 30000);
-    return () => clearInterval(syncInterval);
-  }, [currentUser]);
-
-
-
 
   if (!currentUser) {
     return <LoginScreen />;
@@ -115,9 +67,11 @@ const MainApp: React.FC = () => {
 const App: React.FC = () => {
   return (
     <AuthProvider>
-      <LanguageProvider>
-        <MainApp />
-      </LanguageProvider>
+      <DataProvider>
+        <LanguageProvider>
+          <MainApp />
+        </LanguageProvider>
+      </DataProvider>
     </AuthProvider>
   );
 };
