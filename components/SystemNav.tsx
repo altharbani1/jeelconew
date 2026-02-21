@@ -41,8 +41,8 @@ export const SystemNav: React.FC<SystemNavProps> = ({ currentView, setView, sync
   ];
 
   // صلاحيات الموديولات حسب الدور
-  const role = user?.role;
-  const allowedModules = {
+  const role = user?.role || currentUser?.role || 'admin';
+  const allowedModules: Record<string, string[]> = {
     admin: [
       'dashboard', 'customers', 'quotes', 'contracts', 'projects', 'invoices', 'receipts', 'expenses', 'purchases', 'claims', 'hr', 'documents', 'forms', 'users', 'warranties', 'smart_elevator', 'calculator', 'company_profile', 'specs_manager', 'activity_log'
     ],
@@ -53,7 +53,9 @@ export const SystemNav: React.FC<SystemNavProps> = ({ currentView, setView, sync
       'dashboard', 'customers', 'quotes', 'contracts', 'projects', 'invoices', 'receipts', 'expenses', 'purchases', 'claims', 'hr', 'documents', 'forms', 'warranties', 'smart_elevator', 'calculator', 'company_profile', 'specs_manager', 'activity_log'
     ]
   };
-  const visibleItems = navItems.filter(item => allowedModules[role]?.includes(item.id));
+
+  const currentAllowed = allowedModules[role as keyof typeof allowedModules] || allowedModules['admin'];
+  const visibleItems = navItems.filter(item => currentAllowed.includes(item.id));
 
   return (
     <div className="w-28 bg-jilco-950 flex flex-col items-center py-6 h-screen text-white shadow-2xl z-50 print:hidden shrink-0 border-l border-white/5 relative transition-all duration-300">
