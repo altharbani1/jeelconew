@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { FileText, Upload, Trash2, Download, Eye, AlertTriangle, Calendar, Search, Filter, Plus, FileCheck, CheckCircle2, XCircle, Printer, X, Send } from 'lucide-react';
 import { CompanyDocument, DocumentCategory, CompanyConfig } from '../types';
+import { useData } from '../contexts/DataContext.tsx';
 
 const CATEGORIES: { id: DocumentCategory; label: string; color: string }[] = [
     { id: 'gov', label: 'حكومية وتراخيص', color: 'bg-blue-100 text-blue-700' },
@@ -16,7 +17,8 @@ const INITIAL_CONFIG: CompanyConfig = {
 };
 
 export const DocumentsModule: React.FC = () => {
-    const [documents, setDocuments] = useState<CompanyDocument[]>([]);
+    const { documents, config: globalConfig, saveRecord, deleteRecordLocallyAndCloud } = useData();
+
     const [viewMode, setViewMode] = useState<'list' | 'upload' | 'report'>('list');
     const [filterCategory, setFilterCategory] = useState<DocumentCategory | 'all'>('all');
     const [searchTerm, setSearchTerm] = useState('');
@@ -24,44 +26,25 @@ export const DocumentsModule: React.FC = () => {
 
     // Form State
     const [newDoc, setNewDoc] = useState<Partial<CompanyDocument>>({ category: 'gov' });
-    
+
     // Preview State
     const [previewDoc, setPreviewDoc] = useState<CompanyDocument | null>(null);
     const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
-    // Load Data
+    // Load Config
     useEffect(() => {
-        const savedDocs = localStorage.getItem('jilco_documents');
-        if (savedDocs) {
-            try { setDocuments(JSON.parse(savedDocs)); } catch (e) { }
-        }
-        
-        const savedConfig = localStorage.getItem('jilco_quote_data');
-        if (savedConfig) {
-            try { 
-                const parsed = JSON.parse(savedConfig);
-                if(parsed.config) setConfig(parsed.config);
-            } catch (e) { }
-        }
-    }, []);
-
-    // Save Data with Error Handling (Fixes White Screen Crash)
-    useEffect(() => {
-        if (documents.length > 0) {
-            try {
-                localStorage.setItem('jilco_documents', JSON.stringify(documents));
-            } catch (e: any) {
-                // Check for quota exceeded error
-                if (e.name === 'QuotaExceededError' || e.name === 'NS_ERROR_DOM_QUOTA_REACHED') {
-                    alert('عذراً، مساحة التخزين ممتلئة. لا يمكن حفظ المستند محلياً. يرجى حذف بعض الملفات القديمة أو تقليل حجم الملف.');
-                    // Optionally: Remove the last added document from state to reflect reality
-                    // setDocuments(prev => prev.slice(1)); 
-                } else {
-                    console.error("Error saving documents:", e);
-                }
+        if (globalConfig) {
+            setConfig(globalConfig);
+        } else {
+            const savedConfig = localStorage.getItem('jilco_quote_data');
+            if (savedConfig) {
+                try {
+                    const parsed = JSON.parse(savedConfig);
+                    if (parsed.config) setConfig(parsed.config);
+                } catch (e) { }
             }
         }
-    }, [documents]);
+    }, [globalConfig]);
 
     // Handle Blob URL generation for preview to fix "Not Showing" issues with Data URIs
     useEffect(() => {
@@ -123,7 +106,7 @@ export const DocumentsModule: React.FC = () => {
     const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) {
             const file = e.target.files[0];
-            
+
             // Size Check (Limit to 2MB for localStorage safety to prevent crash)
             if (file.size > 2 * 1024 * 1024) {
                 alert("حجم الملف كبير جداً. يرجى اختيار ملف أصغر من 2 ميجابايت لتجنب امتلاء الذاكرة.");
@@ -145,7 +128,7 @@ export const DocumentsModule: React.FC = () => {
         }
     };
 
-    const saveDocument = () => {
+    const saveDocument = async () => {
         if (!newDoc.title || !newDoc.fileUrl) {
             alert('الرجاء إدخال عنوان الوثيقة ورفع الملف.');
             return;
@@ -165,15 +148,15 @@ export const DocumentsModule: React.FC = () => {
             createdAt: new Date().toISOString()
         };
 
-        // Important: Update state correctly
-        setDocuments(prevDocs => [doc, ...prevDocs]);
+        // Save to real-time and local DB
+        await saveRecord('jilco_documents', doc.id, doc);
         setNewDoc({ category: 'gov' });
         setViewMode('list');
     };
 
-    const deleteDocument = (id: string) => {
+    const deleteDocument = async (id: string) => {
         if (window.confirm('هل أنت متأكد من حذف هذه الوثيقة؟')) {
-            setDocuments(documents.filter(d => d.id !== id));
+            await deleteRecordLocallyAndCloud('jilco_documents', id);
         }
     };
 
@@ -218,28 +201,28 @@ export const DocumentsModule: React.FC = () => {
                 <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col">
                     <div className="flex justify-between items-center p-4 border-b border-gray-100 bg-gray-50">
                         <h3 className="font-bold text-gray-800 text-lg flex items-center gap-2">
-                            {previewDoc.fileType === 'image' ? <Eye size={20}/> : <FileText size={20}/>}
+                            {previewDoc.fileType === 'image' ? <Eye size={20} /> : <FileText size={20} />}
                             {previewDoc.title}
                         </h3>
-                        <button onClick={() => setPreviewDoc(null)} className="p-2 hover:bg-gray-200 rounded-full text-gray-600"><X size={20}/></button>
+                        <button onClick={() => setPreviewDoc(null)} className="p-2 hover:bg-gray-200 rounded-full text-gray-600"><X size={20} /></button>
                     </div>
                     <div className="flex-1 bg-gray-100 overflow-auto p-4 flex justify-center items-center h-[600px]">
                         {previewDoc.fileType === 'image' ? (
-                            <img src={previewUrl} alt={previewDoc.title} className="max-w-full max-h-full object-contain rounded shadow-lg"/>
+                            <img src={previewUrl} alt={previewDoc.title} className="max-w-full max-h-full object-contain rounded shadow-lg" />
                         ) : (
-                            <iframe 
-                                src={previewUrl} 
-                                className="w-full h-full border-none rounded shadow-lg bg-white" 
+                            <iframe
+                                src={previewUrl}
+                                className="w-full h-full border-none rounded shadow-lg bg-white"
                                 title={previewDoc.title}
                             ></iframe>
                         )}
                     </div>
                     <div className="p-4 border-t border-gray-100 flex justify-end gap-2 bg-gray-50">
                         <button onClick={() => handleSend(previewDoc)} className="px-4 py-2 bg-green-600 text-white rounded font-bold hover:bg-green-700 flex items-center gap-2">
-                            <Send size={16}/> إرسال
+                            <Send size={16} /> إرسال
                         </button>
                         <a href={previewDoc.fileUrl} download={previewDoc.fileName} className="px-4 py-2 bg-blue-600 text-white rounded font-bold hover:bg-blue-700 flex items-center gap-2">
-                            <Download size={16}/> تحميل الملف
+                            <Download size={16} /> تحميل الملف
                         </a>
                         <button onClick={() => setPreviewDoc(null)} className="px-4 py-2 bg-white border border-gray-300 rounded font-bold hover:bg-gray-100">إغلاق</button>
                     </div>
@@ -257,43 +240,43 @@ export const DocumentsModule: React.FC = () => {
                     </h3>
                     <button onClick={() => setViewMode('list')} className="p-2 hover:bg-gray-200 rounded-full"><XCircle size={20} /></button>
                 </div>
-                
+
                 <div className="p-6 space-y-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div className="md:col-span-2">
                             <label className="block text-xs font-bold text-gray-700 mb-1">عنوان الوثيقة <span className="text-red-500">*</span></label>
-                            <input type="text" value={newDoc.title || ''} onChange={e => setNewDoc({...newDoc, title: e.target.value})} className="w-full p-2 border border-gray-400 rounded-lg text-sm focus:ring-2 focus:ring-jilco-500 outline-none text-black bg-white font-bold" placeholder="مثال: السجل التجاري" />
+                            <input type="text" value={newDoc.title || ''} onChange={e => setNewDoc({ ...newDoc, title: e.target.value })} className="w-full p-2 border border-gray-400 rounded-lg text-sm focus:ring-2 focus:ring-jilco-500 outline-none text-black bg-white font-bold" placeholder="مثال: السجل التجاري" />
                         </div>
                         <div>
                             <label className="block text-xs font-bold text-gray-700 mb-1">التصنيف</label>
-                            <select value={newDoc.category} onChange={e => setNewDoc({...newDoc, category: e.target.value as DocumentCategory})} className="w-full p-2 border border-gray-400 rounded-lg text-sm bg-white text-black font-bold">
+                            <select value={newDoc.category} onChange={e => setNewDoc({ ...newDoc, category: e.target.value as DocumentCategory })} className="w-full p-2 border border-gray-400 rounded-lg text-sm bg-white text-black font-bold">
                                 {CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
                             </select>
                         </div>
                         <div>
                             <label className="block text-xs font-bold text-gray-700 mb-1">رقم المرجع (اختياري)</label>
-                            <input type="text" value={newDoc.referenceNumber || ''} onChange={e => setNewDoc({...newDoc, referenceNumber: e.target.value})} className="w-full p-2 border border-gray-400 rounded-lg text-sm text-black bg-white font-bold" placeholder="رقم الرخصة / العقد" />
+                            <input type="text" value={newDoc.referenceNumber || ''} onChange={e => setNewDoc({ ...newDoc, referenceNumber: e.target.value })} className="w-full p-2 border border-gray-400 rounded-lg text-sm text-black bg-white font-bold" placeholder="رقم الرخصة / العقد" />
                         </div>
                         <div>
                             <label className="block text-xs font-bold text-gray-700 mb-1">تاريخ الإصدار</label>
-                            <input type="date" value={newDoc.issueDate || ''} onChange={e => setNewDoc({...newDoc, issueDate: e.target.value})} className="w-full p-2 border border-gray-400 rounded-lg text-sm text-black bg-white font-bold" />
+                            <input type="date" value={newDoc.issueDate || ''} onChange={e => setNewDoc({ ...newDoc, issueDate: e.target.value })} className="w-full p-2 border border-gray-400 rounded-lg text-sm text-black bg-white font-bold" />
                         </div>
                         <div>
                             <label className="block text-xs font-bold text-gray-700 mb-1">تاريخ الانتهاء (للتنبيهات)</label>
-                            <input type="date" value={newDoc.expiryDate || ''} onChange={e => setNewDoc({...newDoc, expiryDate: e.target.value})} className="w-full p-2 border border-gray-400 rounded-lg text-sm text-black bg-white font-bold" />
+                            <input type="date" value={newDoc.expiryDate || ''} onChange={e => setNewDoc({ ...newDoc, expiryDate: e.target.value })} className="w-full p-2 border border-gray-400 rounded-lg text-sm text-black bg-white font-bold" />
                         </div>
                     </div>
 
                     <div className="border-2 border-dashed border-gray-400 rounded-xl p-6 text-center hover:bg-gray-50 transition-colors">
                         {newDoc.fileName ? (
                             <div className="flex items-center justify-center gap-2 text-green-600 font-black">
-                                <FileCheck size={24}/>
+                                <FileCheck size={24} />
                                 <span>{newDoc.fileName}</span>
-                                <button onClick={() => setNewDoc({...newDoc, fileUrl: '', fileName: ''})} className="text-red-500 hover:text-red-700 text-xs underline mr-2 font-bold">إزالة</button>
+                                <button onClick={() => setNewDoc({ ...newDoc, fileUrl: '', fileName: '' })} className="text-red-500 hover:text-red-700 text-xs underline mr-2 font-bold">إزالة</button>
                             </div>
                         ) : (
                             <label className="cursor-pointer block">
-                                <Upload size={32} className="mx-auto text-gray-400 mb-2"/>
+                                <Upload size={32} className="mx-auto text-gray-400 mb-2" />
                                 <span className="text-sm font-black text-gray-700">اضغط لرفع الملف (PDF أو صورة)</span>
                                 <p className="text-[10px] text-gray-400 mt-1 font-bold">الحد الأقصى 2 ميجابايت</p>
                                 <input type="file" className="hidden" accept="image/*,.pdf" onChange={handleFileUpload} />
@@ -303,14 +286,14 @@ export const DocumentsModule: React.FC = () => {
 
                     <div>
                         <label className="block text-xs font-bold text-gray-700 mb-1">ملاحظات</label>
-                        <textarea value={newDoc.notes || ''} onChange={e => setNewDoc({...newDoc, notes: e.target.value})} className="w-full p-2 border border-gray-400 rounded-lg text-sm h-20 resize-none text-black bg-white font-bold" placeholder="أي تفاصيل إضافية..." />
+                        <textarea value={newDoc.notes || ''} onChange={e => setNewDoc({ ...newDoc, notes: e.target.value })} className="w-full p-2 border border-gray-400 rounded-lg text-sm h-20 resize-none text-black bg-white font-bold" placeholder="أي تفاصيل إضافية..." />
                     </div>
                 </div>
 
                 <div className="p-4 bg-gray-50 border-t border-gray-100 flex justify-end gap-2">
                     <button onClick={() => setViewMode('list')} className="px-6 py-2 rounded-lg text-gray-600 font-bold hover:bg-gray-200">إلغاء</button>
                     <button onClick={saveDocument} className="px-6 py-2 rounded-lg bg-jilco-600 text-white font-bold hover:bg-jilco-700 flex items-center gap-2">
-                        <CheckCircle2 size={18}/> حفظ الوثيقة
+                        <CheckCircle2 size={18} /> حفظ الوثيقة
                     </button>
                 </div>
             </div>
@@ -372,13 +355,13 @@ export const DocumentsModule: React.FC = () => {
                     </div>
                 </div>
             </div>
-            
+
             <div className="fixed bottom-8 left-1/2 -translate-x-1/2 flex gap-4 print:hidden">
                 <button onClick={() => window.print()} className="bg-jilco-900 text-white px-6 py-3 rounded-full font-bold shadow-lg hover:bg-black flex items-center gap-2">
-                    <Printer size={18}/> طباعة
+                    <Printer size={18} /> طباعة
                 </button>
                 <button onClick={() => setViewMode('list')} className="bg-white text-gray-700 px-6 py-3 rounded-full font-bold shadow-lg hover:bg-gray-50 flex items-center gap-2">
-                    <XCircle size={18}/> إغلاق
+                    <XCircle size={18} /> إغلاق
                 </button>
             </div>
         </div>
@@ -407,21 +390,21 @@ export const DocumentsModule: React.FC = () => {
                             <p className="text-xs font-bold text-gray-500 mb-1">إجمالي الوثائق</p>
                             <h3 className="text-2xl font-black text-jilco-900">{stats.total}</h3>
                         </div>
-                        <div className="p-3 bg-blue-50 text-blue-600 rounded-lg"><FileText size={24}/></div>
+                        <div className="p-3 bg-blue-50 text-blue-600 rounded-lg"><FileText size={24} /></div>
                     </div>
                     <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm flex items-center justify-between">
                         <div>
                             <p className="text-xs font-bold text-amber-600 mb-1">تنتهي قريباً (30 يوم)</p>
                             <h3 className="text-2xl font-black text-amber-600">{stats.expiringSoon}</h3>
                         </div>
-                        <div className="p-3 bg-amber-50 text-amber-600 rounded-lg"><Calendar size={24}/></div>
+                        <div className="p-3 bg-amber-50 text-amber-600 rounded-lg"><Calendar size={24} /></div>
                     </div>
                     <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm flex items-center justify-between">
                         <div>
                             <p className="text-xs font-bold text-red-600 mb-1">منتهية الصلاحية</p>
                             <h3 className="text-2xl font-black text-red-600">{stats.expired}</h3>
                         </div>
-                        <div className="p-3 bg-red-50 text-red-600 rounded-lg"><AlertTriangle size={24}/></div>
+                        <div className="p-3 bg-red-50 text-red-600 rounded-lg"><AlertTriangle size={24} /></div>
                     </div>
                 </div>
 
@@ -429,21 +412,21 @@ export const DocumentsModule: React.FC = () => {
                 <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm mb-6 flex flex-wrap gap-4 items-center">
                     <div className="relative flex-1 min-w-[200px]">
                         <Search className="absolute right-3 top-2.5 text-gray-400" size={18} />
-                        <input 
-                            type="text" placeholder="بحث باسم الوثيقة..." 
+                        <input
+                            type="text" placeholder="بحث باسم الوثيقة..."
                             value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
                             className="w-full pr-10 pl-4 py-2 border border-gray-400 rounded-lg focus:ring-2 focus:ring-jilco-500 outline-none text-sm text-black bg-white font-bold"
                         />
                     </div>
                     <div className="flex items-center gap-2">
-                        <Filter size={16} className="text-gray-400"/>
+                        <Filter size={16} className="text-gray-400" />
                         <select value={filterCategory} onChange={e => setFilterCategory(e.target.value as any)} className="p-2 border border-gray-400 rounded-lg text-sm bg-white text-black font-bold outline-none">
                             <option value="all">جميع التصنيفات</option>
                             {CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
                         </select>
                     </div>
                     <button onClick={() => setViewMode('report')} className="bg-gray-100 text-gray-700 border border-gray-200 px-4 py-2 rounded-lg font-bold text-sm hover:bg-gray-200 flex items-center gap-2">
-                        <Printer size={16}/> طباعة سجل
+                        <Printer size={16} /> طباعة سجل
                     </button>
                 </div>
 
@@ -452,21 +435,21 @@ export const DocumentsModule: React.FC = () => {
                     {filteredDocuments.map(doc => {
                         const statusClass = getStatusColor(doc.expiryDate);
                         const categoryLabel = CATEGORIES.find(c => c.id === doc.category)?.label;
-                        
+
                         return (
                             <div key={doc.id} className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-all relative group flex flex-col">
                                 <div className="flex justify-between items-start mb-3">
                                     <div className="p-2 bg-gray-50 rounded-lg border border-gray-100">
-                                        {doc.fileType === 'image' ? <Eye className="text-blue-500" size={20}/> : <FileText className="text-red-500" size={20}/>}
+                                        {doc.fileType === 'image' ? <Eye className="text-blue-500" size={20} /> : <FileText className="text-red-500" size={20} />}
                                     </div>
                                     <span className={`text-[10px] px-2 py-1 rounded-full border font-bold ${statusClass}`}>
                                         {getStatusLabel(doc.expiryDate)}
                                     </span>
                                 </div>
-                                
+
                                 <h3 className="font-bold text-gray-900 text-base mb-1 truncate" title={doc.title}>{doc.title}</h3>
                                 <p className="text-xs text-gray-500 mb-3 font-bold">{categoryLabel}</p>
-                                
+
                                 {doc.referenceNumber && (
                                     <div className="mb-3 p-2 bg-gray-50 rounded border border-gray-200 text-xs font-mono text-black font-bold">
                                         Ref: {doc.referenceNumber}
@@ -474,39 +457,39 @@ export const DocumentsModule: React.FC = () => {
                                 )}
 
                                 <div className="flex gap-2 mt-auto pt-4 border-t border-gray-50">
-                                    <button 
+                                    <button
                                         onClick={() => setPreviewDoc(doc)}
                                         className="flex-1 py-2 bg-jilco-50 text-jilco-700 text-xs font-bold rounded hover:bg-jilco-100 flex items-center justify-center gap-1 transition-colors"
                                         title="معاينة"
                                     >
-                                        <Eye size={14}/>
+                                        <Eye size={14} />
                                     </button>
-                                    <button 
+                                    <button
                                         onClick={() => handleDownload(doc)}
                                         className="flex-1 py-2 bg-blue-50 text-blue-700 text-xs font-bold rounded hover:bg-blue-100 flex items-center justify-center gap-1 transition-colors"
                                         title="تحميل"
                                     >
-                                        <Download size={14}/>
+                                        <Download size={14} />
                                     </button>
-                                    <button 
+                                    <button
                                         onClick={() => handleSend(doc)}
                                         className="flex-1 py-2 bg-green-50 text-green-700 text-xs font-bold rounded hover:bg-green-100 flex items-center justify-center gap-1 transition-colors"
                                         title="إرسال"
                                     >
-                                        <Send size={14}/>
+                                        <Send size={14} />
                                     </button>
                                     <button onClick={() => deleteDocument(doc.id)} className="p-2 text-red-400 hover:bg-red-50 hover:text-red-600 rounded" title="حذف">
-                                        <Trash2 size={16}/>
+                                        <Trash2 size={16} />
                                     </button>
                                 </div>
                             </div>
                         );
                     })}
                 </div>
-                
+
                 {filteredDocuments.length === 0 && (
                     <div className="text-center py-16 bg-white rounded-xl border border-dashed border-gray-300">
-                        <FileText size={48} className="mx-auto text-gray-300 mb-4"/>
+                        <FileText size={48} className="mx-auto text-gray-300 mb-4" />
                         <p className="text-gray-500 font-bold">لا توجد وثائق مضافة.</p>
                         <p className="text-gray-400 text-xs mt-1 font-bold">ابدأ بإضافة وثائق الشركة للعرض هنا.</p>
                     </div>

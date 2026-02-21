@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { Building, Upload, Trash2, CreditCard, Save, Phone, Mail, MapPin, FileSignature, User, CheckCircle2, Download, DatabaseBackup, AlertTriangle, Cloud, CloudRain, Server, RefreshCw, HardDrive, Info, Eye } from 'lucide-react';
 import { CompanyConfig, BankAccount } from '../types';
 import { cloudService } from '../services/cloudService.ts';
+import { useData } from '../contexts/DataContext.tsx';
 
 const INITIAL_CONFIG: CompanyConfig = {
     logo: null,
@@ -29,39 +30,24 @@ const INITIAL_CONFIG: CompanyConfig = {
 };
 
 export const CompanyProfileModule: React.FC = () => {
+    const { config: globalConfig, saveConfig } = useData();
+
     const [config, setConfig] = useState<CompanyConfig>(INITIAL_CONFIG);
     const [showSaved, setShowSaved] = useState(false);
-
-    // Cloud State
-    const [cloudStatus, setCloudStatus] = useState<'idle' | 'connected' | 'error' | 'syncing'>('idle');
-    const [cloudMsg, setCloudMsg] = useState('');
-    const [backupInfo, setBackupInfo] = useState<{ exists: boolean, date?: string, size?: string } | null>(null);
     const [uploadingImage, setUploadingImage] = useState(false);
 
     // Load Data
     useEffect(() => {
-        const savedData = localStorage.getItem('jilco_quote_data');
-        if (savedData) {
-            try {
-                const parsed = JSON.parse(savedData);
-                if (parsed.config) setConfig({ ...INITIAL_CONFIG, ...parsed.config });
-            } catch (e) { }
+        if (globalConfig) {
+            setConfig(globalConfig);
         }
-        // فحص حالة Supabase تلقائياً
-        checkCloudData();
-    }, []);
+    }, [globalConfig]);
 
     // Save Data
     const handleSave = () => {
-        const savedData = localStorage.getItem('jilco_quote_data');
-        let dataToSave: any = { config };
-        if (savedData) {
-            try {
-                const parsed = JSON.parse(savedData);
-                dataToSave = { ...parsed, config };
-            } catch (e) { }
-        }
-        localStorage.setItem('jilco_quote_data', JSON.stringify(dataToSave));
+        // Save using DataContext which handles Supabase sync internally
+        saveConfig(config);
+
         setShowSaved(true);
         setTimeout(() => setShowSaved(false), 3000);
     };
@@ -108,74 +94,7 @@ export const CompanyProfileModule: React.FC = () => {
         setConfig({ ...config, bankAccounts: newBanks });
     };
 
-    // --- Backup & Restore Logic (Local) ---
-    const getAllData = () => {
-        const keys = [
-            'jilco_quote_data', 'jilco_quotes_archive', 'jilco_invoices_archive',
-            'jilco_receipts_archive', 'jilco_contracts_archive', 'jilco_customers',
-            'jilco_projects', 'jilco_phases', 'jilco_specs_db', 'jilco_suppliers',
-            'jilco_supplier_products', 'jilco_purchase_invoices', 'jilco_supplier_payments',
-            'jilco_warranties_archive', 'jilco_hr_employees', 'jilco_hr_commissions',
-            'jilco_smart_elevators', 'jilco_documents', 'jilco_system_users'
-        ];
-        const data: Record<string, string | null> = {};
-        keys.forEach(k => data[k] = localStorage.getItem(k));
-        return data;
-    };
 
-    const importData = (data: any) => {
-        Object.entries(data).forEach(([key, val]) => {
-            if (val) localStorage.setItem(key, val as string);
-        });
-        window.location.reload();
-    };
-
-    const checkCloudData = async () => {
-        const info: any = await cloudService.getBackupInfo();
-        if (info.exists) {
-            const date = new Date(info.updatedAt).toLocaleString('ar-SA');
-            const sizeKB = (info.sizeBytes / 1024).toFixed(1);
-            setBackupInfo({ exists: true, date, size: sizeKB });
-            setCloudStatus('connected');
-        } else {
-            setBackupInfo({ exists: false });
-            setCloudStatus('idle');
-        }
-    };
-
-    const handleCloudUpload = async () => {
-        if (!window.confirm('سيتم رفع جميع بياناتك الحالية إلى السحابة. متابعة؟')) return;
-        setCloudStatus('syncing');
-        setCloudMsg('جاري رفع البيانات...');
-        try {
-            const data = getAllData();
-            await cloudService.uploadData(data);
-            setCloudMsg('تم الرفع بنجاح ✅');
-            setCloudStatus('connected');
-            await checkCloudData();
-        } catch (e) {
-            setCloudStatus('error');
-            setCloudMsg('حدث خطأ أثناء الرفع.');
-        }
-    };
-
-    const handleCloudDownload = async () => {
-        if (!window.confirm('تحذير: سيتم استبدال جميع البيانات بالنسخة من السحابة. هل أنت متأكد؟')) return;
-        setCloudStatus('syncing');
-        setCloudMsg('جاري سحب البيانات...');
-        try {
-            const data = await cloudService.downloadData();
-            if (data) {
-                importData(data);
-            } else {
-                setCloudMsg('لا توجد نسخة احتياطية في السحابة.');
-                setCloudStatus('idle');
-            }
-        } catch (e) {
-            setCloudStatus('error');
-            setCloudMsg('حدث خطأ أثناء التنزيل.');
-        }
-    };
 
     return (
         <div className="flex-1 bg-gray-100 h-full overflow-y-auto animate-fade-in p-8">
@@ -201,45 +120,13 @@ export const CompanyProfileModule: React.FC = () => {
                     {/* Left Column: Branding Images & Cloud */}
                     <div className="lg:col-span-1 space-y-6">
 
-                        {/* Supabase Cloud Card */}
+                        {/* Info Card */}
                         <div className="bg-jilco-950 p-6 rounded-xl shadow-lg border border-jilco-800 text-white relative overflow-hidden">
                             <div className="absolute top-0 right-0 w-32 h-32 bg-gold-500 opacity-10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2 pointer-events-none"></div>
                             <h3 className="font-bold text-gold-400 mb-4 flex items-center gap-2 border-b border-jilco-800 pb-2">
-                                <Cloud size={18} /> المزامنة السحابية (Supabase)
+                                <Info size={18} /> التحديثات المباشرة
                             </h3>
-                            <div className="space-y-3">
-                                <div className="bg-white/5 p-3 rounded-lg border border-white/10">
-                                    <p className="text-[10px] font-bold text-gray-400 mb-2 flex items-center gap-1"><Info size={10} /> حالة النسخة الاحتياطية:</p>
-                                    {backupInfo ? (
-                                        backupInfo.exists ? (
-                                            <div className="text-xs space-y-1">
-                                                <p className="text-green-400 font-bold flex items-center gap-1"><CheckCircle2 size={10} /> نسخة احتياطية موجودة</p>
-                                                <p className="text-gray-300">التاريخ: <span className="text-white font-mono">{backupInfo.date}</span></p>
-                                                <p className="text-gray-300">الحجم: <span className="text-white font-mono">{backupInfo.size} KB</span></p>
-                                            </div>
-                                        ) : (
-                                            <p className="text-amber-400 text-xs font-bold flex items-center gap-1"><AlertTriangle size={10} /> لا توجد بيانات محفوظة بعد.</p>
-                                        )
-                                    ) : (
-                                        <p className="text-gray-500 text-[10px] italic">جاري الفحص...</p>
-                                    )}
-                                </div>
-
-                                {cloudMsg && (
-                                    <p className={`text-[10px] p-2 rounded text-center font-bold ${cloudStatus === 'error' ? 'bg-red-900/50 text-red-200' : 'bg-jilco-800 text-green-200'}`}>
-                                        {cloudMsg}
-                                    </p>
-                                )}
-
-                                <div className="grid grid-cols-2 gap-2 mt-2">
-                                    <button onClick={handleCloudUpload} disabled={cloudStatus === 'syncing'} className="bg-blue-600 hover:bg-blue-700 text-white py-2 rounded-lg text-[10px] font-bold flex flex-col items-center gap-1">
-                                        <Upload size={14} /> رفع يدوي
-                                    </button>
-                                    <button onClick={handleCloudDownload} disabled={cloudStatus === 'syncing'} className="bg-jilco-700 hover:bg-jilco-600 text-white py-2 rounded-lg text-[10px] font-bold flex flex-col items-center gap-1">
-                                        <Download size={14} /> استعادة
-                                    </button>
-                                </div>
-                            </div>
+                            <p className="text-xs text-gray-300">يتم حفظ ومزامنة بيانات الشركة تلقائياً عبر السحابة لحظة التعديل.</p>
                         </div>
 
 

@@ -1,525 +1,532 @@
 
 import React, { useState, useEffect } from 'react';
 import { Project, ProjectPhase, ProjectStatus, PhaseStatus, Expense, PurchaseInvoice } from '../types';
-import { 
-  Plus, LayoutDashboard, Search, Calendar, 
-  DollarSign, Briefcase, ArrowLeft, Trash2, Edit, 
-  Save, X, CheckCircle2, Clock, AlertCircle, PieChart, Printer, FileText, ShoppingBag, Wallet
+import {
+    Plus, LayoutDashboard, Search, Calendar,
+    DollarSign, Briefcase, ArrowLeft, Trash2, Edit,
+    Save, X, CheckCircle2, Clock, AlertCircle, PieChart, Printer, FileText, ShoppingBag, Wallet
 } from 'lucide-react';
+import { useData } from '../contexts/DataContext.tsx';
 
 // --- Default Phases Generator ---
 const createDefaultPhases = (projectId: string): ProjectPhase[] => [
     { id: `PH-${Date.now()}-1`, projectId, name: '1. التجهيزات المدنية وتجهيز البئر', phaseIndex: 0, status: 'not_started', startDate: '', endDate: '', expectedCost: 0, actualCost: 0, progressPercentage: 0, notes: '' },
     { id: `PH-${Date.now()}-2`, projectId, name: '2. تركيب السكك والأبواب (الميكانيكا)', phaseIndex: 1, status: 'not_started', startDate: '', endDate: '', expectedCost: 0, actualCost: 0, progressPercentage: 0, notes: '' },
     { id: `PH-${Date.now()}-3`, projectId, name: '3. تركيب الماكينة والمحرك', phaseIndex: 2, status: 'not_started', startDate: '', endDate: '', expectedCost: 0, actualCost: 0, progressPercentage: 0, notes: '' },
-    { id: `PH-${Date.now()}-4`, projectId, name: '4. الأعمال الكهربائية والكنترول', phaseIndex: 0, status: 'not_started', startDate: '', endDate: '', expectedCost: 0, actualCost: 0, progressPercentage: 0, notes: '' }, 
+    { id: `PH-${Date.now()}-4`, projectId, name: '4. الأعمال الكهربائية والكنترول', phaseIndex: 0, status: 'not_started', startDate: '', endDate: '', expectedCost: 0, actualCost: 0, progressPercentage: 0, notes: '' },
     { id: `PH-${Date.now()}-5`, projectId, name: '5. التشغيل التجريبي والتسليم', phaseIndex: 0, status: 'not_started', startDate: '', endDate: '', expectedCost: 0, actualCost: 0, progressPercentage: 0, notes: '' }
 ];
 
 const StatusBadge = ({ status }: { status: ProjectStatus | PhaseStatus }) => {
-  const styles = { 
-      not_started: 'bg-gray-100 text-gray-600', 
-      in_progress: 'bg-blue-100 text-blue-700', 
-      completed: 'bg-green-100 text-green-700', 
-      stopped: 'bg-red-100 text-red-700', 
-      late: 'bg-amber-100 text-amber-700' 
-  };
-  const labels = { 
-      not_started: 'لم تبدأ', 
-      in_progress: 'قيد التنفيذ', 
-      completed: 'مكتملة', 
-      stopped: 'متوقف', 
-      late: 'متأخرة' 
-  };
-  return <span className={`px-2.5 py-1 rounded-lg text-xs font-bold border border-transparent ${styles[status] || styles.not_started}`}>{labels[status] || status}</span>;
+    const styles = {
+        not_started: 'bg-gray-100 text-gray-600',
+        in_progress: 'bg-blue-100 text-blue-700',
+        completed: 'bg-green-100 text-green-700',
+        stopped: 'bg-red-100 text-red-700',
+        late: 'bg-amber-100 text-amber-700'
+    };
+    const labels = {
+        not_started: 'لم تبدأ',
+        in_progress: 'قيد التنفيذ',
+        completed: 'مكتملة',
+        stopped: 'متوقف',
+        late: 'متأخرة'
+    };
+    return <span className={`px-2.5 py-1 rounded-lg text-xs font-bold border border-transparent ${styles[status] || styles.not_started}`}>{labels[status] || status}</span>;
 };
 
 export const ProjectModule: React.FC = () => {
-  const [viewMode, setViewMode] = useState<'dashboard' | 'list' | 'details' | 'statement'>('dashboard');
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [phases, setPhases] = useState<ProjectPhase[]>([]);
-  
-  // Financial Data
-  const [allExpenses, setAllExpenses] = useState<Expense[]>([]);
-  const [allInvoices, setAllInvoices] = useState<PurchaseInvoice[]>([]);
+    const {
+        projects, phases, expenses: allExpenses, invoices: allInvoices,
+        saveRecord, deleteRecordLocallyAndCloud
+    } = useData();
 
-  const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  
-  // New Project Form State
-  const [showNewProjectModal, setShowNewProjectModal] = useState(false);
-  const [newProject, setNewProject] = useState<Partial<Project>>({
-      name: '', clientName: '', startDate: new Date().toISOString().split('T')[0], totalExpectedCost: 0, status: 'not_started'
-  });
+    const [viewMode, setViewMode] = useState<'dashboard' | 'list' | 'details' | 'statement'>('dashboard');
 
-  // Load Data
-  useEffect(() => {
-    try {
-        const p = localStorage.getItem('jilco_projects');
-        const ph = localStorage.getItem('jilco_phases');
-        const exp = localStorage.getItem('jilco_expenses_archive');
-        const inv = localStorage.getItem('jilco_purchase_invoices');
+    const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
+    const [searchTerm, setSearchTerm] = useState('');
 
-        if (p) setProjects(JSON.parse(p));
-        if (ph) setPhases(JSON.parse(ph));
-        if (exp) setAllExpenses(JSON.parse(exp));
-        if (inv) setAllInvoices(JSON.parse(inv));
+    // New Project Form State
+    const [showNewProjectModal, setShowNewProjectModal] = useState(false);
+    const [newProject, setNewProject] = useState<Partial<Project>>({
+        name: '', clientName: '', startDate: new Date().toISOString().split('T')[0], totalExpectedCost: 0, status: 'not_started'
+    });
 
-        // Check for direct navigation request (from dashboard)
-        const navId = localStorage.getItem('jilco_nav_project_id');
-        if (navId) {
-            setSelectedProjectId(navId);
-            setViewMode('details');
-            localStorage.removeItem('jilco_nav_project_id');
+    // Load Data Action from Dashboard
+    useEffect(() => {
+        try {
+            // Check for direct navigation request (from dashboard)
+            const navId = localStorage.getItem('jilco_nav_project_id');
+            if (navId) {
+                setSelectedProjectId(navId);
+                setViewMode('details');
+                localStorage.removeItem('jilco_nav_project_id');
+            }
+        } catch (e) { console.error(e); }
+    }, []);
+
+    // --- Actions ---
+
+    const handleCreateProject = async () => {
+        if (!newProject.name || !newProject.clientName) return alert('يرجى تعبئة اسم المشروع والعميل');
+
+        const projectId = `PRJ-${Date.now()}`;
+        const projectData: Project = {
+            ...newProject as Project,
+            id: projectId,
+            totalActualCost: 0,
+            progress: 0,
+            endDate: '',
+            notes: '',
+            type: 'residential'
+        };
+
+        const defaultPhases = createDefaultPhases(projectId);
+
+        // Save Project
+        await saveRecord('jilco_projects', projectId, projectData);
+
+        // Save Phases
+        for (const phase of defaultPhases) {
+            await saveRecord('jilco_phases', phase.id, phase);
         }
-    } catch (e) { console.error(e); }
-  }, []);
 
-  // Save Data
-  useEffect(() => {
-    localStorage.setItem('jilco_projects', JSON.stringify(projects));
-    localStorage.setItem('jilco_phases', JSON.stringify(phases));
-  }, [projects, phases]);
+        setShowNewProjectModal(false);
+        setNewProject({ name: '', clientName: '', startDate: new Date().toISOString().split('T')[0], totalExpectedCost: 0, status: 'not_started' });
 
-  // --- Actions ---
+        // Auto open details
+        setSelectedProjectId(projectId);
+        setViewMode('details');
+    };
 
-  const handleCreateProject = () => {
-      if (!newProject.name || !newProject.clientName) return alert('يرجى تعبئة اسم المشروع والعميل');
+    const handleDeleteProject = async (id: string) => {
+        if (window.confirm('حذف المشروع سيحذف جميع مراحله وسجلاته. هل أنت متأكد؟')) {
+            // Delete project
+            await deleteRecordLocallyAndCloud('jilco_projects', id);
 
-      const projectId = `PRJ-${Date.now()}`;
-      const projectData: Project = {
-          ...newProject as Project,
-          id: projectId,
-          totalActualCost: 0,
-          progress: 0,
-          endDate: '',
-          notes: '',
-          type: 'residential'
-      };
+            // Delete associated phases
+            const projectPhases = phases.filter(ph => ph.projectId === id);
+            for (const phase of projectPhases) {
+                await deleteRecordLocallyAndCloud('jilco_phases', phase.id);
+            }
 
-      const defaultPhases = createDefaultPhases(projectId);
+            if (selectedProjectId === id) {
+                setViewMode('list');
+                setSelectedProjectId(null);
+            }
+        }
+    };
 
-      setProjects([projectData, ...projects]);
-      setPhases([...phases, ...defaultPhases]);
-      setShowNewProjectModal(false);
-      setNewProject({ name: '', clientName: '', startDate: new Date().toISOString().split('T')[0], totalExpectedCost: 0, status: 'not_started' });
-      
-      // Auto open details
-      setSelectedProjectId(projectId);
-      setViewMode('details');
-  };
+    const updatePhase = async (phaseId: string, updates: Partial<ProjectPhase>) => {
+        const phaseToUpdate = phases.find(ph => ph.id === phaseId);
+        if (!phaseToUpdate) return;
 
-  const handleDeleteProject = (id: string) => {
-      if (window.confirm('حذف المشروع سيحذف جميع مراحله وسجلاته. هل أنت متأكد؟')) {
-          setProjects(projects.filter(p => p.id !== id));
-          setPhases(phases.filter(ph => ph.projectId !== id));
-          if (selectedProjectId === id) {
-              setViewMode('list');
-              setSelectedProjectId(null);
-          }
-      }
-  };
+        const updatedPhase = { ...phaseToUpdate, ...updates };
+        await saveRecord('jilco_phases', phaseId, updatedPhase);
 
-  const updatePhase = (phaseId: string, updates: Partial<ProjectPhase>) => {
-      setPhases(phases.map(ph => ph.id === phaseId ? { ...ph, ...updates } : ph));
-      
-      // Auto Update Project Progress & Cost based on phases ONLY (Legacy logic, statement uses real invoices)
-      if (selectedProjectId) {
-          const projectPhases = phases.map(ph => ph.id === phaseId ? { ...ph, ...updates } : ph).filter(p => p.projectId === selectedProjectId);
-          const totalProgress = projectPhases.reduce((sum, p) => sum + (p.progressPercentage || 0), 0);
-          const avgProgress = projectPhases.length > 0 ? Math.round(totalProgress / projectPhases.length) : 0;
-          
-          setProjects(projects.map(p => p.id === selectedProjectId ? { ...p, progress: avgProgress } : p));
-      }
-  };
+        // Auto Update Project Progress & Cost based on phases ONLY
+        if (selectedProjectId) {
+            // get latest phases plus the updated one
+            const projectPhases = phases.filter(p => p.projectId === selectedProjectId).map(p => p.id === phaseId ? updatedPhase : p);
 
-  // --- Financial Logic ---
-  const getProjectFinancials = (projectId: string) => {
-      const projectExpenses = allExpenses.filter(e => e.projectId === projectId);
-      const projectInvoices = allInvoices.filter(i => i.projectId === projectId);
-      
-      const totalExpenses = projectExpenses.reduce((sum, e) => sum + e.amount, 0);
-      const totalInvoices = projectInvoices.reduce((sum, i) => sum + i.grandTotal, 0);
-      
-      return {
-          expenses: projectExpenses,
-          invoices: projectInvoices,
-          totalCost: totalExpenses + totalInvoices,
-          totalExpenses,
-          totalInvoices
-      };
-  };
+            const totalProgress = projectPhases.reduce((sum, p) => sum + (p.progressPercentage || 0), 0);
+            const avgProgress = projectPhases.length > 0 ? Math.round(totalProgress / projectPhases.length) : 0;
 
-  // --- Renderers ---
+            const projToUpdate = projects.find(p => p.id === selectedProjectId);
+            if (projToUpdate) {
+                const updatedProj = { ...projToUpdate, progress: avgProgress };
+                await saveRecord('jilco_projects', selectedProjectId, updatedProj);
+            }
+        }
+    };
 
-  const renderNewProjectModal = () => (
-      <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg p-6 animate-fade-in">
-              <div className="flex justify-between items-center mb-6 border-b border-gray-100 pb-4">
-                  <h3 className="text-xl font-bold text-jilco-900">تسجيل مشروع جديد</h3>
-                  <button onClick={() => setShowNewProjectModal(false)} className="p-2 hover:bg-gray-100 rounded-full"><X size={20}/></button>
-              </div>
-              <div className="space-y-4">
-                  <div>
-                      <label className="block text-sm font-bold text-gray-700 mb-1">اسم المشروع</label>
-                      <input type="text" value={newProject.name} onChange={e => setNewProject({...newProject, name: e.target.value})} className="w-full p-3 border border-gray-400 rounded-lg text-black font-bold bg-white focus:ring-2 focus:ring-jilco-500 outline-none" placeholder="مثال: فيلا حي الملقا"/>
-                  </div>
-                  <div>
-                      <label className="block text-sm font-bold text-gray-700 mb-1">اسم العميل</label>
-                      <input type="text" value={newProject.clientName} onChange={e => setNewProject({...newProject, clientName: e.target.value})} className="w-full p-3 border border-gray-400 rounded-lg text-black font-bold bg-white focus:ring-2 focus:ring-jilco-500 outline-none"/>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                      <div>
-                          <label className="block text-sm font-bold text-gray-700 mb-1">تاريخ البداية</label>
-                          <input type="date" value={newProject.startDate} onChange={e => setNewProject({...newProject, startDate: e.target.value})} className="w-full p-3 border border-gray-400 rounded-lg text-black font-bold bg-white focus:ring-2 focus:ring-jilco-500 outline-none"/>
-                      </div>
-                      <div>
-                          <label className="block text-sm font-bold text-gray-700 mb-1">التكلفة التقديرية</label>
-                          <input type="number" value={newProject.totalExpectedCost} onChange={e => setNewProject({...newProject, totalExpectedCost: parseFloat(e.target.value)})} className="w-full p-3 border border-gray-400 rounded-lg text-black font-bold bg-white focus:ring-2 focus:ring-jilco-500 outline-none"/>
-                      </div>
-                  </div>
-                  <div>
-                      <label className="block text-sm font-bold text-gray-700 mb-1">حالة المشروع</label>
-                      <select value={newProject.status} onChange={e => setNewProject({...newProject, status: e.target.value as any})} className="w-full p-3 border border-gray-400 rounded-lg text-black font-bold bg-white focus:ring-2 focus:ring-jilco-500 outline-none">
-                          <option value="not_started">لم يبدأ</option>
-                          <option value="in_progress">قيد التنفيذ</option>
-                      </select>
-                  </div>
-              </div>
-              <div className="mt-8 flex justify-end gap-3">
-                  <button onClick={() => setShowNewProjectModal(false)} className="px-6 py-2.5 text-gray-600 font-bold bg-gray-100 rounded-lg hover:bg-gray-200">إلغاء</button>
-                  <button onClick={handleCreateProject} className="px-6 py-2.5 bg-jilco-900 text-white font-bold rounded-lg hover:bg-jilco-800 flex items-center gap-2">
-                      <Save size={18}/> حفظ المشروع
-                  </button>
-              </div>
-          </div>
-      </div>
-  );
+    // --- Financial Logic ---
+    const getProjectFinancials = (projectId: string) => {
+        const projectExpenses = allExpenses.filter(e => e.projectId === projectId);
+        const projectInvoices = allInvoices.filter(i => i.projectId === projectId);
 
-  // --- Statement View ---
-  const renderProjectStatement = () => {
-      if (!selectedProjectId) return null;
-      const project = projects.find(p => p.id === selectedProjectId);
-      if (!project) return null;
+        const totalExpenses = projectExpenses.reduce((sum, e) => sum + e.amount, 0);
+        const totalInvoices = projectInvoices.reduce((sum, i) => sum + i.grandTotal, 0);
 
-      const { expenses, invoices, totalCost, totalExpenses, totalInvoices } = getProjectFinancials(selectedProjectId);
+        return {
+            expenses: projectExpenses,
+            invoices: projectInvoices,
+            totalCost: totalExpenses + totalInvoices,
+            totalExpenses,
+            totalInvoices
+        };
+    };
 
-      // Merge and sort transactions
-      const transactions = [
-          ...expenses.map(e => ({ date: e.date, type: 'expense', desc: e.description || e.paidTo, amount: e.amount, ref: e.number, cat: 'مصروفات' })),
-          ...invoices.map(i => ({ date: i.date, type: 'invoice', desc: `فاتورة مورد: ${i.items?.[0]?.description || 'مواد'}`, amount: i.grandTotal, ref: i.number, cat: 'مشتريات' }))
-      ].sort((a,b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    // --- Renderers ---
 
-      return (
-          <div className="flex-1 bg-gray-200 p-8 overflow-auto flex justify-center items-start print:p-0 print:bg-white print:w-full print:h-full print:absolute print:top-0 print:left-0 print:z-[200]">
-              <div className="bg-white shadow-2xl w-[210mm] min-h-[297mm] p-0 relative flex flex-col print:shadow-none print:w-full">
-                  {/* Header */}
-                  <div className="px-10 py-6 border-b-2 border-jilco-900 flex justify-between items-center">
-                      <div className="w-1/3 text-right">
-                          <h1 className="text-xl font-black text-jilco-900">جيلكو للمصاعد</h1>
-                          <p className="text-xs font-bold text-gray-500">JILCO ELEVATORS</p>
-                      </div>
-                      <div className="w-1/3 text-center">
-                          <h2 className="text-2xl font-black text-black border-2 border-black px-4 py-1 inline-block rounded-lg uppercase">كشف حساب مشروع</h2>
-                      </div>
-                      <div className="w-1/3 text-left">
-                          <p className="text-xs font-bold text-gray-500">تاريخ التقرير</p>
-                          <p className="font-mono text-sm">{new Date().toLocaleDateString('en-GB')}</p>
-                      </div>
-                  </div>
-
-                  {/* Project Info */}
-                  <div className="px-10 py-6 bg-gray-50 border-b border-gray-200">
-                      <div className="grid grid-cols-2 gap-6">
-                          <div>
-                              <p className="text-xs font-bold text-gray-500 mb-1">اسم المشروع</p>
-                              <h3 className="text-lg font-black text-jilco-900">{project.name}</h3>
-                          </div>
-                          <div>
-                              <p className="text-xs font-bold text-gray-500 mb-1">العميل</p>
-                              <h3 className="text-lg font-black text-gray-800">{project.clientName}</h3>
-                          </div>
-                          <div>
-                              <p className="text-xs font-bold text-gray-500 mb-1">تاريخ البداية</p>
-                              <p className="font-mono font-bold text-black">{project.startDate}</p>
-                          </div>
-                          <div>
-                              <p className="text-xs font-bold text-gray-500 mb-1">الميزانية التقديرية</p>
-                              <p className="font-mono font-bold text-black">{project.totalExpectedCost.toLocaleString()} SAR</p>
-                          </div>
-                      </div>
-                  </div>
-
-                  {/* Summary Cards */}
-                  <div className="px-10 py-6 grid grid-cols-3 gap-4">
-                      <div className="bg-red-50 p-4 rounded-xl border border-red-100 text-center">
-                          <p className="text-xs font-bold text-red-800 mb-1">إجمالي المصروفات (النثرية)</p>
-                          <p className="text-xl font-black text-red-600 font-mono">{totalExpenses.toLocaleString()}</p>
-                      </div>
-                      <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 text-center">
-                          <p className="text-xs font-bold text-blue-800 mb-1">إجمالي المشتريات (الموردين)</p>
-                          <p className="text-xl font-black text-blue-600 font-mono">{totalInvoices.toLocaleString()}</p>
-                      </div>
-                      <div className="bg-jilco-900 p-4 rounded-xl text-white text-center shadow-lg">
-                          <p className="text-xs font-bold text-gray-300 mb-1">التكلفة الفعلية الإجمالية</p>
-                          <p className="text-2xl font-black text-gold-400 font-mono">{totalCost.toLocaleString()}</p>
-                      </div>
-                  </div>
-
-                  {/* Transaction Table */}
-                  <div className="px-10 py-4 flex-1">
-                      <h4 className="font-bold text-sm text-gray-800 mb-4 border-b pb-2">سجل العمليات المالية (تفصيلي)</h4>
-                      <table className="w-full text-xs text-right border-collapse">
-                          <thead>
-                              <tr className="bg-gray-100 text-gray-700">
-                                  <th className="p-2 border border-gray-300 w-10 text-center">#</th>
-                                  <th className="p-2 border border-gray-300 w-24">التاريخ</th>
-                                  <th className="p-2 border border-gray-300 w-24">النوع</th>
-                                  <th className="p-2 border border-gray-300 w-24">رقم المرجع</th>
-                                  <th className="p-2 border border-gray-300">البيان / الوصف</th>
-                                  <th className="p-2 border border-gray-300 w-24 text-center">المبلغ</th>
-                              </tr>
-                          </thead>
-                          <tbody>
-                              {transactions.length === 0 && <tr><td colSpan={6} className="p-6 text-center text-gray-400 font-bold">لا توجد عمليات مالية مسجلة</td></tr>}
-                              {transactions.map((tx, idx) => (
-                                  <tr key={idx} className="border border-gray-300">
-                                      <td className="p-2 border border-gray-300 text-center">{idx + 1}</td>
-                                      <td className="p-2 border border-gray-300 font-mono">{tx.date}</td>
-                                      <td className="p-2 border border-gray-300">
-                                          <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${tx.type === 'expense' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'}`}>
-                                              {tx.cat}
-                                          </span>
-                                      </td>
-                                      <td className="p-2 border border-gray-300 font-mono font-bold">{tx.ref}</td>
-                                      <td className="p-2 border border-gray-300 font-medium truncate max-w-[200px]">{tx.desc}</td>
-                                      <td className="p-2 border border-gray-300 text-center font-mono font-bold">{tx.amount.toLocaleString()}</td>
-                                  </tr>
-                              ))}
-                          </tbody>
-                      </table>
-                  </div>
-
-                  {/* Actions (Hidden Print) */}
-                  <div className="fixed bottom-8 left-1/2 -translate-x-1/2 flex gap-4 print:hidden">
-                      <button onClick={() => window.print()} className="bg-jilco-900 text-white px-6 py-3 rounded-full font-bold shadow-lg hover:bg-black flex items-center gap-2">
-                          <Printer size={18}/> طباعة الكشف
-                      </button>
-                      <button onClick={() => setViewMode('details')} className="bg-white text-gray-700 px-6 py-3 rounded-full font-bold shadow-lg hover:bg-gray-50 flex items-center gap-2 border border-gray-200">
-                          <ArrowLeft size={18}/> رجوع
-                      </button>
-                  </div>
-              </div>
-          </div>
-      );
-  };
-
-  // --- List View ---
-  if (viewMode === 'list' || viewMode === 'dashboard') {
-      const stats = {
-          total: projects.length,
-          active: projects.filter(p => p.status === 'in_progress').length,
-          completed: projects.filter(p => p.status === 'completed').length
-      };
-
-      return (
-        <div className="flex-1 bg-gray-100 p-8 overflow-auto h-full animate-fade-in relative">
-            <div className="max-w-6xl mx-auto">
-                <div className="flex justify-between items-end mb-8">
+    const renderNewProjectModal = () => (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+            <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg p-6 animate-fade-in">
+                <div className="flex justify-between items-center mb-6 border-b border-gray-100 pb-4">
+                    <h3 className="text-xl font-bold text-jilco-900">تسجيل مشروع جديد</h3>
+                    <button onClick={() => setShowNewProjectModal(false)} className="p-2 hover:bg-gray-100 rounded-full"><X size={20} /></button>
+                </div>
+                <div className="space-y-4">
                     <div>
-                        <h1 className="text-2xl font-bold text-jilco-900 flex items-center gap-2">
-                            <Briefcase className="text-gold-500" /> إدارة المشاريع
-                        </h1>
-                        <p className="text-gray-500 text-sm mt-1">متابعة سير العمل، المراحل، والتكاليف</p>
+                        <label className="block text-sm font-bold text-gray-700 mb-1">اسم المشروع</label>
+                        <input type="text" value={newProject.name} onChange={e => setNewProject({ ...newProject, name: e.target.value })} className="w-full p-3 border border-gray-400 rounded-lg text-black font-bold bg-white focus:ring-2 focus:ring-jilco-500 outline-none" placeholder="مثال: فيلا حي الملقا" />
                     </div>
-                    <button onClick={() => setShowNewProjectModal(true)} className="bg-jilco-600 text-white px-6 py-2.5 rounded-lg font-bold flex items-center gap-2 hover:bg-jilco-700 shadow-md">
-                        <Plus size={20} /> مشروع جديد
-                    </button>
-                </div>
-
-                {/* Stats Cards */}
-                <div className="grid grid-cols-3 gap-6 mb-8">
-                    <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
-                        <p className="text-xs font-bold text-gray-500 mb-1">إجمالي المشاريع</p>
-                        <p className="text-3xl font-black text-jilco-900">{stats.total}</p>
+                    <div>
+                        <label className="block text-sm font-bold text-gray-700 mb-1">اسم العميل</label>
+                        <input type="text" value={newProject.clientName} onChange={e => setNewProject({ ...newProject, clientName: e.target.value })} className="w-full p-3 border border-gray-400 rounded-lg text-black font-bold bg-white focus:ring-2 focus:ring-jilco-500 outline-none" />
                     </div>
-                    <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
-                        <p className="text-xs font-bold text-gray-500 mb-1">مشاريع نشطة</p>
-                        <p className="text-3xl font-black text-blue-600">{stats.active}</p>
-                    </div>
-                    <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
-                        <p className="text-xs font-bold text-gray-500 mb-1">مشاريع مكتملة</p>
-                        <p className="text-3xl font-black text-green-600">{stats.completed}</p>
-                    </div>
-                </div>
-
-                <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-                    <div className="p-4 border-b border-gray-100">
-                        <div className="relative max-w-md">
-                            <Search className="absolute right-3 top-2.5 text-gray-400" size={18} />
-                            <input 
-                                type="text" placeholder="بحث باسم المشروع أو العميل..." 
-                                value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
-                                className="w-full pr-10 pl-4 py-2 border border-gray-400 rounded-lg text-sm bg-white text-black font-bold focus:ring-2 focus:ring-jilco-500 outline-none"
-                            />
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm font-bold text-gray-700 mb-1">تاريخ البداية</label>
+                            <input type="date" value={newProject.startDate} onChange={e => setNewProject({ ...newProject, startDate: e.target.value })} className="w-full p-3 border border-gray-400 rounded-lg text-black font-bold bg-white focus:ring-2 focus:ring-jilco-500 outline-none" />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-bold text-gray-700 mb-1">التكلفة التقديرية</label>
+                            <input type="number" value={newProject.totalExpectedCost} onChange={e => setNewProject({ ...newProject, totalExpectedCost: parseFloat(e.target.value) })} className="w-full p-3 border border-gray-400 rounded-lg text-black font-bold bg-white focus:ring-2 focus:ring-jilco-500 outline-none" />
                         </div>
                     </div>
-                    <table className="w-full text-sm text-right">
-                        <thead className="bg-gray-50 text-gray-500 font-medium">
-                            <tr>
-                                <th className="p-4">المشروع</th>
-                                <th className="p-4">العميل</th>
-                                <th className="p-4">تاريخ البداية</th>
-                                <th className="p-4">نسبة الإنجاز</th>
-                                <th className="p-4">الحالة</th>
-                                <th className="p-4 text-center">إجراءات</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-100">
-                            {projects.filter(p => p.name.includes(searchTerm) || p.clientName.includes(searchTerm)).map(p => (
-                                <tr key={p.id} className="hover:bg-gray-50 group cursor-pointer" onClick={() => { setSelectedProjectId(p.id); setViewMode('details'); }}>
-                                    <td className="p-4 font-bold text-jilco-900">{p.name}</td>
-                                    <td className="p-4 font-bold text-gray-700">{p.clientName}</td>
-                                    <td className="p-4 font-mono text-xs text-gray-500">{p.startDate}</td>
-                                    <td className="p-4">
-                                        <div className="w-full bg-gray-200 rounded-full h-2.5">
-                                            <div className="bg-jilco-600 h-2.5 rounded-full" style={{ width: `${p.progress}%` }}></div>
-                                        </div>
-                                        <span className="text-[10px] font-bold text-gray-500 mt-1 block">{p.progress}%</span>
-                                    </td>
-                                    <td className="p-4"><StatusBadge status={p.status} /></td>
-                                    <td className="p-4 flex justify-center gap-2" onClick={e => e.stopPropagation()}>
-                                        <button onClick={() => { setSelectedProjectId(p.id); setViewMode('details'); }} className="p-2 text-blue-600 hover:bg-blue-50 rounded-full"><Edit size={16}/></button>
-                                        <button onClick={() => handleDeleteProject(p.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-full"><Trash2 size={16}/></button>
-                                    </td>
-                                </tr>
-                            ))}
-                            {projects.length === 0 && <tr><td colSpan={6} className="p-12 text-center text-gray-400">لا توجد مشاريع مسجلة.</td></tr>}
-                        </tbody>
-                    </table>
+                    <div>
+                        <label className="block text-sm font-bold text-gray-700 mb-1">حالة المشروع</label>
+                        <select value={newProject.status} onChange={e => setNewProject({ ...newProject, status: e.target.value as any })} className="w-full p-3 border border-gray-400 rounded-lg text-black font-bold bg-white focus:ring-2 focus:ring-jilco-500 outline-none">
+                            <option value="not_started">لم يبدأ</option>
+                            <option value="in_progress">قيد التنفيذ</option>
+                        </select>
+                    </div>
+                </div>
+                <div className="mt-8 flex justify-end gap-3">
+                    <button onClick={() => setShowNewProjectModal(false)} className="px-6 py-2.5 text-gray-600 font-bold bg-gray-100 rounded-lg hover:bg-gray-200">إلغاء</button>
+                    <button onClick={handleCreateProject} className="px-6 py-2.5 bg-jilco-900 text-white font-bold rounded-lg hover:bg-jilco-800 flex items-center gap-2">
+                        <Save size={18} /> حفظ المشروع
+                    </button>
                 </div>
             </div>
-            {showNewProjectModal && renderNewProjectModal()}
         </div>
-      );
-  }
+    );
 
-  // --- Details View ---
-  if (viewMode === 'statement') return renderProjectStatement();
+    // --- Statement View ---
+    const renderProjectStatement = () => {
+        if (!selectedProjectId) return null;
+        const project = projects.find(p => p.id === selectedProjectId);
+        if (!project) return null;
 
-  const currentProject = projects.find(p => p.id === selectedProjectId);
-  const projectPhases = phases.filter(p => p.projectId === selectedProjectId);
+        const { expenses, invoices, totalCost, totalExpenses, totalInvoices } = getProjectFinancials(selectedProjectId);
 
-  if (!currentProject) return null;
+        // Merge and sort transactions
+        const transactions = [
+            ...expenses.map(e => ({ date: e.date, type: 'expense', desc: e.description || e.paidTo, amount: e.amount, ref: e.number, cat: 'مصروفات' })),
+            ...invoices.map(i => ({ date: i.date, type: 'invoice', desc: `فاتورة مورد: ${i.items?.[0]?.description || 'مواد'}`, amount: i.grandTotal, ref: i.number, cat: 'مشتريات' }))
+        ].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-  // Calculate live cost summary for detail view card
-  const financials = getProjectFinancials(currentProject.id);
+        return (
+            <div className="flex-1 bg-gray-200 p-8 overflow-auto flex justify-center items-start print:p-0 print:bg-white print:w-full print:h-full print:absolute print:top-0 print:left-0 print:z-[200]">
+                <div className="bg-white shadow-2xl w-[210mm] min-h-[297mm] p-0 relative flex flex-col print:shadow-none print:w-full">
+                    {/* Header */}
+                    <div className="px-10 py-6 border-b-2 border-jilco-900 flex justify-between items-center">
+                        <div className="w-1/3 text-right">
+                            <h1 className="text-xl font-black text-jilco-900">جيلكو للمصاعد</h1>
+                            <p className="text-xs font-bold text-gray-500">JILCO ELEVATORS</p>
+                        </div>
+                        <div className="w-1/3 text-center">
+                            <h2 className="text-2xl font-black text-black border-2 border-black px-4 py-1 inline-block rounded-lg uppercase">كشف حساب مشروع</h2>
+                        </div>
+                        <div className="w-1/3 text-left">
+                            <p className="text-xs font-bold text-gray-500">تاريخ التقرير</p>
+                            <p className="font-mono text-sm">{new Date().toLocaleDateString('en-GB')}</p>
+                        </div>
+                    </div>
 
-  return (
-      <div className="flex-1 bg-gray-100 p-6 overflow-hidden h-full flex flex-col animate-fade-in">
-          <div className="flex justify-between items-center mb-6 shrink-0">
-              <div>
-                  <h2 className="text-2xl font-black text-jilco-900 flex items-center gap-2">
-                      <Briefcase className="text-gold-500" /> {currentProject.name}
-                  </h2>
-                  <p className="text-gray-500 text-sm font-bold mt-1">العميل: {currentProject.clientName}</p>
-              </div>
-              <div className="flex gap-2">
-                  <button 
-                    onClick={() => setViewMode('statement')}
-                    className="bg-jilco-900 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 hover:bg-jilco-800 shadow-sm"
-                  >
-                      <PieChart size={18}/> كشف حساب مالي
-                  </button>
-                  <button onClick={() => setViewMode('list')} className="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg font-bold flex items-center gap-2 hover:bg-gray-50">
-                      <ArrowLeft size={18}/> رجوع للقائمة
-                  </button>
-              </div>
-          </div>
+                    {/* Project Info */}
+                    <div className="px-10 py-6 bg-gray-50 border-b border-gray-200">
+                        <div className="grid grid-cols-2 gap-6">
+                            <div>
+                                <p className="text-xs font-bold text-gray-500 mb-1">اسم المشروع</p>
+                                <h3 className="text-lg font-black text-jilco-900">{project.name}</h3>
+                            </div>
+                            <div>
+                                <p className="text-xs font-bold text-gray-500 mb-1">العميل</p>
+                                <h3 className="text-lg font-black text-gray-800">{project.clientName}</h3>
+                            </div>
+                            <div>
+                                <p className="text-xs font-bold text-gray-500 mb-1">تاريخ البداية</p>
+                                <p className="font-mono font-bold text-black">{project.startDate}</p>
+                            </div>
+                            <div>
+                                <p className="text-xs font-bold text-gray-500 mb-1">الميزانية التقديرية</p>
+                                <p className="font-mono font-bold text-black">{project.totalExpectedCost.toLocaleString()} SAR</p>
+                            </div>
+                        </div>
+                    </div>
 
-          <div className="flex-1 overflow-y-auto pb-10">
-              {/* Cost Summary Card */}
-              <div className="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm mb-6 flex justify-between items-center">
-                  <div className="flex gap-6">
-                      <div className="flex items-center gap-3">
-                          <div className="p-2 bg-red-50 rounded-lg text-red-600"><Wallet size={20}/></div>
-                          <div>
-                              <p className="text-xs text-gray-500 font-bold">المصروفات</p>
-                              <p className="text-lg font-black text-red-700 font-mono">{financials.totalExpenses.toLocaleString()}</p>
-                          </div>
-                      </div>
-                      <div className="flex items-center gap-3">
-                          <div className="p-2 bg-blue-50 rounded-lg text-blue-600"><ShoppingBag size={20}/></div>
-                          <div>
-                              <p className="text-xs text-gray-500 font-bold">المشتريات</p>
-                              <p className="text-lg font-black text-blue-700 font-mono">{financials.totalInvoices.toLocaleString()}</p>
-                          </div>
-                      </div>
-                  </div>
-                  <div className="text-left">
-                      <p className="text-xs text-gray-500 font-bold mb-1">إجمالي التكلفة الفعلية</p>
-                      <p className="text-2xl font-black text-jilco-900 font-mono">{financials.totalCost.toLocaleString()} SAR</p>
-                  </div>
-              </div>
+                    {/* Summary Cards */}
+                    <div className="px-10 py-6 grid grid-cols-3 gap-4">
+                        <div className="bg-red-50 p-4 rounded-xl border border-red-100 text-center">
+                            <p className="text-xs font-bold text-red-800 mb-1">إجمالي المصروفات (النثرية)</p>
+                            <p className="text-xl font-black text-red-600 font-mono">{totalExpenses.toLocaleString()}</p>
+                        </div>
+                        <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 text-center">
+                            <p className="text-xs font-bold text-blue-800 mb-1">إجمالي المشتريات (الموردين)</p>
+                            <p className="text-xl font-black text-blue-600 font-mono">{totalInvoices.toLocaleString()}</p>
+                        </div>
+                        <div className="bg-jilco-900 p-4 rounded-xl text-white text-center shadow-lg">
+                            <p className="text-xs font-bold text-gray-300 mb-1">التكلفة الفعلية الإجمالية</p>
+                            <p className="text-2xl font-black text-gold-400 font-mono">{totalCost.toLocaleString()}</p>
+                        </div>
+                    </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
-                  {projectPhases.map((phase, idx) => (
-                      <div key={phase.id} className={`bg-white p-5 rounded-2xl border-t-4 shadow-sm border-gray-200 flex flex-col ${phase.status === 'completed' ? 'border-t-green-500' : phase.status === 'in_progress' ? 'border-t-blue-500' : 'border-t-gray-300'}`}>
-                          <div className="flex justify-between items-start mb-4">
-                              <h4 className="font-bold text-gray-800 text-base">{phase.name}</h4>
-                              <StatusBadge status={phase.status} />
-                          </div>
-                          
-                          <div className="space-y-4 flex-1">
-                              <div>
-                                  <label className="text-[10px] font-bold text-gray-400 block mb-1">حالة المرحلة</label>
-                                  <select 
-                                      value={phase.status} 
-                                      onChange={e => updatePhase(phase.id, { status: e.target.value as any })}
-                                      className="w-full p-2 border border-gray-400 rounded-lg text-xs bg-white text-black font-bold focus:ring-2 focus:ring-jilco-500 outline-none"
-                                  >
-                                      <option value="not_started">لم تبدأ</option>
-                                      <option value="in_progress">قيد التنفيذ</option>
-                                      <option value="completed">مكتملة</option>
-                                      <option value="stopped">متوقفة</option>
-                                  </select>
-                              </div>
+                    {/* Transaction Table */}
+                    <div className="px-10 py-4 flex-1">
+                        <h4 className="font-bold text-sm text-gray-800 mb-4 border-b pb-2">سجل العمليات المالية (تفصيلي)</h4>
+                        <table className="w-full text-xs text-right border-collapse">
+                            <thead>
+                                <tr className="bg-gray-100 text-gray-700">
+                                    <th className="p-2 border border-gray-300 w-10 text-center">#</th>
+                                    <th className="p-2 border border-gray-300 w-24">التاريخ</th>
+                                    <th className="p-2 border border-gray-300 w-24">النوع</th>
+                                    <th className="p-2 border border-gray-300 w-24">رقم المرجع</th>
+                                    <th className="p-2 border border-gray-300">البيان / الوصف</th>
+                                    <th className="p-2 border border-gray-300 w-24 text-center">المبلغ</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {transactions.length === 0 && <tr><td colSpan={6} className="p-6 text-center text-gray-400 font-bold">لا توجد عمليات مالية مسجلة</td></tr>}
+                                {transactions.map((tx, idx) => (
+                                    <tr key={idx} className="border border-gray-300">
+                                        <td className="p-2 border border-gray-300 text-center">{idx + 1}</td>
+                                        <td className="p-2 border border-gray-300 font-mono">{tx.date}</td>
+                                        <td className="p-2 border border-gray-300">
+                                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${tx.type === 'expense' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'}`}>
+                                                {tx.cat}
+                                            </span>
+                                        </td>
+                                        <td className="p-2 border border-gray-300 font-mono font-bold">{tx.ref}</td>
+                                        <td className="p-2 border border-gray-300 font-medium truncate max-w-[200px]">{tx.desc}</td>
+                                        <td className="p-2 border border-gray-300 text-center font-mono font-bold">{tx.amount.toLocaleString()}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
 
-                              <div className="grid grid-cols-2 gap-3">
-                                  <div>
-                                      <label className="text-[10px] font-bold text-gray-400 block mb-1">نسبة الإنجاز %</label>
-                                      <input 
-                                          type="number" min="0" max="100"
-                                          value={phase.progressPercentage || 0} 
-                                          onChange={e => updatePhase(phase.id, { progressPercentage: parseInt(e.target.value) })}
-                                          className="w-full p-2 border border-gray-400 rounded-lg text-xs text-center font-bold bg-white text-black"
-                                      />
-                                  </div>
-                                  <div>
-                                      <label className="text-[10px] font-bold text-gray-400 block mb-1">التكلفة التقديرية (للمرحلة)</label>
-                                      <input 
-                                          type="number"
-                                          value={phase.expectedCost || 0} 
-                                          onChange={e => updatePhase(phase.id, { expectedCost: parseFloat(e.target.value) })}
-                                          className="w-full p-2 border border-gray-400 rounded-lg text-xs text-center font-bold bg-white text-black"
-                                      />
-                                  </div>
-                              </div>
+                    {/* Actions (Hidden Print) */}
+                    <div className="fixed bottom-8 left-1/2 -translate-x-1/2 flex gap-4 print:hidden">
+                        <button onClick={() => window.print()} className="bg-jilco-900 text-white px-6 py-3 rounded-full font-bold shadow-lg hover:bg-black flex items-center gap-2">
+                            <Printer size={18} /> طباعة الكشف
+                        </button>
+                        <button onClick={() => setViewMode('details')} className="bg-white text-gray-700 px-6 py-3 rounded-full font-bold shadow-lg hover:bg-gray-50 flex items-center gap-2 border border-gray-200">
+                            <ArrowLeft size={18} /> رجوع
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    };
 
-                              <div>
-                                  <label className="text-[10px] font-bold text-gray-400 block mb-1">ملاحظات الفني / المهندس</label>
-                                  <textarea 
-                                      value={phase.notes || ''} 
-                                      onChange={e => updatePhase(phase.id, { notes: e.target.value })}
-                                      className="w-full p-2 border border-gray-400 rounded-lg text-xs h-20 bg-white text-black font-bold resize-none"
-                                      placeholder="أضف ملاحظات..."
-                                  />
-                              </div>
-                          </div>
-                      </div>
-                  ))}
-              </div>
-          </div>
-      </div>
-  );
+    // --- List View ---
+    if (viewMode === 'list' || viewMode === 'dashboard') {
+        const stats = {
+            total: projects.length,
+            active: projects.filter(p => p.status === 'in_progress').length,
+            completed: projects.filter(p => p.status === 'completed').length
+        };
+
+        return (
+            <div className="flex-1 bg-gray-100 p-8 overflow-auto h-full animate-fade-in relative">
+                <div className="max-w-6xl mx-auto">
+                    <div className="flex justify-between items-end mb-8">
+                        <div>
+                            <h1 className="text-2xl font-bold text-jilco-900 flex items-center gap-2">
+                                <Briefcase className="text-gold-500" /> إدارة المشاريع
+                            </h1>
+                            <p className="text-gray-500 text-sm mt-1">متابعة سير العمل، المراحل، والتكاليف</p>
+                        </div>
+                        <button onClick={() => setShowNewProjectModal(true)} className="bg-jilco-600 text-white px-6 py-2.5 rounded-lg font-bold flex items-center gap-2 hover:bg-jilco-700 shadow-md">
+                            <Plus size={20} /> مشروع جديد
+                        </button>
+                    </div>
+
+                    {/* Stats Cards */}
+                    <div className="grid grid-cols-3 gap-6 mb-8">
+                        <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
+                            <p className="text-xs font-bold text-gray-500 mb-1">إجمالي المشاريع</p>
+                            <p className="text-3xl font-black text-jilco-900">{stats.total}</p>
+                        </div>
+                        <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
+                            <p className="text-xs font-bold text-gray-500 mb-1">مشاريع نشطة</p>
+                            <p className="text-3xl font-black text-blue-600">{stats.active}</p>
+                        </div>
+                        <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
+                            <p className="text-xs font-bold text-gray-500 mb-1">مشاريع مكتملة</p>
+                            <p className="text-3xl font-black text-green-600">{stats.completed}</p>
+                        </div>
+                    </div>
+
+                    <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                        <div className="p-4 border-b border-gray-100">
+                            <div className="relative max-w-md">
+                                <Search className="absolute right-3 top-2.5 text-gray-400" size={18} />
+                                <input
+                                    type="text" placeholder="بحث باسم المشروع أو العميل..."
+                                    value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
+                                    className="w-full pr-10 pl-4 py-2 border border-gray-400 rounded-lg text-sm bg-white text-black font-bold focus:ring-2 focus:ring-jilco-500 outline-none"
+                                />
+                            </div>
+                        </div>
+                        <table className="w-full text-sm text-right">
+                            <thead className="bg-gray-50 text-gray-500 font-medium">
+                                <tr>
+                                    <th className="p-4">المشروع</th>
+                                    <th className="p-4">العميل</th>
+                                    <th className="p-4">تاريخ البداية</th>
+                                    <th className="p-4">نسبة الإنجاز</th>
+                                    <th className="p-4">الحالة</th>
+                                    <th className="p-4 text-center">إجراءات</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-100">
+                                {projects.filter(p => p.name.includes(searchTerm) || p.clientName.includes(searchTerm)).map(p => (
+                                    <tr key={p.id} className="hover:bg-gray-50 group cursor-pointer" onClick={() => { setSelectedProjectId(p.id); setViewMode('details'); }}>
+                                        <td className="p-4 font-bold text-jilco-900">{p.name}</td>
+                                        <td className="p-4 font-bold text-gray-700">{p.clientName}</td>
+                                        <td className="p-4 font-mono text-xs text-gray-500">{p.startDate}</td>
+                                        <td className="p-4">
+                                            <div className="w-full bg-gray-200 rounded-full h-2.5">
+                                                <div className="bg-jilco-600 h-2.5 rounded-full" style={{ width: `${p.progress}%` }}></div>
+                                            </div>
+                                            <span className="text-[10px] font-bold text-gray-500 mt-1 block">{p.progress}%</span>
+                                        </td>
+                                        <td className="p-4"><StatusBadge status={p.status} /></td>
+                                        <td className="p-4 flex justify-center gap-2" onClick={e => e.stopPropagation()}>
+                                            <button onClick={() => { setSelectedProjectId(p.id); setViewMode('details'); }} className="p-2 text-blue-600 hover:bg-blue-50 rounded-full"><Edit size={16} /></button>
+                                            <button onClick={() => handleDeleteProject(p.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-full"><Trash2 size={16} /></button>
+                                        </td>
+                                    </tr>
+                                ))}
+                                {projects.length === 0 && <tr><td colSpan={6} className="p-12 text-center text-gray-400">لا توجد مشاريع مسجلة.</td></tr>}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                {showNewProjectModal && renderNewProjectModal()}
+            </div>
+        );
+    }
+
+    // --- Details View ---
+    if (viewMode === 'statement') return renderProjectStatement();
+
+    const currentProject = projects.find(p => p.id === selectedProjectId);
+    const projectPhases = phases.filter(p => p.projectId === selectedProjectId);
+
+    if (!currentProject) return null;
+
+    // Calculate live cost summary for detail view card
+    const financials = getProjectFinancials(currentProject.id);
+
+    return (
+        <div className="flex-1 bg-gray-100 p-6 overflow-hidden h-full flex flex-col animate-fade-in">
+            <div className="flex justify-between items-center mb-6 shrink-0">
+                <div>
+                    <h2 className="text-2xl font-black text-jilco-900 flex items-center gap-2">
+                        <Briefcase className="text-gold-500" /> {currentProject.name}
+                    </h2>
+                    <p className="text-gray-500 text-sm font-bold mt-1">العميل: {currentProject.clientName}</p>
+                </div>
+                <div className="flex gap-2">
+                    <button
+                        onClick={() => setViewMode('statement')}
+                        className="bg-jilco-900 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 hover:bg-jilco-800 shadow-sm"
+                    >
+                        <PieChart size={18} /> كشف حساب مالي
+                    </button>
+                    <button onClick={() => setViewMode('list')} className="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg font-bold flex items-center gap-2 hover:bg-gray-50">
+                        <ArrowLeft size={18} /> رجوع للقائمة
+                    </button>
+                </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto pb-10">
+                {/* Cost Summary Card */}
+                <div className="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm mb-6 flex justify-between items-center">
+                    <div className="flex gap-6">
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 bg-red-50 rounded-lg text-red-600"><Wallet size={20} /></div>
+                            <div>
+                                <p className="text-xs text-gray-500 font-bold">المصروفات</p>
+                                <p className="text-lg font-black text-red-700 font-mono">{financials.totalExpenses.toLocaleString()}</p>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                            <div className="p-2 bg-blue-50 rounded-lg text-blue-600"><ShoppingBag size={20} /></div>
+                            <div>
+                                <p className="text-xs text-gray-500 font-bold">المشتريات</p>
+                                <p className="text-lg font-black text-blue-700 font-mono">{financials.totalInvoices.toLocaleString()}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div className="text-left">
+                        <p className="text-xs text-gray-500 font-bold mb-1">إجمالي التكلفة الفعلية</p>
+                        <p className="text-2xl font-black text-jilco-900 font-mono">{financials.totalCost.toLocaleString()} SAR</p>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
+                    {projectPhases.map((phase, idx) => (
+                        <div key={phase.id} className={`bg-white p-5 rounded-2xl border-t-4 shadow-sm border-gray-200 flex flex-col ${phase.status === 'completed' ? 'border-t-green-500' : phase.status === 'in_progress' ? 'border-t-blue-500' : 'border-t-gray-300'}`}>
+                            <div className="flex justify-between items-start mb-4">
+                                <h4 className="font-bold text-gray-800 text-base">{phase.name}</h4>
+                                <StatusBadge status={phase.status} />
+                            </div>
+
+                            <div className="space-y-4 flex-1">
+                                <div>
+                                    <label className="text-[10px] font-bold text-gray-400 block mb-1">حالة المرحلة</label>
+                                    <select
+                                        value={phase.status}
+                                        onChange={e => updatePhase(phase.id, { status: e.target.value as any })}
+                                        className="w-full p-2 border border-gray-400 rounded-lg text-xs bg-white text-black font-bold focus:ring-2 focus:ring-jilco-500 outline-none"
+                                    >
+                                        <option value="not_started">لم تبدأ</option>
+                                        <option value="in_progress">قيد التنفيذ</option>
+                                        <option value="completed">مكتملة</option>
+                                        <option value="stopped">متوقفة</option>
+                                    </select>
+                                </div>
+
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="text-[10px] font-bold text-gray-400 block mb-1">نسبة الإنجاز %</label>
+                                        <input
+                                            type="number" min="0" max="100"
+                                            value={phase.progressPercentage || 0}
+                                            onChange={e => updatePhase(phase.id, { progressPercentage: parseInt(e.target.value) })}
+                                            className="w-full p-2 border border-gray-400 rounded-lg text-xs text-center font-bold bg-white text-black"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="text-[10px] font-bold text-gray-400 block mb-1">التكلفة التقديرية (للمرحلة)</label>
+                                        <input
+                                            type="number"
+                                            value={phase.expectedCost || 0}
+                                            onChange={e => updatePhase(phase.id, { expectedCost: parseFloat(e.target.value) })}
+                                            className="w-full p-2 border border-gray-400 rounded-lg text-xs text-center font-bold bg-white text-black"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <label className="text-[10px] font-bold text-gray-400 block mb-1">ملاحظات الفني / المهندس</label>
+                                    <textarea
+                                        value={phase.notes || ''}
+                                        onChange={e => updatePhase(phase.id, { notes: e.target.value })}
+                                        className="w-full p-2 border border-gray-400 rounded-lg text-xs h-20 bg-white text-black font-bold resize-none"
+                                        placeholder="أضف ملاحظات..."
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </div>
+    );
 };
