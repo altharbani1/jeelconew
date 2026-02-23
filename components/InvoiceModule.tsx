@@ -140,10 +140,9 @@ export const InvoiceModule: React.FC = () => {
     };
 
     const subtotal = currentInvoice.items.reduce((s, i) => s + i.total, 0);
+    const tax = subtotal * 0.15;
     const discount = currentInvoice.discountAmount || 0;
-    const taxableAmount = Math.max(0, subtotal - discount);
-    const tax = taxableAmount * 0.15;
-    const grandTotal = taxableAmount + tax;
+    const grandTotal = Math.max(0, subtotal + tax - discount);
 
     if (viewMode === 'list') {
         return (
@@ -185,9 +184,9 @@ export const InvoiceModule: React.FC = () => {
                                         <td className="p-4 font-black text-green-700">
                                             {(() => {
                                                 const sub = inv.items.reduce((s, it) => s + it.total, 0);
+                                                const taxAmt = sub * 0.15;
                                                 const disc = inv.discountAmount || 0;
-                                                const taxAmt = Math.max(0, sub - disc) * 0.15;
-                                                return (Math.max(0, sub - disc) + taxAmt).toLocaleString();
+                                                return Math.max(0, sub + taxAmt - disc).toLocaleString();
                                             })()}
                                         </td>
                                         <td className="p-4">
@@ -372,22 +371,16 @@ export const InvoiceModule: React.FC = () => {
                                         <span>المجموع / Subtotal:</span>
                                         <span className="font-mono text-black">{subtotal.toLocaleString()}</span>
                                     </div>
-                                    {(currentInvoice.discountAmount || 0) > 0 && (
-                                        <>
-                                            <div className="flex justify-between text-[10px] font-black text-gray-500 uppercase">
-                                                <span>الخصم / Discount:</span>
-                                                <span className="font-mono text-red-600">-{(currentInvoice.discountAmount || 0).toLocaleString()}</span>
-                                            </div>
-                                            <div className="flex justify-between text-[10px] font-black text-gray-500 uppercase">
-                                                <span>الخاضع للضريبة / Taxable Amt:</span>
-                                                <span className="font-mono text-black">{taxableAmount.toLocaleString()}</span>
-                                            </div>
-                                        </>
-                                    )}
                                     <div className="flex justify-between text-[10px] font-black text-gray-500 uppercase">
                                         <span>الضريبة / VAT 15%:</span>
-                                        <span className="font-mono text-red-600">{tax.toLocaleString()}</span>
+                                        <span className="font-mono text-red-600">+{tax.toLocaleString()}</span>
                                     </div>
+                                    {(currentInvoice.discountAmount || 0) > 0 && (
+                                        <div className="flex justify-between text-[10px] font-black text-gray-500 uppercase">
+                                            <span>الخصم / Discount:</span>
+                                            <span className="font-mono text-red-600">-{(currentInvoice.discountAmount || 0).toLocaleString()}</span>
+                                        </div>
+                                    )}
                                     <div className="border-t-2 border-gray-100 pt-3 flex justify-between items-center">
                                         <span className="font-black text-jilco-900 text-xs uppercase">Grand Total:</span>
                                         <div className="text-left">
