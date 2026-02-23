@@ -116,16 +116,16 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
                     const updatedRecord = payload.new;
                     stateSetter((prev: any[]) => {
-                        const exists = prev.find(q => q.id === updatedRecord.record_id);
+                        const exists = prev.find(q => (q.id || q.number) === updatedRecord.record_id);
                         if (exists) {
-                            return prev.map(q => q.id === updatedRecord.record_id ? updatedRecord.data : q);
+                            return prev.map(q => (q.id || q.number) === updatedRecord.record_id ? updatedRecord.data : q);
                         } else {
                             return [updatedRecord.data, ...prev];
                         }
                     });
                 } else if (payload.eventType === 'DELETE') {
                     const deletedRecordId = payload.old.record_id;
-                    stateSetter((prev: any[]) => prev.filter(q => q.id !== deletedRecordId));
+                    stateSetter((prev: any[]) => prev.filter(q => (q.id || q.number) !== deletedRecordId));
                 }
 
                 setTimeout(() => setSyncStatus('synced'), 1000);
@@ -185,8 +185,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             const mod = modules.find(m => m.collection === collection);
             if (mod) {
                 mod.stateSetter(prev => {
-                    const exists = prev.find(q => q.id === id);
-                    if (exists) return prev.map(q => q.id === id ? recordData : q);
+                    const exists = prev.find(q => (q.id || q.number) === id);
+                    if (exists) return prev.map(q => (q.id || q.number) === id ? recordData : q);
                     return [recordData, ...prev];
                 });
             }
@@ -196,9 +196,9 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
             // 3. Keep Local Storage fresh
             const localArray = JSON.parse(localStorage.getItem(collection) || '[]');
-            const exists = localArray.find((q: any) => q.id === id);
+            const exists = localArray.find((q: any) => (q.id || q.number) === id);
             let updatedLocalArray;
-            if (exists) updatedLocalArray = localArray.map((q: any) => q.id === id ? recordData : q);
+            if (exists) updatedLocalArray = localArray.map((q: any) => (q.id || q.number) === id ? recordData : q);
             else updatedLocalArray = [recordData, ...localArray];
             localStorage.setItem(collection, JSON.stringify(updatedLocalArray));
 
@@ -216,12 +216,12 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             // 1. Optimistic UI update
             const mod = modules.find(m => m.collection === collection);
             if (mod) {
-                mod.stateSetter(prev => prev.filter(q => q.id !== id));
+                mod.stateSetter(prev => prev.filter(q => (q.id || q.number) !== id));
             }
 
             // 2. Local Storage
             const localArray = JSON.parse(localStorage.getItem(collection) || '[]');
-            localStorage.setItem(collection, JSON.stringify(localArray.filter((q: any) => q.id !== id)));
+            localStorage.setItem(collection, JSON.stringify(localArray.filter((q: any) => (q.id || q.number) !== id)));
 
             // 3. Supabase
             const success = await cloudService.deleteRecord(collection, id);
