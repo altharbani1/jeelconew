@@ -163,7 +163,7 @@ export const InventoryModule: React.FC = () => {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-100 bg-white">
-                                    {inventoryTransactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).filter(t => t.productName.includes(searchTerm)).map(trx => (
+                                    {[...(inventoryTransactions || [])].sort((a, b) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime()).filter(t => (t.productName || '').includes(searchTerm)).map(trx => (
                                         <tr key={trx.id} className="hover:bg-gray-50 transition-colors">
                                             <td className="p-4 font-bold text-jilco-900">{trx.productName}</td>
                                             <td className="p-4 font-mono text-gray-500 text-xs">{trx.date}</td>
