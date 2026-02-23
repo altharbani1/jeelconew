@@ -4,7 +4,7 @@ import { Project, ProjectPhase, ProjectStatus, PhaseStatus, Expense, PurchaseInv
 import {
     Plus, LayoutDashboard, Search, Calendar,
     DollarSign, Briefcase, ArrowLeft, Trash2, Edit,
-    Save, X, CheckCircle2, Clock, AlertCircle, PieChart, Printer, FileText, ShoppingBag, Wallet
+    Save, X, CheckCircle2, Clock, AlertCircle, PieChart, Printer, FileText, ShoppingBag, Wallet, PackageMinus
 } from 'lucide-react';
 import { useData } from '../contexts/DataContext.tsx';
 
@@ -37,7 +37,7 @@ const StatusBadge = ({ status }: { status: ProjectStatus | PhaseStatus }) => {
 
 export const ProjectModule: React.FC = () => {
     const {
-        projects, phases, expenses: allExpenses, invoices: allInvoices,
+        projects, phases, expenses: allExpenses, invoices: allInvoices, supplierProducts, inventoryTransactions,
         saveRecord, deleteRecordLocallyAndCloud
     } = useData();
 
@@ -45,6 +45,12 @@ export const ProjectModule: React.FC = () => {
 
     const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
+
+    // Material Issue State
+    const [showMaterialModal, setShowMaterialModal] = useState(false);
+    const [issueProductId, setIssueProductId] = useState('');
+    const [issueQuantity, setIssueQuantity] = useState<number>(1);
+    const [issueNotes, setIssueNotes] = useState('');
 
     // New Project Form State
     const [showNewProjectModal, setShowNewProjectModal] = useState(false);
@@ -144,17 +150,62 @@ export const ProjectModule: React.FC = () => {
     const getProjectFinancials = (projectId: string) => {
         const projectExpenses = allExpenses.filter(e => e.projectId === projectId);
         const projectInvoices = allInvoices.filter(i => i.projectId === projectId);
+        const projectMaterials = inventoryTransactions.filter(t => t.type === 'out' && t.referenceSource === 'project' && t.referenceId === projectId);
 
         const totalExpenses = projectExpenses.reduce((sum, e) => sum + e.amount, 0);
         const totalInvoices = projectInvoices.reduce((sum, i) => sum + i.grandTotal, 0);
 
+        // Calculate materials cost live based on current product prices
+        const totalMaterialsCost = projectMaterials.reduce((sum, trx) => {
+            const prod = supplierProducts.find(p => p.id === trx.productId);
+            return sum + (trx.quantity * (prod?.purchasePrice || 0));
+        }, 0);
+
         return {
             expenses: projectExpenses,
             invoices: projectInvoices,
-            totalCost: totalExpenses + totalInvoices,
+            materials: projectMaterials,
+            totalCost: totalExpenses + totalInvoices + totalMaterialsCost,
             totalExpenses,
-            totalInvoices
+            totalInvoices,
+            totalMaterialsCost
         };
+    };
+
+    const handleIssueMaterial = async () => {
+        if (!selectedProjectId || !issueProductId || issueQuantity <= 0) return;
+
+        const product = supplierProducts.find(p => p.id === issueProductId);
+        if (!product) return;
+
+        if ((product.currentQuantity || 0) < issueQuantity) {
+            return alert(`الكمية المتوفرة في المستودع (${product.currentQuantity || 0}) أقل من المطلوب (${issueQuantity})`);
+        }
+
+        const project = projects.find(p => p.id === selectedProjectId);
+
+        const trx = {
+            id: `INV-TRX-PRJ-${Date.now()}`,
+            productId: product.id,
+            productName: product.name,
+            date: new Date().toISOString().split('T')[0],
+            type: 'out' as const,
+            quantity: issueQuantity,
+            referenceSource: 'project' as const,
+            referenceId: project?.id,
+            referenceName: project?.name,
+            notes: issueNotes || `صرف لمشروع ${project?.name}`
+        };
+
+        const updatedProduct = { ...product, currentQuantity: (product.currentQuantity || 0) - issueQuantity };
+
+        await saveRecord('jilco_inventory_transactions', trx.id, trx);
+        await saveRecord('jilco_supplier_products', updatedProduct.id, updatedProduct);
+
+        setShowMaterialModal(false);
+        setIssueProductId('');
+        setIssueQuantity(1);
+        setIssueNotes('');
     };
 
     // --- Renderers ---
@@ -209,12 +260,16 @@ export const ProjectModule: React.FC = () => {
         const project = projects.find(p => p.id === selectedProjectId);
         if (!project) return null;
 
-        const { expenses, invoices, totalCost, totalExpenses, totalInvoices } = getProjectFinancials(selectedProjectId);
+        const { expenses, invoices, materials, totalCost, totalExpenses, totalInvoices, totalMaterialsCost } = getProjectFinancials(selectedProjectId);
 
         // Merge and sort transactions
         const transactions = [
             ...expenses.map(e => ({ date: e.date, type: 'expense', desc: e.description || e.paidTo, amount: e.amount, ref: e.number, cat: 'مصروفات' })),
-            ...invoices.map(i => ({ date: i.date, type: 'invoice', desc: `فاتورة مورد: ${i.items?.[0]?.description || 'مواد'}`, amount: i.grandTotal, ref: i.number, cat: 'مشتريات' }))
+            ...invoices.map(i => ({ date: i.date, type: 'invoice', desc: `فاتورة مورد: ${i.items?.[0]?.description || 'مواد'}`, amount: i.grandTotal, ref: i.number, cat: 'مشتريات' })),
+            ...materials.map(m => {
+                const prod = supplierProducts.find(p => p.id === m.productId);
+                return { date: m.date, type: 'material', desc: `صرف من المستودع: ${m.productName} (${m.quantity} ${prod?.unit || 'حبة'})`, amount: m.quantity * (prod?.purchasePrice || 0), ref: m.id.slice(-6), cat: 'مواد مستودع' }
+            })
         ].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
         return (
@@ -258,17 +313,21 @@ export const ProjectModule: React.FC = () => {
                     </div>
 
                     {/* Summary Cards */}
-                    <div className="px-10 py-6 grid grid-cols-3 gap-4">
+                    <div className="px-10 py-6 grid grid-cols-4 gap-4">
                         <div className="bg-red-50 p-4 rounded-xl border border-red-100 text-center">
-                            <p className="text-xs font-bold text-red-800 mb-1">إجمالي المصروفات (النثرية)</p>
+                            <p className="text-xs font-bold text-red-800 mb-1">مصروفات إدارية ونثرية</p>
                             <p className="text-xl font-black text-red-600 font-mono">{totalExpenses.toLocaleString()}</p>
                         </div>
                         <div className="bg-blue-50 p-4 rounded-xl border border-blue-100 text-center">
-                            <p className="text-xs font-bold text-blue-800 mb-1">إجمالي المشتريات (الموردين)</p>
+                            <p className="text-xs font-bold text-blue-800 mb-1">مشتريات للمشروع</p>
                             <p className="text-xl font-black text-blue-600 font-mono">{totalInvoices.toLocaleString()}</p>
                         </div>
+                        <div className="bg-purple-50 p-4 rounded-xl border border-purple-100 text-center">
+                            <p className="text-xs font-bold text-purple-800 mb-1">مسحوبات من المخزون</p>
+                            <p className="text-xl font-black text-purple-600 font-mono">{totalMaterialsCost.toLocaleString()}</p>
+                        </div>
                         <div className="bg-jilco-900 p-4 rounded-xl text-white text-center shadow-lg">
-                            <p className="text-xs font-bold text-gray-300 mb-1">التكلفة الفعلية الإجمالية</p>
+                            <p className="text-xs font-bold text-gray-300 mb-1">التكلفة الفعلية الشاملة</p>
                             <p className="text-2xl font-black text-gold-400 font-mono">{totalCost.toLocaleString()}</p>
                         </div>
                     </div>
@@ -294,7 +353,7 @@ export const ProjectModule: React.FC = () => {
                                         <td className="p-2 border border-gray-300 text-center">{idx + 1}</td>
                                         <td className="p-2 border border-gray-300 font-mono">{tx.date}</td>
                                         <td className="p-2 border border-gray-300">
-                                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${tx.type === 'expense' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'}`}>
+                                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${tx.type === 'expense' ? 'bg-red-100 text-red-700' : tx.type === 'material' ? 'bg-purple-100 text-purple-700' : 'bg-blue-100 text-blue-700'}`}>
                                                 {tx.cat}
                                             </span>
                                         </td>
@@ -433,13 +492,19 @@ export const ProjectModule: React.FC = () => {
                 </div>
                 <div className="flex gap-2">
                     <button
+                        onClick={() => setShowMaterialModal(true)}
+                        className="bg-emerald-600 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 hover:bg-emerald-700 shadow-sm"
+                    >
+                        <PackageMinus size={18} /> صرف مواد من المخزون
+                    </button>
+                    <button
                         onClick={() => setViewMode('statement')}
                         className="bg-jilco-900 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 hover:bg-jilco-800 shadow-sm"
                     >
                         <PieChart size={18} /> كشف حساب مالي
                     </button>
                     <button onClick={() => setViewMode('list')} className="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg font-bold flex items-center gap-2 hover:bg-gray-50">
-                        <ArrowLeft size={18} /> رجوع للقائمة
+                        <ArrowLeft size={18} /> رجوع
                     </button>
                 </div>
             </div>
@@ -447,19 +512,26 @@ export const ProjectModule: React.FC = () => {
             <div className="flex-1 overflow-y-auto pb-10">
                 {/* Cost Summary Card */}
                 <div className="bg-white p-4 rounded-2xl border border-gray-200 shadow-sm mb-6 flex justify-between items-center">
-                    <div className="flex gap-6">
+                    <div className="flex gap-4">
                         <div className="flex items-center gap-3">
                             <div className="p-2 bg-red-50 rounded-lg text-red-600"><Wallet size={20} /></div>
                             <div>
-                                <p className="text-xs text-gray-500 font-bold">المصروفات</p>
+                                <p className="text-xs text-gray-500 font-bold">مصروفات نقدية</p>
                                 <p className="text-lg font-black text-red-700 font-mono">{financials.totalExpenses.toLocaleString()}</p>
                             </div>
                         </div>
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-3 border-r pr-4 border-gray-200">
                             <div className="p-2 bg-blue-50 rounded-lg text-blue-600"><ShoppingBag size={20} /></div>
                             <div>
-                                <p className="text-xs text-gray-500 font-bold">المشتريات</p>
+                                <p className="text-xs text-gray-500 font-bold">مشتريات الموردين</p>
                                 <p className="text-lg font-black text-blue-700 font-mono">{financials.totalInvoices.toLocaleString()}</p>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-3 border-r pr-4 border-gray-200">
+                            <div className="p-2 bg-purple-50 rounded-lg text-purple-600"><PackageMinus size={20} /></div>
+                            <div>
+                                <p className="text-xs text-gray-500 font-bold">مواد من المخزون</p>
+                                <p className="text-lg font-black text-purple-700 font-mono">{financials.totalMaterialsCost.toLocaleString()}</p>
                             </div>
                         </div>
                     </div>
@@ -527,6 +599,48 @@ export const ProjectModule: React.FC = () => {
                     ))}
                 </div>
             </div>
+
+            {showMaterialModal && (
+                <div className="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center animate-fade-in p-4 backdrop-blur-sm">
+                    <div className="bg-white rounded-3xl w-full max-w-md shadow-2xl overflow-hidden border border-gray-100">
+                        <div className="p-6 text-white bg-jilco-900 flex justify-between items-center">
+                            <h2 className="text-xl font-black flex items-center gap-2">
+                                <PackageMinus size={24} /> صرف مواد للمشروع
+                            </h2>
+                            <button onClick={() => setShowMaterialModal(false)}><X size={20} /></button>
+                        </div>
+                        <div className="p-6 space-y-4">
+                            <div>
+                                <label className="block text-sm font-bold text-gray-700 mb-2">اختر الصنف من المستودع</label>
+                                <select
+                                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl font-bold"
+                                    value={issueProductId}
+                                    onChange={e => setIssueProductId(e.target.value)}
+                                >
+                                    <option value="">-- اختر الصنف --</option>
+                                    {supplierProducts.filter(p => (p.currentQuantity || 0) > 0).map(p => (
+                                        <option key={p.id} value={p.id}>{p.name} (متوفر: {p.currentQuantity || 0})</option>
+                                    ))}
+                                </select>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-bold text-gray-700 mb-2">الكمية المسحوبة</label>
+                                <input type="number" min="1" value={issueQuantity || ''} onChange={e => setIssueQuantity(parseFloat(e.target.value) || 0)} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl font-black text-center focus:ring-2 focus:ring-jilco-500 outline-none" />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-bold text-gray-700 mb-2">ملاحظات / بيان المسحوب</label>
+                                <input type="text" placeholder="مثال: لتركيب الكابينة..." value={issueNotes} onChange={e => setIssueNotes(e.target.value)} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-jilco-500 outline-none" />
+                            </div>
+
+                            <button onClick={handleIssueMaterial} className="w-full px-4 py-3 mt-4 text-white font-black rounded-xl bg-jilco-600 hover:bg-jilco-700 transition-colors shadow-lg">
+                                تأكيد الصرف وحفظ التكلفة
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };

@@ -27,6 +27,7 @@ export const SystemNav: React.FC<SystemNavProps> = ({ currentView, setView, sync
     { id: 'receipts', label: t('receipts'), icon: Receipt, permission: 'view_receipts' },
     { id: 'expenses', label: t('expenses'), icon: Wallet, permission: 'view_expenses' },
     { id: 'purchases', label: t('purchases'), icon: ShoppingBag, permission: 'view_purchases' },
+    { id: 'inventory', label: 'المخزون', icon: Database, permission: 'view_inventory' },
     { id: 'claims', label: t('claims'), icon: FileWarning, permission: 'view_claims' },
     { id: 'hr', label: t('hr'), icon: UserCog, permission: 'view_hr' },
     { id: 'documents', label: 'الوثائق', icon: FolderOpen, permission: 'view_documents' },
@@ -44,13 +45,13 @@ export const SystemNav: React.FC<SystemNavProps> = ({ currentView, setView, sync
   const role = user?.role || currentUser?.role || 'admin';
   const allowedModules: Record<string, string[]> = {
     admin: [
-      'dashboard', 'customers', 'quotes', 'contracts', 'projects', 'invoices', 'receipts', 'expenses', 'purchases', 'claims', 'hr', 'documents', 'forms', 'users', 'warranties', 'smart_elevator', 'calculator', 'company_profile', 'specs_manager', 'activity_log'
+      'dashboard', 'customers', 'quotes', 'contracts', 'projects', 'invoices', 'receipts', 'expenses', 'purchases', 'inventory', 'claims', 'hr', 'documents', 'forms', 'users', 'warranties', 'smart_elevator', 'calculator', 'company_profile', 'specs_manager', 'activity_log'
     ],
     manager: [
-      'dashboard', 'customers', 'quotes', 'contracts', 'projects', 'invoices', 'receipts', 'expenses', 'purchases', 'claims', 'hr', 'documents', 'forms', 'warranties', 'smart_elevator', 'calculator', 'company_profile', 'specs_manager', 'activity_log'
+      'dashboard', 'customers', 'quotes', 'contracts', 'projects', 'invoices', 'receipts', 'expenses', 'purchases', 'inventory', 'claims', 'hr', 'documents', 'forms', 'warranties', 'smart_elevator', 'calculator', 'company_profile', 'specs_manager', 'activity_log'
     ],
     staff: [
-      'dashboard', 'customers', 'quotes', 'contracts', 'projects', 'invoices', 'receipts', 'expenses', 'purchases', 'claims', 'hr', 'documents', 'forms', 'warranties', 'smart_elevator', 'calculator', 'company_profile', 'specs_manager', 'activity_log'
+      'dashboard', 'customers', 'quotes', 'contracts', 'projects', 'invoices', 'receipts', 'expenses', 'purchases', 'inventory', 'claims', 'hr', 'documents', 'forms', 'warranties', 'smart_elevator', 'calculator', 'company_profile', 'specs_manager', 'activity_log'
     ]
   };
 

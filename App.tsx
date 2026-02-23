@@ -23,6 +23,7 @@ import { UserManagementModule } from './components/UserManagementModule.tsx';
 import { FormsModule } from './components/FormsModule.tsx';
 import { DocumentsModule } from './components/DocumentsModule.tsx';
 import { ActivityLogModule } from './components/ActivityLogModule.tsx';
+import { InventoryModule } from './components/InventoryModule.tsx';
 import { LoginScreen } from './components/LoginScreen.tsx';
 
 import { SystemView } from './types.ts';
@@ -54,6 +55,7 @@ const MainApp: React.FC = () => {
         {currentView === 'contracts' && <ContractModule />}
         {currentView === 'projects' && <ProjectModule />}
         {currentView === 'purchases' && <PurchaseModule />}
+        {currentView === 'inventory' && <InventoryModule />}
         {currentView === 'warranties' && <WarrantyModule />}
         {currentView === 'hr' && <HRModule />}
         {currentView === 'smart_elevator' && <SmartElevatorModule />}

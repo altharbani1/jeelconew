@@ -20,6 +20,7 @@ interface DataContextType {
     purchaseInvoices: any[];
     supplierPayments: any[];
     elevators: any[];
+    inventoryTransactions: any[];
     config: any;
 
     // Generic Setters
@@ -41,6 +42,7 @@ interface DataContextType {
     setPurchaseInvoices: React.Dispatch<React.SetStateAction<any[]>>;
     setSupplierPayments: React.Dispatch<React.SetStateAction<any[]>>;
     setElevators: React.Dispatch<React.SetStateAction<any[]>>;
+    setInventoryTransactions: React.Dispatch<React.SetStateAction<any[]>>;
     setConfig: React.Dispatch<React.SetStateAction<any>>;
     saveSpecsDb: (data: any) => Promise<boolean>;
     saveConfig: (data: any) => Promise<boolean>;
@@ -78,6 +80,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const [purchaseInvoices, setPurchaseInvoices] = useState<any[]>([]);
     const [supplierPayments, setSupplierPayments] = useState<any[]>([]);
     const [elevators, setElevators] = useState<any[]>([]);
+    const [inventoryTransactions, setInventoryTransactions] = useState<any[]>([]);
     const [config, setConfig] = useState<any>(null);
 
     const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'synced' | 'error'>('idle');
@@ -101,7 +104,8 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         { collection: 'jilco_supplier_products', stateSetter: setSupplierProducts },
         { collection: 'jilco_purchase_invoices', stateSetter: setPurchaseInvoices },
         { collection: 'jilco_supplier_payments', stateSetter: setSupplierPayments },
-        { collection: 'jilco_smart_elevators', stateSetter: setElevators }
+        { collection: 'jilco_smart_elevators', stateSetter: setElevators },
+        { collection: 'jilco_inventory_transactions', stateSetter: setInventoryTransactions }
     ];
 
     useEffect(() => {

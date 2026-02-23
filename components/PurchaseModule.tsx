@@ -134,7 +134,7 @@ export const PurchaseModule: React.FC = () => {
 
     const invoiceData: PurchaseInvoice = {
       ...currentInvoice as PurchaseInvoice,
-      id: currentInvoice.id || Date.now().toString(),
+      id: currentInvoice.id || `PINV-${Date.now()}`,
       totalAmount: subtotal,
       taxAmount: tax,
       grandTotal: grandTotal,
@@ -144,7 +144,37 @@ export const PurchaseModule: React.FC = () => {
       projectName: proj ? proj.name : undefined
     };
 
+    const isNew = !currentInvoice.id;
+
     await saveRecord('jilco_purchase_invoices', invoiceData.id, invoiceData);
+
+    // Auto-Stock logic for new invoices
+    if (isNew) {
+      for (const item of invoiceData.items) {
+        // Find product by exact name match
+        const product = products.find(p => p.name === item.description);
+        if (product) {
+          const newQty = (product.currentQuantity || 0) + item.quantity;
+          const updatedProduct = { ...product, currentQuantity: newQty };
+
+          const trx = {
+            id: `INV-TRX-${invoiceData.id}-${Date.now()}-${Math.random()}`,
+            productId: product.id,
+            productName: product.name,
+            date: new Date().toISOString().split('T')[0],
+            type: 'in' as const,
+            quantity: item.quantity,
+            referenceSource: 'purchase' as const,
+            referenceId: invoiceData.number,
+            referenceName: getSupplierName(invoiceData.supplierId),
+            notes: `شراء آلي فاتورة ${invoiceData.number}`
+          };
+
+          await saveRecord('jilco_supplier_products', updatedProduct.id, updatedProduct);
+          await saveRecord('jilco_inventory_transactions', trx.id, trx);
+        }
+      }
+    }
 
     setShowInvoiceEditor(false);
     setCurrentInvoice({ items: [], attachments: [], paymentType: 'credit' });

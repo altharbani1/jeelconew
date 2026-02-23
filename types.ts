@@ -175,6 +175,22 @@ export interface SupplierProduct {
   partNumber?: string;
   purchasePrice: number;
   unit: string; // e.g., pcs, set, meter
+  currentQuantity?: number; // Added for Inventory Management
+}
+
+export type InventoryTransactionType = 'in' | 'out';
+
+export interface InventoryTransaction {
+  id: string;
+  productId: string;
+  productName: string;
+  date: string;
+  type: InventoryTransactionType;
+  quantity: number;
+  referenceSource: 'purchase' | 'project' | 'manual';
+  referenceId?: string; // e.g., Invoice Number or Project ID
+  referenceName?: string; // e.g., Supplier Name or Project Name
+  notes?: string;
 }
 
 export type PurchasePaymentType = 'credit' | 'cash' | 'transfer';
@@ -415,6 +431,7 @@ export type Permission =
   | 'view_documents'
   | 'view_reports'
   | 'view_activity_log' // New permission
+  | 'view_inventory'
   // Actions
   | 'manage_users' // Create/Delete Users
   | 'delete_records' // General delete permission
@@ -437,7 +454,7 @@ export enum AIRequestType {
   IMPROVE_TEXT = 'IMPROVE_TEXT'
 }
 
-export type SystemView = 'dashboard' | 'quotes' | 'invoices' | 'receipts' | 'contracts' | 'projects' | 'company_profile' | 'specs_manager' | 'customers' | 'purchases' | 'warranties' | 'calculator' | 'claims' | 'expenses' | 'hr' | 'smart_elevator' | 'users' | 'forms' | 'documents' | 'activity_log';
+export type SystemView = 'dashboard' | 'quotes' | 'invoices' | 'receipts' | 'contracts' | 'projects' | 'company_profile' | 'specs_manager' | 'customers' | 'purchases' | 'warranties' | 'calculator' | 'claims' | 'expenses' | 'hr' | 'smart_elevator' | 'users' | 'forms' | 'documents' | 'activity_log' | 'inventory';
 
 // --- PERMISSIONS CONFIGURATION ---
 export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
@@ -448,7 +465,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'view_claims', 'view_projects', 'view_hr', 'view_smart_elevator',
     'view_reports', 'view_warranties', 'view_calculator', 'view_specs_manager',
     'view_documents', 'view_forms', 'view_company_profile', 'view_activity_log',
-    'approve_payments', 'delete_records', 'edit_company_settings'
+    'approve_payments', 'delete_records', 'edit_company_settings', 'view_inventory'
   ],
   sales: [
     'view_dashboard', 'view_customers', 'view_quotes', 'view_contracts',
@@ -456,7 +473,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
   ],
   accountant: [
     'view_dashboard', 'view_invoices', 'view_receipts', 'view_expenses',
-    'view_purchases', 'view_claims', 'view_hr', 'view_contracts', 'view_documents'
+    'view_purchases', 'view_claims', 'view_hr', 'view_contracts', 'view_documents', 'view_inventory'
   ],
   technician: [
     'view_dashboard', 'view_projects', 'view_smart_elevator', 'view_specs_manager',
@@ -472,6 +489,8 @@ export const ALL_PERMISSIONS: { id: Permission, label: string, type: 'view' | 'a
   { id: 'view_contracts', label: 'العقود', type: 'view' },
   { id: 'view_projects', label: 'المشاريع', type: 'view' },
   { id: 'view_invoices', label: 'الفواتير', type: 'view' },
+  { id: 'view_purchases', label: 'المشتريات', type: 'view' },
+  { id: 'view_inventory', label: 'المخزون', type: 'view' },
   { id: 'view_receipts', label: 'سندات القبض', type: 'view' },
   { id: 'view_expenses', label: 'المصروفات', type: 'view' },
   { id: 'view_purchases', label: 'المشتريات', type: 'view' },
