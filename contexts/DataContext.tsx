@@ -153,9 +153,34 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 // Then fetch from cloud
                 const cloudData = await cloudService.loadCollection(collection);
                 if (cloudData && cloudData.length > 0) {
-                    const parsedRecords = cloudData.map((row: any) => row.data);
+                    const parsedRecords = cloudData.map((row: any) => {
+                        let parsed = row.data;
+                        // Self-healing: Ensure local identifier matches the cloud record_id
+                        if (!parsed.id && parsed.number) {
+                            if (parsed.number !== row.record_id) {
+                                // If the DB record ID does not match the actual 'number', it's a corrupted migration record.
+                                // We fix it by deleting the bad record, and saving the correct one.
+                                cloudService.deleteRecord(collection, row.record_id).then(() => {
+                                    cloudService.saveRecord(collection, parsed.number, parsed);
+                                });
+                            }
+                        } else if (parsed.id) {
+                            if (parsed.id !== row.record_id) {
+                                cloudService.deleteRecord(collection, row.record_id).then(() => {
+                                    cloudService.saveRecord(collection, parsed.id, parsed);
+                                });
+                            }
+                        }
+                        return parsed;
+                    });
+
                     stateSetter(parsedRecords);
                     localStorage.setItem(collection, JSON.stringify(parsedRecords)); // Update local cache
+                } else {
+                    // Critical Fix: If cloud is completely empty, we MUST clear the state and local storage, 
+                    // otherwise deleted items keep returning from old local storage!
+                    stateSetter([]);
+                    localStorage.setItem(collection, '[]');
                 }
             }));
 
@@ -268,7 +293,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                     if (Array.isArray(parsedArray)) {
                         for (const item of parsedArray) {
                             // Ensure the item has an ID
-                            const itemId = item.id || Date.now().toString() + Math.random().toString(36).substring(7);
+                            const itemId = item.id || item.number || Date.now().toString() + Math.random().toString(36).substring(7);
                             await cloudService.saveRecord(collection, itemId, item);
                             totalMigrated++;
                         }
