@@ -59,10 +59,10 @@ export const InvoiceModule: React.FC = () => {
         number: `INV-${new Date().getFullYear()}-001`,
         date: new Date().toISOString().split('T')[0],
         dueDate: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        customerName: '',
         customerVatNumber: '',
         items: [],
-        status: 'pending'
+        status: 'pending',
+        discountAmount: 0
     });
 
     const [availableQuotes, setAvailableQuotes] = useState<SavedQuote[]>([]);
@@ -85,10 +85,10 @@ export const InvoiceModule: React.FC = () => {
             number: `INV-${new Date().getFullYear()}-${String(invoices.length + 1).padStart(3, '0')}`,
             date: new Date().toISOString().split('T')[0],
             dueDate: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-            customerName: '',
             customerVatNumber: '',
             items: [],
-            status: 'pending'
+            status: 'pending',
+            discountAmount: 0
         });
         setAvailableQuotes([]);
         setViewMode('editor');
@@ -140,8 +140,10 @@ export const InvoiceModule: React.FC = () => {
     };
 
     const subtotal = currentInvoice.items.reduce((s, i) => s + i.total, 0);
-    const tax = subtotal * 0.15;
-    const grandTotal = subtotal + tax;
+    const discount = currentInvoice.discountAmount || 0;
+    const taxableAmount = Math.max(0, subtotal - discount);
+    const tax = taxableAmount * 0.15;
+    const grandTotal = taxableAmount + tax;
 
     if (viewMode === 'list') {
         return (
@@ -180,7 +182,14 @@ export const InvoiceModule: React.FC = () => {
                                         <td className="p-4 font-mono font-bold text-jilco-900">{inv.number}</td>
                                         <td className="p-4 font-bold">{inv.customerName}</td>
                                         <td className="p-4 font-mono text-xs">{inv.date}</td>
-                                        <td className="p-4 font-black text-green-700">{(inv.items.reduce((s, it) => s + it.total, 0) * 1.15).toLocaleString()}</td>
+                                        <td className="p-4 font-black text-green-700">
+                                            {(() => {
+                                                const sub = inv.items.reduce((s, it) => s + it.total, 0);
+                                                const disc = inv.discountAmount || 0;
+                                                const taxAmt = Math.max(0, sub - disc) * 0.15;
+                                                return (Math.max(0, sub - disc) + taxAmt).toLocaleString();
+                                            })()}
+                                        </td>
                                         <td className="p-4">
                                             <span className={`px-2 py-1 rounded text-[10px] font-bold ${inv.status === 'paid' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
                                                 {inv.status === 'paid' ? 'مدفوعة' : 'بانتظار الدفع'}
@@ -243,6 +252,12 @@ export const InvoiceModule: React.FC = () => {
                             <div>
                                 <label className="block text-[10px] font-bold text-gray-500 mb-1">التاريخ</label>
                                 <input type="date" value={currentInvoice.date} onChange={e => setCurrentInvoice({ ...currentInvoice, date: e.target.value })} className="w-full p-2 border rounded text-sm bg-white font-bold" />
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3 mt-3">
+                            <div>
+                                <label className="block text-[10px] font-bold text-gray-500 mb-1">خصم مكتسب (مبلغ مالي)</label>
+                                <input type="number" min="0" value={currentInvoice.discountAmount || ''} onChange={e => setCurrentInvoice({ ...currentInvoice, discountAmount: parseFloat(e.target.value) || 0 })} className="w-full p-2 border rounded text-sm bg-white font-bold" placeholder="مثال: 500" />
                             </div>
                         </div>
                     </div>
@@ -357,6 +372,18 @@ export const InvoiceModule: React.FC = () => {
                                         <span>المجموع / Subtotal:</span>
                                         <span className="font-mono text-black">{subtotal.toLocaleString()}</span>
                                     </div>
+                                    {(currentInvoice.discountAmount || 0) > 0 && (
+                                        <>
+                                            <div className="flex justify-between text-[10px] font-black text-gray-500 uppercase">
+                                                <span>الخصم / Discount:</span>
+                                                <span className="font-mono text-red-600">-{(currentInvoice.discountAmount || 0).toLocaleString()}</span>
+                                            </div>
+                                            <div className="flex justify-between text-[10px] font-black text-gray-500 uppercase">
+                                                <span>الخاضع للضريبة / Taxable Amt:</span>
+                                                <span className="font-mono text-black">{taxableAmount.toLocaleString()}</span>
+                                            </div>
+                                        </>
+                                    )}
                                     <div className="flex justify-between text-[10px] font-black text-gray-500 uppercase">
                                         <span>الضريبة / VAT 15%:</span>
                                         <span className="font-mono text-red-600">{tax.toLocaleString()}</span>
