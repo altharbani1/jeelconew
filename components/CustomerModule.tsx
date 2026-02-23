@@ -208,6 +208,26 @@ export const CustomerModule: React.FC = () => {
                   </tr>
                 </tfoot>
               </table>
+
+              {/* Signature & Stamp */}
+              <div className="mt-8 pb-4 flex justify-between items-end px-4">
+                <div className="text-center w-1/3">
+                  <p className="text-sm font-bold text-gray-800 mb-10">المحاسب</p>
+                  <div className="border-b-2 border-dashed border-gray-400 w-2/3 mx-auto"></div>
+                </div>
+                <div className="text-center w-1/3 relative flex justify-center items-center min-h-[120px]">
+                  {config?.stamp && (
+                    <img src={config.stamp} alt="Stamp" className="w-32 object-contain opacity-90 mix-blend-multiply" />
+                  )}
+                  {!config?.stamp && (
+                    <div className="w-24 h-24 border-2 border-dashed border-gray-300 rounded-full flex items-center justify-center text-gray-400 text-xs font-bold">الختم</div>
+                  )}
+                </div>
+                <div className="text-center w-1/3">
+                  <p className="text-sm font-bold text-gray-800 mb-10">توقيع العميل / المستلم</p>
+                  <div className="border-b-2 border-dashed border-gray-400 w-2/3 mx-auto"></div>
+                </div>
+              </div>
             </div>
 
             <footer className="w-full bg-jilco-900 text-white py-3 px-10 flex justify-between items-center text-[10px] font-bold h-[45px]">
