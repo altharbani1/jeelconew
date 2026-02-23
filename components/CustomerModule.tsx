@@ -115,10 +115,16 @@ export const CustomerModule: React.FC = () => {
   const customerStatement = useMemo(() => {
     if (!selectedCustomer) return { transactions: [], totalDebit: 0, totalCredit: 0, balance: 0 };
 
-    const invoices = allInvoices.filter(i => i.customerName === selectedCustomer.fullName).map(i => ({
-      date: i.date, type: 'invoice' as const, number: i.number, description: 'فاتورة ضريبية',
-      debit: i.items.reduce((s, it) => s + it.total, 0) * 1.15, credit: 0
-    }));
+    const invoices = allInvoices.filter(i => i.customerName === selectedCustomer.fullName).map(i => {
+      const subtotal = i.items.reduce((s: number, it: any) => s + it.total, 0);
+      const tax = subtotal * 0.15;
+      const discount = i.discountAmount || 0;
+      const debit = Math.max(0, subtotal + tax - discount);
+      return {
+        date: i.date, type: 'invoice' as const, number: i.number, description: 'فاتورة ضريبية',
+        debit, credit: 0
+      };
+    });
 
     const receipts = allReceipts.filter(r => r.receivedFrom === selectedCustomer.fullName).map(r => ({
       date: r.date, type: 'receipt' as const, number: r.number, description: r.forReason || 'سند قبض',
