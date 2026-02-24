@@ -25,6 +25,7 @@ import { DocumentsModule } from './components/DocumentsModule.tsx';
 import { ActivityLogModule } from './components/ActivityLogModule.tsx';
 import { InventoryModule } from './components/InventoryModule.tsx';
 import { LoginScreen } from './components/LoginScreen.tsx';
+import { FinancialReportModule } from './components/FinancialReportModule.tsx';
 
 import { SystemView } from './types.ts';
 import { useData } from './contexts/DataContext.tsx';
@@ -63,6 +64,7 @@ const MainApp: React.FC = () => {
         {currentView === 'smart_elevator' && <SmartElevatorModule />}
         {currentView === 'forms' && <FormsModule />}
         {currentView === 'documents' && <DocumentsModule />}
+        {currentView === 'financial_report' && <FinancialReportModule />}
       </main>
     </div>
   );

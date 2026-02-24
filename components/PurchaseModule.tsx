@@ -196,6 +196,30 @@ export const PurchaseModule: React.FC = () => {
 
     await saveRecord('jilco_supplier_payments', paymentData.id, paymentData);
 
+    // ======= ربط الدفعة بالفاتورة وتحديث حالتها =======
+    if (paymentData.invoiceId) {
+      const invoice = invoices.find(inv => inv.id === paymentData.invoiceId);
+      if (invoice) {
+        // جمع كل الدفعات المرتبطة بهذه الفاتورة (بما فيها الجديدة)
+        const allPaymentsForInvoice = [
+          ...payments.filter(p => p.invoiceId === invoice.id && p.id !== paymentData.id),
+          paymentData
+        ];
+        const totalPaidForInvoice = allPaymentsForInvoice.reduce((s, p) => s + (p.amount || 0), 0);
+        let newStatus: 'paid' | 'pending' | 'partial';
+        if (totalPaidForInvoice >= invoice.grandTotal) {
+          newStatus = 'paid';
+        } else if (totalPaidForInvoice > 0) {
+          newStatus = 'partial';
+        } else {
+          newStatus = 'pending';
+        }
+        const updatedInvoice = { ...invoice, paidAmount: totalPaidForInvoice, status: newStatus };
+        await saveRecord('jilco_purchase_invoices', invoice.id, updatedInvoice);
+      }
+    }
+    // ====================================================
+
     setShowPaymentModal(false);
     setCurrentPayment({ method: 'transfer', date: new Date().toISOString().split('T')[0] });
   };
@@ -1059,22 +1083,51 @@ export const PurchaseModule: React.FC = () => {
             <div className="space-y-3">
               <div>
                 <label className="block text-xs font-bold text-gray-500 mb-1">المورد</label>
-                <select className="w-full p-2 border rounded font-bold" value={currentPayment.supplierId || ''} onChange={e => setCurrentPayment({ ...currentPayment, supplierId: e.target.value })}>
+                <select title="اختر المورد" className="w-full p-2 border rounded font-bold" value={currentPayment.supplierId || ''} onChange={e => setCurrentPayment({ ...currentPayment, supplierId: e.target.value, invoiceId: '' })}>
                   <option value="">-- اختر المورد --</option>
                   {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                 </select>
               </div>
+
+              {/* ربط الدفعة بفاتورة محددة */}
+              {currentPayment.supplierId && (
+                <div>
+                  <label className="block text-xs font-bold text-gray-500 mb-1">
+                    ربط بفاتورة <span className="text-gray-400 font-normal">(اختياري)</span>
+                  </label>
+                  <select
+                    title="اختر الفاتورة المرتبطة بهذه الدفعة"
+                    className="w-full p-2 border rounded font-bold"
+                    value={(currentPayment as any).invoiceId || ''}
+                    onChange={e => setCurrentPayment({ ...currentPayment, invoiceId: e.target.value } as any)}
+                  >
+                    <option value="">-- دفعة عامة (غير مرتبطة) --</option>
+                    {invoices
+                      .filter(inv => inv.supplierId === currentPayment.supplierId && inv.status !== 'paid')
+                      .map(inv => {
+                        const paid = inv.paidAmount || 0;
+                        const remaining = inv.grandTotal - paid;
+                        return (
+                          <option key={inv.id} value={inv.id}>
+                            {inv.number} — متبقي {remaining.toLocaleString()} ريال
+                          </option>
+                        );
+                      })}
+                  </select>
+                </div>
+              )}
+
               <div>
                 <label className="block text-xs font-bold text-gray-500 mb-1">المبلغ</label>
-                <input type="number" className="w-full p-2 border rounded font-bold" value={currentPayment.amount || ''} onChange={e => setCurrentPayment({ ...currentPayment, amount: parseFloat(e.target.value) })} />
+                <input type="number" title="مبلغ الدفعة" placeholder="0.00" className="w-full p-2 border rounded font-bold" value={currentPayment.amount || ''} onChange={e => setCurrentPayment({ ...currentPayment, amount: parseFloat(e.target.value) })} />
               </div>
               <div>
                 <label className="block text-xs font-bold text-gray-500 mb-1">التاريخ</label>
-                <input type="date" className="w-full p-2 border rounded font-bold" value={currentPayment.date || ''} onChange={e => setCurrentPayment({ ...currentPayment, date: e.target.value })} />
+                <input type="date" title="تاريخ الدفعة" className="w-full p-2 border rounded font-bold" value={currentPayment.date || ''} onChange={e => setCurrentPayment({ ...currentPayment, date: e.target.value })} />
               </div>
               <div>
                 <label className="block text-xs font-bold text-gray-500 mb-1">طريقة الدفع</label>
-                <select className="w-full p-2 border rounded font-bold" value={currentPayment.method || 'transfer'} onChange={e => setCurrentPayment({ ...currentPayment, method: e.target.value as any })}>
+                <select title="طريقة الدفع" className="w-full p-2 border rounded font-bold" value={currentPayment.method || 'transfer'} onChange={e => setCurrentPayment({ ...currentPayment, method: e.target.value as any })}>
                   <option value="transfer">تحويل بنكي</option>
                   <option value="cash">نقد</option>
                   <option value="check">شيك</option>
@@ -1082,8 +1135,9 @@ export const PurchaseModule: React.FC = () => {
               </div>
               <div>
                 <label className="block text-xs font-bold text-gray-500 mb-1">ملاحظات / مرجع</label>
-                <input type="text" className="w-full p-2 border rounded font-bold" value={currentPayment.notes || ''} onChange={e => setCurrentPayment({ ...currentPayment, notes: e.target.value })} />
+                <input type="text" title="ملاحظات أو رقم مرجعي" placeholder="رقم العملية أو ملاحظة" className="w-full p-2 border rounded font-bold" value={currentPayment.notes || ''} onChange={e => setCurrentPayment({ ...currentPayment, notes: e.target.value })} />
               </div>
+
             </div>
             <div className="flex justify-end gap-2 mt-6">
               <button onClick={() => setShowPaymentModal(false)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded font-bold">إلغاء</button>

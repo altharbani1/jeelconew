@@ -1,9 +1,10 @@
 
-import React from 'react';
-import { LayoutDashboard, FileText, Receipt, ScrollText, Briefcase, Calculator, Settings, LogOut, Building, Database, Users, ShoppingBag, ShieldCheck, Scale, FileWarning, Wallet, UserCog, QrCode, Lock, ClipboardCheck, Languages, FolderOpen, Cloud, CloudRain, CloudOff, Wifi, CheckCircle2, Activity } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { LayoutDashboard, FileText, Receipt, ScrollText, Briefcase, Calculator, Settings, LogOut, Building, Database, Users, ShoppingBag, ShieldCheck, Scale, FileWarning, Wallet, UserCog, QrCode, Lock, ClipboardCheck, Languages, FolderOpen, Cloud, CloudRain, CloudOff, Wifi, CheckCircle2, Activity, TrendingUp, Bell, X } from 'lucide-react';
 import { SystemView, Permission } from '../types';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext.tsx';
+import { useNotifications } from '../lib/useNotifications';
 
 interface SystemNavProps {
   currentView: SystemView;
@@ -14,6 +15,20 @@ interface SystemNavProps {
 export const SystemNav: React.FC<SystemNavProps> = ({ currentView, setView, syncStatus = 'idle' }) => {
   const { currentUser, logout, hasPermission } = useAuth();
   const { t, toggleLanguage, language } = useLanguage();
+  const { notifications, count } = useNotifications();
+  const [showNotifications, setShowNotifications] = useState(false);
+  const notifRef = useRef<HTMLDivElement>(null);
+
+  // إغلاق الـ dropdown عند النقر خارجه
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (notifRef.current && !notifRef.current.contains(e.target as Node)) {
+        setShowNotifications(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
 
   const navItems: { id: SystemView; label: string; icon: any; permission: Permission }[] = [
     { id: 'dashboard', label: t('dashboard'), icon: LayoutDashboard, permission: 'view_dashboard' },
@@ -34,6 +49,7 @@ export const SystemNav: React.FC<SystemNavProps> = ({ currentView, setView, sync
     { id: 'warranties', label: t('warranties'), icon: ShieldCheck, permission: 'view_warranties' },
     { id: 'smart_elevator', label: t('smart_elevator'), icon: QrCode, permission: 'view_smart_elevator' },
     { id: 'calculator', label: t('calculator'), icon: Scale, permission: 'view_calculator' },
+    { id: 'financial_report', label: 'التقارير المالية', icon: TrendingUp, permission: 'view_reports' },
     { id: 'company_profile', label: t('company_profile'), icon: Building, permission: 'view_company_profile' },
     { id: 'specs_manager', label: t('specs_manager'), icon: Database, permission: 'view_specs_manager' },
     { id: 'activity_log', label: 'السجلات', icon: Activity, permission: 'view_activity_log' },
@@ -112,6 +128,59 @@ export const SystemNav: React.FC<SystemNavProps> = ({ currentView, setView, sync
       </div>
 
       <div className="mt-auto px-2 w-full pt-4 border-t border-white/5 space-y-2 pb-2">
+
+        {/* Notifications Bell */}
+        <div className="relative" ref={notifRef}>
+          <button
+            onClick={() => setShowNotifications(p => !p)}
+            className="w-full p-2 rounded-xl hover:bg-white/5 text-gold-400 hover:text-gold-300 transition-all flex flex-col items-center justify-center gap-1 relative"
+            title="الإشعارات"
+          >
+            <div className="relative">
+              <Bell size={18} />
+              {count > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 bg-red-500 text-white text-[9px] font-black rounded-full w-4 h-4 flex items-center justify-center animate-pulse">
+                  {count > 9 ? '9+' : count}
+                </span>
+              )}
+            </div>
+            <span className="text-[10px] font-bold">تنبيهات</span>
+          </button>
+
+          {/* Dropdown */}
+          {showNotifications && (
+            <div className="absolute bottom-full left-full mb-2 mr-2 w-80 bg-white rounded-2xl shadow-2xl border border-gray-200 z-50 overflow-hidden">
+              <div className="p-3 bg-jilco-900 text-white flex justify-between items-center">
+                <span className="font-black text-sm">الإشعارات {count > 0 && `(${count})`}</span>
+                <button onClick={() => setShowNotifications(false)} className="text-white/60 hover:text-white"><X size={16} /></button>
+              </div>
+              <div className="max-h-80 overflow-y-auto divide-y divide-gray-100">
+                {notifications.length === 0 && (
+                  <div className="p-6 text-center text-gray-400 text-sm">لا توجد تنبيهات 🎉</div>
+                )}
+                {notifications.map(n => (
+                  <button
+                    key={n.id}
+                    onClick={() => { if (n.actionView) setView(n.actionView as any); setShowNotifications(false); }}
+                    className={`w-full text-right p-3 hover:bg-gray-50 transition-colors flex items-start gap-2 ${n.severity === 'critical' ? 'border-r-4 border-red-500' :
+                        n.severity === 'warning' ? 'border-r-4 border-amber-500' : 'border-r-4 border-blue-400'
+                      }`}
+                  >
+                    <div className={`mt-0.5 w-2 h-2 rounded-full shrink-0 ${n.severity === 'critical' ? 'bg-red-500' :
+                        n.severity === 'warning' ? 'bg-amber-500' : 'bg-blue-400'
+                      }`} />
+                    <div>
+                      <p className="text-xs font-bold text-gray-800">{n.title}</p>
+                      <p className="text-[11px] text-gray-500">{n.description}</p>
+                      {n.date && <p className="text-[10px] text-gray-400 mt-0.5">{n.date}</p>}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
         <button
           onClick={toggleLanguage}
           className="w-full p-2 rounded-xl text-gold-400 hover:bg-white/5 hover:text-gold-300 transition-all flex flex-col items-center justify-center gap-1 group"

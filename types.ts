@@ -204,18 +204,20 @@ export interface PurchaseInvoice {
   totalAmount: number;
   taxAmount: number;
   grandTotal: number;
+  paidAmount?: number; // مجموع المبالغ المدفوعة على هذه الفاتورة
   status: 'paid' | 'pending' | 'partial';
-  paymentType?: PurchasePaymentType; // New Field: ajil, cash, transfer
+  paymentType?: PurchasePaymentType;
   notes?: string;
-  attachment?: string; // Legacy field
-  attachments?: Attachment[]; // New multiple attachments field
-  projectId?: string; // Link to Project
-  projectName?: string; // Cache Project Name
+  attachment?: string;
+  attachments?: Attachment[];
+  projectId?: string;
+  projectName?: string;
 }
 
 export interface SupplierPayment {
   id: string;
   supplierId: string;
+  invoiceId?: string; // ربط بفاتورة شراء محددة (اختياري)
   date: string;
   amount: number;
   method: 'cash' | 'transfer' | 'check';
@@ -454,7 +456,7 @@ export enum AIRequestType {
   IMPROVE_TEXT = 'IMPROVE_TEXT'
 }
 
-export type SystemView = 'dashboard' | 'quotes' | 'invoices' | 'receipts' | 'contracts' | 'projects' | 'company_profile' | 'specs_manager' | 'customers' | 'purchases' | 'warranties' | 'calculator' | 'claims' | 'expenses' | 'hr' | 'smart_elevator' | 'users' | 'forms' | 'documents' | 'activity_log' | 'inventory';
+export type SystemView = 'dashboard' | 'quotes' | 'invoices' | 'receipts' | 'contracts' | 'projects' | 'company_profile' | 'specs_manager' | 'customers' | 'purchases' | 'warranties' | 'calculator' | 'claims' | 'expenses' | 'hr' | 'smart_elevator' | 'users' | 'forms' | 'documents' | 'activity_log' | 'inventory' | 'financial_report';
 
 // --- PERMISSIONS CONFIGURATION ---
 export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
