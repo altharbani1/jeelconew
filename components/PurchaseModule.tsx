@@ -685,10 +685,29 @@ export const PurchaseModule: React.FC = () => {
     const totalPaid = supplierPayments.reduce((s, p) => s + p.amount, 0);
     const balance = totalInvoices - totalPaid;
 
+    // Merge all transactions sorted by date
+    const allTransactions = [
+      ...supplierInvoices.map(inv => ({
+        date: inv.date, ref: inv.number, desc: `فاتورة شراء${inv.projectName ? ' - ' + inv.projectName : ''}`,
+        debit: inv.grandTotal, credit: 0, type: 'invoice' as const
+      })),
+      ...supplierPayments.map(pay => ({
+        date: pay.date, ref: `PV-${pay.id.slice(-6)}`, desc: `دفعة ${pay.method === 'cash' ? 'نقدية' : pay.method === 'check' ? 'شيك' : 'تحويل بنكي'}${pay.notes ? ' - ' + pay.notes : ''}`,
+        debit: 0, credit: pay.amount, type: 'payment' as const
+      }))
+    ].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+    // Running balance
+    let running = 0;
+    const txWithBalance = allTransactions.map(tx => {
+      running += tx.debit - tx.credit;
+      return { ...tx, balance: running };
+    });
+
     return (
       <div className="space-y-4">
-        {/* Supplier Selector */}
-        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex items-center gap-4">
+        {/* Controls Bar */}
+        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex items-center gap-4 print:hidden">
           <label className="font-bold text-gray-700 shrink-0">اختر المورد:</label>
           <select
             title="اختر المورد لعرض كشف حسابه"
@@ -699,12 +718,21 @@ export const PurchaseModule: React.FC = () => {
             <option value="">-- اختر مورداً --</option>
             {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
           </select>
+
+          {statementSupplierId && supplier && (
+            <button
+              onClick={() => window.print()}
+              className="bg-jilco-900 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 hover:bg-jilco-800 shadow-sm"
+            >
+              <Printer size={18} /> طباعة الكشف
+            </button>
+          )}
         </div>
 
         {statementSupplierId && supplier && (
           <>
-            {/* Summary Cards */}
-            <div className="grid grid-cols-3 gap-4">
+            {/* Summary Cards — screen only */}
+            <div className="grid grid-cols-3 gap-4 print:hidden">
               <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm text-center">
                 <p className="text-xs font-bold text-gray-500 mb-1">إجمالي المشتريات</p>
                 <p className="text-2xl font-black text-jilco-900">{totalInvoices.toLocaleString()}</p>
@@ -722,74 +750,124 @@ export const PurchaseModule: React.FC = () => {
               </div>
             </div>
 
-            {/* Invoices Table */}
-            <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-              <div className="p-4 border-b bg-gray-50">
-                <h3 className="font-bold text-gray-800">فواتير الشراء ({supplierInvoices.length})</h3>
+            {/* ===== PRINTABLE A4 STATEMENT ===== */}
+            <div id="supplier-statement-print" className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden print:shadow-none print:border-0 print:rounded-none">
+
+              {/* Header */}
+              <div className="px-8 py-5 border-b-2 border-jilco-900 flex justify-between items-center">
+                <div className="text-right">
+                  <h1 className="text-xl font-black text-jilco-900">{config.headerTitle}</h1>
+                  <p className="text-xs font-bold text-gray-500">{config.headerSubtitle || 'Jilco Elevators Co.'}</p>
+                </div>
+                <div className="text-center">
+                  <h2 className="text-2xl font-black text-jilco-900 border-2 border-jilco-900 px-4 py-1 inline-block rounded-lg">كشف حساب مورد</h2>
+                </div>
+                <div className="text-left">
+                  <p className="text-xs font-bold text-gray-500">تاريخ الطباعة</p>
+                  <p className="font-mono text-sm">{new Date().toLocaleDateString('en-GB')}</p>
+                </div>
               </div>
-              <table className="w-full text-sm text-right">
-                <thead className="bg-gray-50 text-gray-500">
-                  <tr>
-                    <th className="p-3">رقم الفاتورة</th>
-                    <th className="p-3">التاريخ</th>
-                    <th className="p-3">المشروع</th>
-                    <th className="p-3 text-center">الإجمالي</th>
-                    <th className="p-3 text-center">الحالة</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {supplierInvoices.map(inv => (
-                    <tr key={inv.id} className="hover:bg-gray-50">
-                      <td className="p-3 font-mono font-bold text-gray-800">{inv.number}</td>
-                      <td className="p-3 font-mono text-xs text-gray-500">{inv.date}</td>
-                      <td className="p-3 text-xs text-gray-500">{inv.projectName || '-'}</td>
-                      <td className="p-3 text-center font-black text-jilco-900">{inv.grandTotal.toLocaleString()}</td>
-                      <td className="p-3 text-center">
-                        <span className={`px-2 py-1 rounded text-xs font-bold ${inv.status === 'paid' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
-                          {inv.status === 'paid' ? 'مدفوعة' : 'مستحقة'}
-                        </span>
+
+              {/* Supplier Info */}
+              <div className="px-8 py-4 bg-gray-50 border-b border-gray-200 flex justify-between items-center">
+                <div>
+                  <p className="text-xs text-gray-500 font-bold mb-1">المورد</p>
+                  <h3 className="text-lg font-black text-jilco-900">{supplier.name}</h3>
+                  {supplier.phone && <p className="text-xs text-gray-600 font-bold">هاتف: {supplier.phone}</p>}
+                  {supplier.vatNumber && <p className="text-xs text-gray-600 font-bold">رقم ضريبي: {supplier.vatNumber}</p>}
+                </div>
+                <div className="text-left grid grid-cols-3 gap-6">
+                  <div className="text-center">
+                    <p className="text-xs text-gray-500 font-bold mb-1">إجمالي المشتريات</p>
+                    <p className="text-lg font-black text-jilco-900 font-mono">{totalInvoices.toLocaleString()}</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-xs text-gray-500 font-bold mb-1">إجمالي المدفوعات</p>
+                    <p className="text-lg font-black text-green-600 font-mono">{totalPaid.toLocaleString()}</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-xs text-gray-500 font-bold mb-1">الرصيد المستحق</p>
+                    <p className={`text-lg font-black font-mono ${balance > 0 ? 'text-red-600' : 'text-green-600'}`}>{Math.abs(balance).toLocaleString()}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Transactions Table */}
+              <div className="px-8 py-4">
+                <table className="w-full text-xs text-right border-collapse">
+                  <thead>
+                    <tr className="bg-jilco-900 text-white">
+                      <th className="p-2 border border-jilco-900 w-8 text-center">#</th>
+                      <th className="p-2 border border-jilco-900 w-24">التاريخ</th>
+                      <th className="p-2 border border-jilco-900 w-28">المرجع</th>
+                      <th className="p-2 border border-jilco-900">البيان</th>
+                      <th className="p-2 border border-jilco-900 w-24 text-center">مدين (عليه)</th>
+                      <th className="p-2 border border-jilco-900 w-24 text-center">دائن (له)</th>
+                      <th className="p-2 border border-jilco-900 w-24 text-center">الرصيد</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {txWithBalance.length === 0 && (
+                      <tr><td colSpan={7} className="p-6 text-center text-gray-400">لا توجد حركات مسجلة</td></tr>
+                    )}
+                    {txWithBalance.map((tx, idx) => (
+                      <tr key={idx} className={`border-b border-gray-200 ${tx.type === 'invoice' ? 'bg-red-50/30' : 'bg-green-50/30'}`}>
+                        <td className="p-2 border border-gray-200 text-center">{idx + 1}</td>
+                        <td className="p-2 border border-gray-200 font-mono">{tx.date}</td>
+                        <td className="p-2 border border-gray-200 font-mono font-bold">{tx.ref}</td>
+                        <td className="p-2 border border-gray-200">{tx.desc}</td>
+                        <td className="p-2 border border-gray-200 text-center font-mono font-bold text-red-700">
+                          {tx.debit > 0 ? tx.debit.toLocaleString() : '-'}
+                        </td>
+                        <td className="p-2 border border-gray-200 text-center font-mono font-bold text-green-700">
+                          {tx.credit > 0 ? tx.credit.toLocaleString() : '-'}
+                        </td>
+                        <td className={`p-2 border border-gray-200 text-center font-mono font-bold ${tx.balance > 0 ? 'text-red-600' : 'text-green-600'}`}>
+                          {Math.abs(tx.balance).toLocaleString()}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr className="bg-jilco-900 text-white font-black">
+                      <td colSpan={4} className="p-2 border border-jilco-900">الإجمالي</td>
+                      <td className="p-2 border border-jilco-900 text-center font-mono">{totalInvoices.toLocaleString()}</td>
+                      <td className="p-2 border border-jilco-900 text-center font-mono">{totalPaid.toLocaleString()}</td>
+                      <td className={`p-2 border border-jilco-900 text-center font-mono ${balance > 0 ? 'text-red-300' : 'text-green-300'}`}>
+                        {Math.abs(balance).toLocaleString()} {balance > 0 ? '(مستحق)' : '(زائد)'}
                       </td>
                     </tr>
-                  ))}
-                  {supplierInvoices.length === 0 && <tr><td colSpan={5} className="p-6 text-center text-gray-400">لا توجد فواتير</td></tr>}
-                </tbody>
-              </table>
-            </div>
-
-            {/* Payments Table */}
-            <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-              <div className="p-4 border-b bg-gray-50">
-                <h3 className="font-bold text-gray-800">المدفوعات ({supplierPayments.length})</h3>
+                  </tfoot>
+                </table>
               </div>
-              <table className="w-full text-sm text-right">
-                <thead className="bg-gray-50 text-gray-500">
-                  <tr>
-                    <th className="p-3">رقم السند</th>
-                    <th className="p-3">التاريخ</th>
-                    <th className="p-3">طريقة الدفع</th>
-                    <th className="p-3 text-center">المبلغ</th>
-                    <th className="p-3">ملاحظات</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                  {supplierPayments.map(pay => (
-                    <tr key={pay.id} className="hover:bg-gray-50">
-                      <td className="p-3 font-mono font-bold text-gray-800">PV-{pay.id.slice(-6)}</td>
-                      <td className="p-3 font-mono text-xs text-gray-500">{pay.date}</td>
-                      <td className="p-3 text-xs">{pay.method === 'cash' ? 'نقد' : pay.method === 'check' ? 'شيك' : 'تحويل'}</td>
-                      <td className="p-3 text-center font-black text-green-600">{pay.amount.toLocaleString()}</td>
-                      <td className="p-3 text-xs text-gray-500">{pay.notes || '-'}</td>
-                    </tr>
-                  ))}
-                  {supplierPayments.length === 0 && <tr><td colSpan={5} className="p-6 text-center text-gray-400">لا توجد مدفوعات</td></tr>}
-                </tbody>
-              </table>
+
+              {/* Signatures */}
+              <div className="px-8 py-6 flex justify-between items-end border-t border-gray-200">
+                <div className="text-center">
+                  <p className="text-xs font-bold text-gray-400 mb-6 uppercase tracking-wider">المحاسب</p>
+                  <div className="w-32 border-b-2 border-gray-300"></div>
+                </div>
+                <div className="text-center">
+                  <p className="text-xs font-bold text-gray-400 mb-6 uppercase tracking-wider">المدير المالي</p>
+                  <div className="w-32 border-b-2 border-gray-300"></div>
+                </div>
+                <div className="text-center">
+                  <p className="text-xs font-bold text-gray-400 mb-6 uppercase tracking-wider">المدير العام</p>
+                  <div className="w-32 border-b-2 border-gray-300"></div>
+                </div>
+              </div>
+
+              {/* Print Button (bottom, screen only) */}
+              <div className="px-8 py-4 bg-gray-50 border-t border-gray-200 flex justify-end print:hidden">
+                <button
+                  onClick={() => window.print()}
+                  className="bg-jilco-900 text-white px-6 py-2.5 rounded-lg font-bold flex items-center gap-2 hover:bg-jilco-800"
+                >
+                  <Printer size={18} /> طباعة كشف الحساب
+                </button>
+              </div>
             </div>
           </>
-        )}
-
-        {statementSupplierId && !supplier && (
-          <div className="text-center text-gray-400 p-12">المورد غير موجود</div>
         )}
 
         {!statementSupplierId && (
@@ -800,6 +878,7 @@ export const PurchaseModule: React.FC = () => {
       </div>
     );
   };
+
 
   return (
     <div className="flex-1 bg-gray-100 p-8 overflow-auto h-full animate-fade-in">
