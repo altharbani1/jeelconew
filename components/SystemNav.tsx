@@ -149,7 +149,7 @@ export const SystemNav: React.FC<SystemNavProps> = ({ currentView, setView, sync
 
           {/* Dropdown */}
           {showNotifications && (
-            <div className="absolute bottom-full left-full mb-2 mr-2 w-80 bg-white rounded-2xl shadow-2xl border border-gray-200 z-50 overflow-hidden">
+            <div className="absolute bottom-0 right-full ml-2 w-80 bg-white rounded-2xl shadow-2xl border border-gray-200 z-[9999] overflow-hidden">
               <div className="p-3 bg-jilco-900 text-white flex justify-between items-center">
                 <span className="font-black text-sm">الإشعارات {count > 0 && `(${count})`}</span>
                 <button onClick={() => setShowNotifications(false)} className="text-white/60 hover:text-white"><X size={16} /></button>
@@ -163,11 +163,11 @@ export const SystemNav: React.FC<SystemNavProps> = ({ currentView, setView, sync
                     key={n.id}
                     onClick={() => { if (n.actionView) setView(n.actionView as any); setShowNotifications(false); }}
                     className={`w-full text-right p-3 hover:bg-gray-50 transition-colors flex items-start gap-2 ${n.severity === 'critical' ? 'border-r-4 border-red-500' :
-                        n.severity === 'warning' ? 'border-r-4 border-amber-500' : 'border-r-4 border-blue-400'
+                      n.severity === 'warning' ? 'border-r-4 border-amber-500' : 'border-r-4 border-blue-400'
                       }`}
                   >
                     <div className={`mt-0.5 w-2 h-2 rounded-full shrink-0 ${n.severity === 'critical' ? 'bg-red-500' :
-                        n.severity === 'warning' ? 'bg-amber-500' : 'bg-blue-400'
+                      n.severity === 'warning' ? 'bg-amber-500' : 'bg-blue-400'
                       }`} />
                     <div>
                       <p className="text-xs font-bold text-gray-800">{n.title}</p>
