@@ -5,6 +5,7 @@ import { Plus, Trash2, Printer, Sparkles, Save, Database, User, ClipboardList, D
 import { QuoteItem, QuoteDetails, CompanyConfig, TechnicalSpecs, SpecsDatabase, SupplierProduct, Customer } from '../types.ts';
 import { generateTechnicalDescription } from '../services/geminiService.ts';
 import { ShareButton } from './ShareButton.tsx';
+import { useSales } from '../contexts/SalesContext.tsx';
 
 const DEFAULT_SPECS_DB: SpecsDatabase = {
     elevatorType: ['مصعد ركاب (Passenger)', 'مصعد بضائع (Freight)', 'مصعد طعام (Dumbwaiter)', 'مصعد بانوراما (Panoramic)', 'مصعد منزلي (Home Lift)'],
@@ -56,9 +57,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
         ]
     };
     // استخدم allowedModules[role] لتصفية الموديولات
+    const { customers } = useSales();
     const [specsDb, setSpecsDb] = useState<SpecsDatabase>(DEFAULT_SPECS_DB);
     const [productsDb, setProductsDb] = useState<SupplierProduct[]>([]);
-    const [customers, setCustomers] = useState<Customer[]>([]);
 
     const [newItemDesc, setNewItemDesc] = useState('');
     const [newItemDetails, setNewItemDetails] = useState('');
@@ -83,11 +84,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
         const savedProducts = localStorage.getItem('jilco_supplier_products');
         if (savedProducts) {
             try { setProductsDb(JSON.parse(savedProducts)); } catch (e) { }
-        }
-
-        const savedCustomers = localStorage.getItem('jilco_customers');
-        if (savedCustomers) {
-            try { setCustomers(JSON.parse(savedCustomers)); } catch (e) { }
         }
     }, []);
 

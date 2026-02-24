@@ -1,7 +1,13 @@
 import React, { useState } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext.tsx';
-import { DataProvider } from './contexts/DataContext.tsx';
+import { DataProvider, useData } from './contexts/DataContext.tsx';
 import { LanguageProvider } from './contexts/LanguageContext.tsx';
+import { useSales } from './contexts/SalesContext.tsx';
+import { useHR } from './contexts/HRContext.tsx';
+import { useProject } from './contexts/ProjectContext.tsx';
+import { useInventory } from './contexts/InventoryContext.tsx';
+import { usePurchase } from './contexts/PurchaseContext.tsx';
+import { useMaintenance } from './contexts/MaintenanceContext.tsx';
 import { SystemNav } from './components/SystemNav.tsx';
 import { QuoteModule } from './components/QuoteModule.tsx';
 import { Dashboard } from './components/Dashboard.tsx';
@@ -29,12 +35,21 @@ import { FinancialReportModule } from './components/FinancialReportModule.tsx';
 import { MaintenanceModule } from './components/MaintenanceModule.tsx';
 
 import { SystemView } from './types.ts';
-import { useData } from './contexts/DataContext.tsx';
 
 const MainApp: React.FC = () => {
   const { currentUser } = useAuth();
-  const { syncStatus } = useData();
+  const { syncStatus: dataSync } = useData();
+  const { syncStatus: salesSync } = useSales();
+  const { syncStatus: hrSync } = useHR();
+  const { syncStatus: projSync } = useProject();
+  const { syncStatus: invSync } = useInventory();
+  const { syncStatus: purchSync } = usePurchase();
+  const { syncStatus: maintSync } = useMaintenance();
+
   const [currentView, setCurrentView] = useState<SystemView>('dashboard');
+
+  const globalSyncStatus = [dataSync, salesSync, hrSync, projSync, invSync, purchSync, maintSync].includes('syncing') ? 'syncing' :
+    [dataSync, salesSync, hrSync, projSync, invSync, purchSync, maintSync].includes('error') ? 'error' : 'synced';
 
   if (!currentUser) {
     return <LoginScreen />;
@@ -42,7 +57,7 @@ const MainApp: React.FC = () => {
 
   return (
     <div className="flex w-full h-screen overflow-hidden bg-gray-100 print:h-auto print:overflow-visible">
-      <SystemNav currentView={currentView} setView={setCurrentView} syncStatus={syncStatus} />
+      <SystemNav currentView={currentView} setView={setCurrentView} syncStatus={globalSyncStatus} />
       <main className="flex-1 relative flex flex-col h-screen overflow-hidden print:h-auto print:overflow-visible">
         {currentView === 'dashboard' && <Dashboard setView={setCurrentView} />}
         {currentView === 'users' && <UserManagementModule />}

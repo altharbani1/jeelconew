@@ -22,7 +22,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 // ⚠️ SECURITY: Change this default password immediately after first login!
 // In production, consider using Supabase Auth or storing a hashed password.
-const ADMIN_DEFAULT_PASSWORD = '123456';
+const ADMIN_DEFAULT_PASSWORD = (import.meta as any).env?.VITE_ADMIN_PASSWORD || '123456';
 
 const DEFAULT_ADMIN: User = {
   id: 'admin-01',
@@ -82,7 +82,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         const existingAdmin = userList.find(u => u.username === 'admin');
         if (existingAdmin) {
           // Return the admin user (resetting password locally if needed happens in logic below)
-          return { ...existingAdmin, password: '123456' };
+          return { ...existingAdmin, password: ADMIN_DEFAULT_PASSWORD };
         }
       }
       return userList.find(u => u.username?.trim().toLowerCase() === cleanUser && u.password === cleanPass);
