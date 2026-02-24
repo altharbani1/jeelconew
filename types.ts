@@ -434,6 +434,7 @@ export type Permission =
   | 'view_reports'
   | 'view_activity_log' // New permission
   | 'view_inventory'
+  | 'view_maintenance' // New view for maintenance module
   // Actions
   | 'manage_users' // Create/Delete Users
   | 'delete_records' // General delete permission
@@ -456,7 +457,7 @@ export enum AIRequestType {
   IMPROVE_TEXT = 'IMPROVE_TEXT'
 }
 
-export type SystemView = 'dashboard' | 'quotes' | 'invoices' | 'receipts' | 'contracts' | 'projects' | 'company_profile' | 'specs_manager' | 'customers' | 'purchases' | 'warranties' | 'calculator' | 'claims' | 'expenses' | 'hr' | 'smart_elevator' | 'users' | 'forms' | 'documents' | 'activity_log' | 'inventory' | 'financial_report';
+export type SystemView = 'dashboard' | 'quotes' | 'invoices' | 'receipts' | 'contracts' | 'projects' | 'company_profile' | 'specs_manager' | 'customers' | 'purchases' | 'warranties' | 'calculator' | 'claims' | 'expenses' | 'hr' | 'smart_elevator' | 'users' | 'forms' | 'documents' | 'activity_log' | 'inventory' | 'financial_report' | 'maintenance';
 
 // --- PERMISSIONS CONFIGURATION ---
 export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
@@ -467,7 +468,8 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'view_claims', 'view_projects', 'view_hr', 'view_smart_elevator',
     'view_reports', 'view_warranties', 'view_calculator', 'view_specs_manager',
     'view_documents', 'view_forms', 'view_company_profile', 'view_activity_log',
-    'approve_payments', 'delete_records', 'edit_company_settings', 'view_inventory'
+    'approve_payments', 'delete_records', 'edit_company_settings', 'view_inventory',
+    'view_maintenance'
   ],
   sales: [
     'view_dashboard', 'view_customers', 'view_quotes', 'view_contracts',
@@ -479,7 +481,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
   ],
   technician: [
     'view_dashboard', 'view_projects', 'view_smart_elevator', 'view_specs_manager',
-    'view_warranties', 'view_forms', 'view_documents'
+    'view_warranties', 'view_forms', 'view_documents', 'view_maintenance'
   ]
 };
 
@@ -506,9 +508,43 @@ export const ALL_PERMISSIONS: { id: Permission, label: string, type: 'view' | 'a
   { id: 'view_specs_manager', label: 'قاعدة البيانات', type: 'view' },
   { id: 'view_users', label: 'إدارة المستخدمين', type: 'view' },
   { id: 'view_activity_log', label: 'سجل النشاطات', type: 'view' },
+  { id: 'view_maintenance', label: 'الصيانة والتذاكر', type: 'view' },
 
   { id: 'manage_users', label: 'إضافة/حذف مستخدمين', type: 'action' },
   { id: 'delete_records', label: 'حذف السجلات (فواتير/عقود)', type: 'action' },
   { id: 'approve_payments', label: 'اعتماد العمولات والصرف', type: 'action' },
   { id: 'edit_company_settings', label: 'تعديل إعدادات الشركة', type: 'action' },
 ];
+
+// --- Maintenance & Ticketing Types ---
+export interface MaintenanceContract {
+  id: string;
+  number: string;          // e.g. MC-2023-001
+  customerId: string;      // Related Customer ID
+  startDate: string;
+  endDate: string;
+  visitsPerYear: number;   // Number of routine visits
+  amount: number;          // Contract Value
+  status: 'active' | 'expired' | 'cancelled';
+  notes?: string;
+}
+
+export type TicketPriority = 'low' | 'medium' | 'high' | 'critical';
+export type TicketStatus = 'open' | 'in_progress' | 'resolved' | 'cancelled';
+export type TicketType = 'routine' | 'emergency' | 'installation';
+
+export interface MaintenanceTicket {
+  id: string;
+  number: string;          // e.g. TKT-2023-001
+  customerId: string;
+  contractId?: string;     // Optional if not under contract
+  type: TicketType;
+  priority: TicketPriority;
+  description: string;
+  technicianId?: string;   // Assigned from HR context
+  reportedDate: string;
+  resolvedDate?: string;
+  status: TicketStatus;
+  elevatorLocation: string; // Information on where the elevator is located inside the property
+  notes?: string;
+}

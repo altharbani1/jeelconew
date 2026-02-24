@@ -1,8 +1,6 @@
 
-import React, { useState, useRef, useEffect } from 'react';
-import { LayoutDashboard, FileText, Receipt, ScrollText, Briefcase, Calculator, Settings, LogOut, Building, Database, Users, ShoppingBag, ShieldCheck, Scale, FileWarning, Wallet, UserCog, QrCode, Lock, ClipboardCheck, Languages, FolderOpen, Cloud, CloudRain, CloudOff, Wifi, CheckCircle2, Activity, TrendingUp, Bell, X } from 'lucide-react';
-import { SystemView, Permission } from '../types';
-import { useAuth } from '../contexts/AuthContext';
+import { User, Bell, Search, LayoutDashboard, Calculator, Database, Users, Building, ShieldCheck, ChevronRight, Menu, FileText, FileSignature, Receipt, Settings, Scale, Coins, Clock, Smartphone, ScrollText, Activity, Box, TrendingUp, Wrench } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext.tsx';
 import { useLanguage } from '../contexts/LanguageContext.tsx';
 import { useNotifications } from '../lib/useNotifications';
 
@@ -50,6 +48,7 @@ export const SystemNav: React.FC<SystemNavProps> = ({ currentView, setView, sync
     { id: 'smart_elevator', label: t('smart_elevator'), icon: QrCode, permission: 'view_smart_elevator' },
     { id: 'calculator', label: t('calculator'), icon: Scale, permission: 'view_calculator' },
     { id: 'financial_report', label: 'التقارير المالية', icon: TrendingUp, permission: 'view_reports' },
+    { id: 'maintenance', label: 'الصيانة والتذاكر', icon: Wrench, permission: 'view_maintenance' },
     { id: 'company_profile', label: t('company_profile'), icon: Building, permission: 'view_company_profile' },
     { id: 'specs_manager', label: t('specs_manager'), icon: Database, permission: 'view_specs_manager' },
     { id: 'activity_log', label: 'السجلات', icon: Activity, permission: 'view_activity_log' },

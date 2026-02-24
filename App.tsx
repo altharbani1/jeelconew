@@ -26,6 +26,7 @@ import { ActivityLogModule } from './components/ActivityLogModule.tsx';
 import { InventoryModule } from './components/InventoryModule.tsx';
 import { LoginScreen } from './components/LoginScreen.tsx';
 import { FinancialReportModule } from './components/FinancialReportModule.tsx';
+import { MaintenanceModule } from './components/MaintenanceModule.tsx';
 
 import { SystemView } from './types.ts';
 import { useData } from './contexts/DataContext.tsx';
@@ -65,6 +66,7 @@ const MainApp: React.FC = () => {
         {currentView === 'forms' && <FormsModule />}
         {currentView === 'documents' && <DocumentsModule />}
         {currentView === 'financial_report' && <FinancialReportModule />}
+        {currentView === 'maintenance' && <MaintenanceModule />}
       </main>
     </div>
   );
@@ -76,6 +78,7 @@ import { ProjectProvider } from './contexts/ProjectContext.tsx';
 import { HRProvider } from './contexts/HRContext.tsx';
 import { PurchaseProvider } from './contexts/PurchaseContext.tsx';
 import { ElevatorProvider } from './contexts/ElevatorContext.tsx';
+import { MaintenanceProvider } from './contexts/MaintenanceContext.tsx';
 
 const App: React.FC = () => {
   return (
@@ -87,9 +90,11 @@ const App: React.FC = () => {
               <HRProvider>
                 <PurchaseProvider>
                   <ElevatorProvider>
-                    <LanguageProvider>
-                      <MainApp />
-                    </LanguageProvider>
+                    <MaintenanceProvider>
+                      <LanguageProvider>
+                        <MainApp />
+                      </LanguageProvider>
+                    </MaintenanceProvider>
                   </ElevatorProvider>
                 </PurchaseProvider>
               </HRProvider>
