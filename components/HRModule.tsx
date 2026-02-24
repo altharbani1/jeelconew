@@ -3,6 +3,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Users, Briefcase, DollarSign, Wrench, Plus, Search, Edit, Trash2, Save, UserPlus, CheckCircle2, XCircle, Printer, Filter, Calendar, Award, FileText, ChevronDown } from 'lucide-react';
 import { Employee, Commission, EmployeeRole, EmployeeStatus, ContractData } from '../types';
 import { useData } from '../contexts/DataContext.tsx';
+import { useHR } from '../contexts/HRContext.tsx';
+import { useProject } from '../contexts/ProjectContext.tsx';
 
 const ROLES: Record<EmployeeRole, string> = {
     sales: 'مبيعات وتسويق',
@@ -32,12 +34,12 @@ const INITIAL_EMPLOYEES: Employee[] = [
 ];
 
 export const HRModule: React.FC = () => {
+    const { contracts } = useProject();
     const {
-        employees,
-        commissions,
-        contracts,
-        saveRecord, deleteRecordLocallyAndCloud
-    } = useData();
+        hrEmployees: employees,
+        hrCommissions: commissions,
+        saveHRRecord, deleteHRRecord
+    } = useHR();
 
     const [activeTab, setActiveTab] = useState<'employees' | 'commissions'>('employees');
 
@@ -76,7 +78,7 @@ export const HRModule: React.FC = () => {
             custodyItems: currentEmployee.custodyItems || []
         };
 
-        await saveRecord('jilco_hr_employees', empData.id, empData);
+        await saveHRRecord('jilco_hr_employees', empData.id, empData);
 
         setShowEmployeeForm(false);
         setCurrentEmployee({ custodyItems: [], status: 'active' });
@@ -96,7 +98,7 @@ export const HRModule: React.FC = () => {
             status: currentCommission.status || 'pending'
         };
 
-        await saveRecord('jilco_hr_commissions', commData.id, commData);
+        await saveHRRecord('jilco_hr_commissions', commData.id, commData);
 
         setShowCommissionForm(false);
         setCurrentCommission({ status: 'pending', date: new Date().toISOString().split('T')[0] });
@@ -111,7 +113,7 @@ export const HRModule: React.FC = () => {
         if (newStatus === 'paid') updates.paymentDate = new Date().toISOString().split('T')[0];
 
         const updatedComm = { ...c, ...updates };
-        await saveRecord('jilco_hr_commissions', id, updatedComm);
+        await saveHRRecord('jilco_hr_commissions', id, updatedComm);
     };
 
     const handleContractSelect = (contractNumber: string) => {
@@ -386,7 +388,7 @@ export const HRModule: React.FC = () => {
                                     )}
                                     <div className="p-3 bg-gray-50 border-t border-gray-100 flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity mt-auto">
                                         <button onClick={() => { setCurrentEmployee(emp); setShowEmployeeForm(true); }} className="p-2 text-blue-600 hover:bg-blue-100 rounded-lg"><Edit size={16} /></button>
-                                        <button onClick={async () => await deleteRecordLocallyAndCloud('jilco_hr_employees', emp.id)} className="p-2 text-red-600 hover:bg-red-100 rounded-lg"><Trash2 size={16} /></button>
+                                        <button onClick={async () => await deleteHRRecord('jilco_hr_employees', emp.id)} className="p-2 text-red-600 hover:bg-red-100 rounded-lg"><Trash2 size={16} /></button>
                                     </div>
                                 </div>
                             ))}
@@ -421,8 +423,8 @@ export const HRModule: React.FC = () => {
                                         <td className="p-4 text-center font-black text-green-700 font-mono text-base">{comm.commissionAmount.toLocaleString()}</td>
                                         <td className="p-4">
                                             <span className={`px-2 py-1 rounded text-xs font-bold border ${comm.status === 'paid' ? 'bg-green-100 text-green-700 border-green-200' :
-                                                    comm.status === 'approved' ? 'bg-blue-100 text-blue-700 border-blue-200' :
-                                                        'bg-amber-100 text-amber-700 border-amber-200'
+                                                comm.status === 'approved' ? 'bg-blue-100 text-blue-700 border-blue-200' :
+                                                    'bg-amber-100 text-amber-700 border-amber-200'
                                                 }`}>
                                                 {comm.status === 'paid' ? 'تم الصرف' : comm.status === 'approved' ? 'معتمد' : 'معلق'}
                                             </span>
@@ -454,7 +456,7 @@ export const HRModule: React.FC = () => {
                                                     </button>
                                                 )}
                                                 <button onClick={() => window.print()} className="p-1.5 text-gray-400 hover:text-jilco-600 rounded"><Printer size={16} /></button>
-                                                <button onClick={async () => await deleteRecordLocallyAndCloud('jilco_hr_commissions', comm.id)} className="p-1.5 text-red-400 hover:text-red-600 rounded opacity-0 group-hover:opacity-100"><Trash2 size={16} /></button>
+                                                <button onClick={async () => await deleteHRRecord('jilco_hr_commissions', comm.id)} className="p-1.5 text-red-400 hover:text-red-600 rounded opacity-0 group-hover:opacity-100"><Trash2 size={16} /></button>
                                             </div>
                                         </td>
                                     </tr>

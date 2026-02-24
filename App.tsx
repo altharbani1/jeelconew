@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext.tsx';
 import { DataProvider } from './contexts/DataContext.tsx';
 import { LanguageProvider } from './contexts/LanguageContext.tsx';
@@ -27,10 +27,12 @@ import { InventoryModule } from './components/InventoryModule.tsx';
 import { LoginScreen } from './components/LoginScreen.tsx';
 
 import { SystemView } from './types.ts';
+import { useData } from './contexts/DataContext.tsx';
+
 const MainApp: React.FC = () => {
   const { currentUser } = useAuth();
+  const { syncStatus } = useData();
   const [currentView, setCurrentView] = useState<SystemView>('dashboard');
-  const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'synced' | 'error'>('idle');
 
   if (!currentUser) {
     return <LoginScreen />;
@@ -66,13 +68,32 @@ const MainApp: React.FC = () => {
   );
 };
 
+import { InventoryProvider } from './contexts/InventoryContext.tsx';
+import { SalesProvider } from './contexts/SalesContext.tsx';
+import { ProjectProvider } from './contexts/ProjectContext.tsx';
+import { HRProvider } from './contexts/HRContext.tsx';
+import { PurchaseProvider } from './contexts/PurchaseContext.tsx';
+import { ElevatorProvider } from './contexts/ElevatorContext.tsx';
+
 const App: React.FC = () => {
   return (
     <AuthProvider>
       <DataProvider>
-        <LanguageProvider>
-          <MainApp />
-        </LanguageProvider>
+        <ProjectProvider>
+          <SalesProvider>
+            <InventoryProvider>
+              <HRProvider>
+                <PurchaseProvider>
+                  <ElevatorProvider>
+                    <LanguageProvider>
+                      <MainApp />
+                    </LanguageProvider>
+                  </ElevatorProvider>
+                </PurchaseProvider>
+              </HRProvider>
+            </InventoryProvider>
+          </SalesProvider>
+        </ProjectProvider>
       </DataProvider>
     </AuthProvider>
   );

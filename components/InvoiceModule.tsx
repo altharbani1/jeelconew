@@ -4,7 +4,7 @@ import { Printer, FileText, Phone, Mail, QrCode, Globe, MapPin, Plus, ArrowLeft,
 import { InvoiceData, QuoteItem, CompanyConfig, Customer, SupplierProduct, QuoteDetails } from '../types';
 import { useAuth } from '../contexts/AuthContext.tsx';
 import { loggerService } from '../services/loggerService.ts';
-import { useData } from '../contexts/DataContext.tsx';
+import { useSales } from '../contexts/SalesContext.tsx';
 
 // --- Tafqit Helper ---
 const tafqit = (number: number): string => {
@@ -47,8 +47,8 @@ export const InvoiceModule: React.FC = () => {
     const { currentUser } = useAuth();
     const {
         invoices, customers, quotes: savedQuotes,
-        saveRecord, deleteRecordLocallyAndCloud
-    } = useData();
+        saveSalesRecord, deleteSalesRecord
+    } = useSales();
 
     const [viewMode, setViewMode] = useState<'list' | 'editor' | 'statement'>('list');
     const [searchTerm, setSearchTerm] = useState('');
@@ -98,7 +98,7 @@ export const InvoiceModule: React.FC = () => {
         if (!currentInvoice.customerName) return alert('يرجى اختيار العميل');
         if (currentInvoice.items.length === 0) return alert('يرجى إضافة بند واحد على الأقل');
 
-        await saveRecord('jilco_invoices_archive', currentInvoice.number, currentInvoice);
+        await saveSalesRecord('jilco_invoices_archive', currentInvoice.number, currentInvoice);
 
         const exists = invoices.find(i => i.number === currentInvoice.number);
         if (exists) {
@@ -111,7 +111,7 @@ export const InvoiceModule: React.FC = () => {
 
     const handleDeleteInvoice = async (number: string) => {
         if (window.confirm('هل أنت متأكد من حذف هذه الفاتورة؟')) {
-            await deleteRecordLocallyAndCloud('jilco_invoices_archive', number);
+            await deleteSalesRecord('jilco_invoices_archive', number);
             loggerService.addLog(currentUser, 'حذف فاتورة', `رقم الفاتورة: ${number}`, 'المحاسبة');
         }
     };

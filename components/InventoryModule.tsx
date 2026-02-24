@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { useData } from '../contexts/DataContext.tsx';
+import { useInventory } from '../contexts/InventoryContext.tsx';
 import { Package, Search, ArrowUpRight, ArrowDownRight, AlertTriangle, Plus, Minus, History } from 'lucide-react';
 import { InventoryTransaction, SupplierProduct } from '../types.ts';
 
 export const InventoryModule: React.FC = () => {
-    const { supplierProducts, inventoryTransactions, saveRecord, deleteRecordLocallyAndCloud, currentUser } = useData();
+    const { supplierProducts, inventoryTransactions, saveInventoryRecord, deleteInventoryRecord } = useInventory();
     const [searchTerm, setSearchTerm] = useState('');
     const [activeTab, setActiveTab] = useState<'stock' | 'transactions'>('stock');
 
@@ -43,8 +43,8 @@ export const InventoryModule: React.FC = () => {
         const updatedProduct = { ...adjustProduct, currentQuantity: newQuantity };
 
         // Save
-        await saveRecord('jilco_inventory_transactions', transaction.id, transaction);
-        await saveRecord('jilco_supplier_products', updatedProduct.id, updatedProduct);
+        await saveInventoryRecord('jilco_inventory_transactions', transaction.id, transaction);
+        await saveInventoryRecord('jilco_supplier_products', updatedProduct.id, updatedProduct);
 
         setIsAdjusting(false);
         setAdjustProduct(null);

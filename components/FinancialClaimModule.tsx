@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { FileWarning, Plus, Search, Edit, Trash2, Printer, Save, ArrowLeft, Building, Phone, Mail, MapPin, Globe } from 'lucide-react';
 import { FinancialClaim, Customer, CompanyConfig } from '../types';
 import { useData } from '../contexts/DataContext.tsx';
+import { useSales } from '../contexts/SalesContext.tsx';
+import { useProject } from '../contexts/ProjectContext.tsx';
 
 const INITIAL_CONFIG: CompanyConfig = {
   logo: null,
@@ -35,11 +37,11 @@ const tafqit = (number: number): string => {
 };
 
 export const FinancialClaimModule: React.FC = () => {
+  const { customers } = useSales();
   const {
-    financialClaims: claims,
-    customers,
-    saveRecord, deleteRecordLocallyAndCloud
-  } = useData();
+    claims,
+    saveProjectRecord, deleteProjectRecord
+  } = useProject();
 
   const [viewMode, setViewMode] = useState<'list' | 'editor'>('list');
   const [config, setConfig] = useState<CompanyConfig>(INITIAL_CONFIG);
@@ -93,13 +95,13 @@ export const FinancialClaimModule: React.FC = () => {
     if (!currentClaim.customerName) return alert('اسم العميل مطلوب');
     if (currentClaim.claimAmount <= 0) return alert('مبلغ المطالبة يجب أن يكون أكبر من صفر');
 
-    await saveRecord('jilco_claims_archive', currentClaim.id, currentClaim);
+    await saveProjectRecord('jilco_claims_archive', currentClaim.id, currentClaim);
     setViewMode('list');
   };
 
   const handleDelete = async (id: string) => {
     if (window.confirm('هل أنت متأكد من حذف هذه المطالبة؟')) {
-      await deleteRecordLocallyAndCloud('jilco_claims_archive', id);
+      await deleteProjectRecord('jilco_claims_archive', id);
     }
   };
 

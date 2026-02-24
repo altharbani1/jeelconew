@@ -493,7 +493,6 @@ export const ALL_PERMISSIONS: { id: Permission, label: string, type: 'view' | 'a
   { id: 'view_inventory', label: 'المخزون', type: 'view' },
   { id: 'view_receipts', label: 'سندات القبض', type: 'view' },
   { id: 'view_expenses', label: 'المصروفات', type: 'view' },
-  { id: 'view_purchases', label: 'المشتريات', type: 'view' },
   { id: 'view_claims', label: 'المطالبات', type: 'view' },
   { id: 'view_hr', label: 'الموارد البشرية', type: 'view' },
   { id: 'view_documents', label: 'الوثائق', type: 'view' },

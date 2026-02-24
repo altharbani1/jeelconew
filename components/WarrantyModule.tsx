@@ -3,6 +3,8 @@ import React, { useState, useEffect } from 'react';
 import { ShieldCheck, Plus, Search, Edit, Trash2, Printer, ArrowLeft, Save, User, Calendar, MapPin, Award } from 'lucide-react';
 import { WarrantyData, CompanyConfig, Customer } from '../types';
 import { useData } from '../contexts/DataContext.tsx';
+import { useSales } from '../contexts/SalesContext.tsx';
+import { useProject } from '../contexts/ProjectContext.tsx';
 
 const INITIAL_CONFIG: CompanyConfig = {
     logo: null,
@@ -16,7 +18,8 @@ const INITIAL_CONFIG: CompanyConfig = {
 };
 
 export const WarrantyModule: React.FC = () => {
-    const { warranties, customers, saveRecord, deleteRecordLocallyAndCloud } = useData();
+    const { customers } = useSales();
+    const { warranties, saveProjectRecord, deleteProjectRecord } = useProject();
 
     const [viewMode, setViewMode] = useState<'list' | 'editor'>('list');
     const [searchTerm, setSearchTerm] = useState('');
@@ -87,14 +90,14 @@ export const WarrantyModule: React.FC = () => {
 
     const handleDelete = async (id: string) => {
         if (window.confirm('هل أنت متأكد من حذف هذه الشهادة؟')) {
-            await deleteRecordLocallyAndCloud('jilco_warranties_archive', id);
+            await deleteProjectRecord('jilco_warranties_archive', id);
         }
     };
 
     const handleSave = async () => {
         if (!currentWarranty.customerName) return alert('اسم العميل مطلوب');
 
-        await saveRecord('jilco_warranties_archive', currentWarranty.id, currentWarranty);
+        await saveProjectRecord('jilco_warranties_archive', currentWarranty.id, currentWarranty);
         setViewMode('list');
     };
 

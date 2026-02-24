@@ -63,7 +63,7 @@ export const CompanyProfileModule: React.FC = () => {
                     setConfig(prev => ({ ...prev, [type]: base64 }));
                     // رفع لـ Supabase Storage في الخلفية
                     setUploadingImage(true);
-                    const url = await cloudService.uploadImage(base64, `jilco_${type}`);
+                    const url = await cloudService.uploadImage(base64, `jilco_${type}_${Date.now()}`);
                     if (url) {
                         setConfig(prev => ({ ...prev, [type]: url }));
                         console.log(`✅ ${type} uploaded to Supabase:`, url);
@@ -76,9 +76,11 @@ export const CompanyProfileModule: React.FC = () => {
     };
 
     const handleBankChange = (index: number, field: keyof BankAccount, value: string) => {
-        const newBanks = [...config.bankAccounts];
-        newBanks[index] = { ...newBanks[index], [field]: value };
-        setConfig({ ...config, bankAccounts: newBanks });
+        setConfig(prev => {
+            const newBanks = [...prev.bankAccounts];
+            newBanks[index] = { ...newBanks[index], [field]: value };
+            return { ...prev, bankAccounts: newBanks };
+        });
     };
 
     const addBankAccount = () => {
@@ -89,9 +91,11 @@ export const CompanyProfileModule: React.FC = () => {
     };
 
     const removeBankAccount = (index: number) => {
-        const newBanks = [...config.bankAccounts];
-        newBanks.splice(index, 1);
-        setConfig({ ...config, bankAccounts: newBanks });
+        setConfig(prev => {
+            const newBanks = [...prev.bankAccounts];
+            newBanks.splice(index, 1);
+            return { ...prev, bankAccounts: newBanks };
+        });
     };
 
 

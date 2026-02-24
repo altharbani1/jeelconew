@@ -7,6 +7,8 @@ import {
     Save, X, CheckCircle2, Clock, AlertCircle, PieChart, Printer, FileText, ShoppingBag, Wallet, PackageMinus
 } from 'lucide-react';
 import { useData } from '../contexts/DataContext.tsx';
+import { useSales } from '../contexts/SalesContext.tsx';
+import { useInventory } from '../contexts/InventoryContext.tsx';
 
 // --- Default Phases Generator ---
 const createDefaultPhases = (projectId: string): ProjectPhase[] => [
@@ -37,9 +39,11 @@ const StatusBadge = ({ status }: { status: ProjectStatus | PhaseStatus }) => {
 
 export const ProjectModule: React.FC = () => {
     const {
-        projects, phases, expenses: allExpenses, invoices: allInvoices, supplierProducts, inventoryTransactions,
+        projects, phases, expenses: allExpenses,
         saveRecord, deleteRecordLocallyAndCloud
     } = useData();
+    const { invoices: allInvoices } = useSales();
+    const { supplierProducts, inventoryTransactions, saveInventoryRecord } = useInventory();
 
     const [viewMode, setViewMode] = useState<'dashboard' | 'list' | 'details' | 'statement'>('dashboard');
 
@@ -199,8 +203,8 @@ export const ProjectModule: React.FC = () => {
 
         const updatedProduct = { ...product, currentQuantity: (product.currentQuantity || 0) - issueQuantity };
 
-        await saveRecord('jilco_inventory_transactions', trx.id, trx);
-        await saveRecord('jilco_supplier_products', updatedProduct.id, updatedProduct);
+        await saveInventoryRecord('jilco_inventory_transactions', trx.id, trx);
+        await saveInventoryRecord('jilco_supplier_products', updatedProduct.id, updatedProduct);
 
         setShowMaterialModal(false);
         setIssueProductId('');

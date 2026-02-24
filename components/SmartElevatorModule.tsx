@@ -3,12 +3,15 @@ import React, { useState, useEffect } from 'react';
 import { QrCode, Plus, Search, Edit, Trash2, Printer, Smartphone, Calendar, AlertTriangle, CheckCircle2, X } from 'lucide-react';
 import { SmartElevator, Project } from '../types';
 import { useData } from '../contexts/DataContext.tsx';
+import { useElevator } from '../contexts/ElevatorContext.tsx';
+import { useProject } from '../contexts/ProjectContext.tsx';
 
 // Using QR Server API for generation
 const generateQRUrl = (data: string) => `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(data)}`;
 
 export const SmartElevatorModule: React.FC = () => {
-    const { elevators, projects, saveRecord, deleteRecordLocallyAndCloud } = useData();
+    const { elevators, saveElevatorRecord, deleteElevatorRecord } = useElevator();
+    const { projects } = useProject();
 
     const [viewMode, setViewMode] = useState<'list' | 'qr_view' | 'simulation'>('list');
     const [currentElevator, setCurrentElevator] = useState<SmartElevator | null>(null);
@@ -33,14 +36,14 @@ export const SmartElevatorModule: React.FC = () => {
             nextMaintenance: new Date(new Date().setMonth(new Date().getMonth() + 1)).toISOString().split('T')[0]
         };
 
-        await saveRecord('jilco_smart_elevators', elevatorData.id, elevatorData);
+        await saveElevatorRecord('jilco_smart_elevators', elevatorData.id, elevatorData);
         setShowAddModal(false);
         setNewElevator({ status: 'active', installationDate: new Date().toISOString().split('T')[0] });
     };
 
     const handleDelete = async (id: string) => {
         if (window.confirm('حذف هذا المصعد؟')) {
-            await deleteRecordLocallyAndCloud('jilco_smart_elevators', id);
+            await deleteElevatorRecord('jilco_smart_elevators', id);
         }
     };
 

@@ -3,6 +3,8 @@ import React, { useState, useEffect } from 'react';
 import { Printer, FileSignature, Building, User, ShieldCheck, FileText, Phone, Mail, Globe, MapPin, AlertCircle, ClipboardList, ChevronDown, ArrowLeft, Plus, Search, Edit, Trash2, Save, Send, Import, X, DollarSign, Cpu, Settings, Zap } from 'lucide-react';
 import { ContractData, CompanyConfig, TechnicalSpecs, SpecsDatabase, Customer, QuoteItem, QuoteDetails } from '../types';
 import { useData } from '../contexts/DataContext.tsx';
+import { useSales } from '../contexts/SalesContext.tsx';
+import { useProject } from '../contexts/ProjectContext.tsx';
 
 // Interface for saved quotes structure in localStorage
 interface SavedQuote {
@@ -85,13 +87,15 @@ const QuoteFooter: React.FC<{ config: CompanyConfig }> = ({ config }) => (
 );
 
 export const ContractModule: React.FC = () => {
+    const { specsDb: globalSpecsDb } = useData();
     const {
         contracts,
+        saveProjectRecord, deleteProjectRecord
+    } = useProject();
+    const {
         customers,
-        quotes: savedQuotes,
-        specsDb: globalSpecsDb,
-        saveRecord, deleteRecordLocallyAndCloud
-    } = useData();
+        quotes: savedQuotes
+    } = useSales();
 
     const [viewMode, setViewMode] = useState<'list' | 'editor'>('list');
     const [searchTerm, setSearchTerm] = useState('');
@@ -179,7 +183,7 @@ export const ContractModule: React.FC = () => {
             specs: currentSpecs
         };
 
-        await saveRecord('jilco_contracts_archive', recordId, contractObj);
+        await saveProjectRecord('jilco_contracts_archive', recordId, contractObj);
 
         setViewMode('list');
     };
@@ -253,7 +257,7 @@ export const ContractModule: React.FC = () => {
                                             >
                                                 <Printer size={16} />
                                             </button>
-                                            <button onClick={async () => await deleteRecordLocallyAndCloud('jilco_contracts_archive', c.id || c.data.number)} className="p-2 text-red-500 hover:bg-red-50 rounded-full"><Trash2 size={16} /></button>
+                                            <button onClick={async () => await deleteProjectRecord('jilco_contracts_archive', c.id || c.data.number)} className="p-2 text-red-500 hover:bg-red-50 rounded-full"><Trash2 size={16} /></button>
                                         </td>
                                     </tr>
                                 ))}

@@ -2,7 +2,6 @@
 import React from 'react';
 import { LayoutDashboard, FileText, Receipt, ScrollText, Briefcase, Calculator, Settings, LogOut, Building, Database, Users, ShoppingBag, ShieldCheck, Scale, FileWarning, Wallet, UserCog, QrCode, Lock, ClipboardCheck, Languages, FolderOpen, Cloud, CloudRain, CloudOff, Wifi, CheckCircle2, Activity } from 'lucide-react';
 import { SystemView, Permission } from '../types';
-import { useSupabaseAuth } from '../contexts/SupabaseAuthContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useLanguage } from '../contexts/LanguageContext.tsx';
 
@@ -13,7 +12,6 @@ interface SystemNavProps {
 }
 
 export const SystemNav: React.FC<SystemNavProps> = ({ currentView, setView, syncStatus = 'idle' }) => {
-  const { user } = useSupabaseAuth();
   const { currentUser, logout, hasPermission } = useAuth();
   const { t, toggleLanguage, language } = useLanguage();
 
@@ -41,8 +39,7 @@ export const SystemNav: React.FC<SystemNavProps> = ({ currentView, setView, sync
     { id: 'activity_log', label: 'السجلات', icon: Activity, permission: 'view_activity_log' },
   ];
 
-  // صلاحيات الموديولات حسب الدور
-  const role = user?.role || currentUser?.role || 'admin';
+  // الدور مُستمد من AuthContext مباشرةً (نظام المصادقة الرئيسي)
   const allowedModules: Record<string, string[]> = {
     admin: [
       'dashboard', 'customers', 'quotes', 'contracts', 'projects', 'invoices', 'receipts', 'expenses', 'purchases', 'inventory', 'claims', 'hr', 'documents', 'forms', 'users', 'warranties', 'smart_elevator', 'calculator', 'company_profile', 'specs_manager', 'activity_log'
@@ -55,8 +52,9 @@ export const SystemNav: React.FC<SystemNavProps> = ({ currentView, setView, sync
     ]
   };
 
+  const role = currentUser?.role || 'admin';
   const currentAllowed = allowedModules[role as keyof typeof allowedModules] || allowedModules['admin'];
-  const visibleItems = navItems.filter(item => currentAllowed.includes(item.id));
+  const visibleItems = navItems.filter(item => hasPermission(item.permission) || role === 'admin');
 
   return (
     <div className="w-28 bg-jilco-950 flex flex-col items-center py-6 h-screen text-white shadow-2xl z-50 print:hidden shrink-0 border-l border-white/5 relative transition-all duration-300">

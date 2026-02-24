@@ -3,6 +3,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { FileText, Upload, Trash2, Download, Eye, AlertTriangle, Calendar, Search, Filter, Plus, FileCheck, CheckCircle2, XCircle, Printer, X, Send } from 'lucide-react';
 import { CompanyDocument, DocumentCategory, CompanyConfig } from '../types';
 import { useData } from '../contexts/DataContext.tsx';
+import { useProject } from '../contexts/ProjectContext.tsx';
 
 const CATEGORIES: { id: DocumentCategory; label: string; color: string }[] = [
     { id: 'gov', label: 'حكومية وتراخيص', color: 'bg-blue-100 text-blue-700' },
@@ -17,7 +18,8 @@ const INITIAL_CONFIG: CompanyConfig = {
 };
 
 export const DocumentsModule: React.FC = () => {
-    const { documents, config: globalConfig, saveRecord, deleteRecordLocallyAndCloud } = useData();
+    const { config: globalConfig } = useData();
+    const { documents, saveProjectRecord, deleteProjectRecord } = useProject();
 
     const [viewMode, setViewMode] = useState<'list' | 'upload' | 'report'>('list');
     const [filterCategory, setFilterCategory] = useState<DocumentCategory | 'all'>('all');
@@ -149,14 +151,14 @@ export const DocumentsModule: React.FC = () => {
         };
 
         // Save to real-time and local DB
-        await saveRecord('jilco_documents', doc.id, doc);
+        await saveProjectRecord('jilco_documents', doc.id, doc);
         setNewDoc({ category: 'gov' });
         setViewMode('list');
     };
 
     const deleteDocument = async (id: string) => {
         if (window.confirm('هل أنت متأكد من حذف هذه الوثيقة؟')) {
-            await deleteRecordLocallyAndCloud('jilco_documents', id);
+            await deleteProjectRecord('jilco_documents', id);
         }
     };
 

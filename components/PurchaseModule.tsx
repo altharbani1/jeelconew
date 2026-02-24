@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { Supplier, SupplierProduct, PurchaseInvoice, SupplierPayment, QuoteItem, Attachment, Project, CompanyConfig } from '../types';
 import { useData } from '../contexts/DataContext.tsx';
+import { useInventory } from '../contexts/InventoryContext.tsx';
 
 type PurchaseTab = 'suppliers' | 'products' | 'invoices' | 'payments' | 'statement';
 
@@ -36,12 +37,13 @@ const tafqit = (number: number): string => {
 export const PurchaseModule: React.FC = () => {
   const {
     suppliers,
-    supplierProducts: products,
     purchaseInvoices: invoices,
     supplierPayments: payments,
     projects,
     saveRecord, deleteRecordLocallyAndCloud
   } = useData();
+
+  const { supplierProducts: products, saveInventoryRecord } = useInventory();
 
   const [activeTab, setActiveTab] = useState<PurchaseTab>('invoices');
 
@@ -170,8 +172,8 @@ export const PurchaseModule: React.FC = () => {
             notes: `شراء آلي فاتورة ${invoiceData.number}`
           };
 
-          await saveRecord('jilco_supplier_products', updatedProduct.id, updatedProduct);
-          await saveRecord('jilco_inventory_transactions', trx.id, trx);
+          await saveInventoryRecord('jilco_supplier_products', updatedProduct.id, updatedProduct);
+          await saveInventoryRecord('jilco_inventory_transactions', trx.id, trx);
         }
       }
     }

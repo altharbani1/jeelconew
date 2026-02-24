@@ -3,6 +3,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Wallet, Plus, Search, Edit, Trash2, Printer, Save, ArrowLeft, Upload, FileText, X, ImageIcon, Banknote, Calendar, Download, PieChart, Filter, Eye, Paperclip, Briefcase } from 'lucide-react';
 import { Expense, ExpenseCategory, Attachment, CompanyConfig, Project, SupplierPayment, Supplier } from '../types';
 import { useData } from '../contexts/DataContext.tsx';
+import { useProject } from '../contexts/ProjectContext.tsx';
 
 const INITIAL_CONFIG: CompanyConfig = {
     logo: null,
@@ -60,12 +61,14 @@ const DEFAULT_CATEGORIES: ExpenseCategory[] = [
 
 export const ExpenseModule: React.FC = () => {
     const {
+        suppliers,
+        supplierPayments
+    } = useData();
+    const {
         expenses: rawExpenses,
         projects,
-        suppliers,
-        supplierPayments,
-        saveRecord, deleteRecordLocallyAndCloud
-    } = useData();
+        saveProjectRecord, deleteProjectRecord
+    } = useProject();
 
     const [viewMode, setViewMode] = useState<'list' | 'editor' | 'report'>('list');
     const [expenses, setExpenses] = useState<Expense[]>([]);
@@ -156,7 +159,7 @@ export const ExpenseModule: React.FC = () => {
             return;
         }
         if (window.confirm('هل أنت متأكد من حذف سند الصرف؟')) {
-            await deleteRecordLocallyAndCloud('jilco_expenses_archive', id);
+            await deleteProjectRecord('jilco_expenses_archive', id);
         }
     };
 
@@ -173,7 +176,7 @@ export const ExpenseModule: React.FC = () => {
             projectName: proj ? proj.name : undefined
         };
 
-        await saveRecord('jilco_expenses_archive', expenseToSave.id, expenseToSave);
+        await saveProjectRecord('jilco_expenses_archive', expenseToSave.id, expenseToSave);
 
         setViewMode('list');
     };

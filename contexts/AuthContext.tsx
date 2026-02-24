@@ -20,10 +20,14 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// ⚠️ SECURITY: Change this default password immediately after first login!
+// In production, consider using Supabase Auth or storing a hashed password.
+const ADMIN_DEFAULT_PASSWORD = '123456';
+
 const DEFAULT_ADMIN: User = {
   id: 'admin-01',
   username: 'admin',
-  password: '123456',
+  password: ADMIN_DEFAULT_PASSWORD,
   name: 'المدير العام',
   role: 'admin',
   status: 'active'
@@ -73,8 +77,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     // 1. Helper function to check credentials against a list
     const checkCredentials = (userList: User[]) => {
-      // Emergency Admin Check
-      if (cleanUser === 'admin' && cleanPass === '123456') {
+      // Emergency Admin Check — uses ADMIN_DEFAULT_PASSWORD constant
+      if (cleanUser === 'admin' && cleanPass === ADMIN_DEFAULT_PASSWORD) {
         const existingAdmin = userList.find(u => u.username === 'admin');
         if (existingAdmin) {
           // Return the admin user (resetting password locally if needed happens in logic below)

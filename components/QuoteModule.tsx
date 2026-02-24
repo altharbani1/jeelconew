@@ -5,7 +5,7 @@ import { QuotePreview } from './QuotePreview.tsx';
 import { QuoteItem, QuoteDetails, CompanyConfig, TechnicalSpecs } from '../types.ts';
 import { ArrowLeft, Plus, Search, Trash2, Edit, Copy, Calculator, Printer, Save, Download } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext.tsx';
-import { useData } from '../contexts/DataContext.tsx';
+import { useSales } from '../contexts/SalesContext.tsx';
 import { loggerService } from '../services/loggerService.ts';
 
 interface SavedQuote {
@@ -90,7 +90,7 @@ const DEFAULT_DURATION = `60 يوماً`;
 
 export const QuoteModule: React.FC = () => {
     const { currentUser } = useAuth();
-    const { quotes, saveQuote, deleteQuote } = useData();
+    const { quotes, saveQuote, deleteQuote } = useSales();
     const [viewMode, setViewMode] = useState<'list' | 'editor'>('list');
     const [searchTerm, setSearchTerm] = useState('');
     const [currentQuoteId, setCurrentQuoteId] = useState<string | null>(null);

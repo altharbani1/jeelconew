@@ -3,7 +3,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 // Added 'X' to the lucide-react import list
 import { Users, Search, Plus, Phone, Mail, MapPin, Calendar, Edit, Trash2, Save, ArrowLeft, Clock, MessageSquare, UserCheck, Building, MoreVertical, PhoneCall, Filter, CheckCircle2, XCircle, FileText, PieChart, Printer, DollarSign, Wallet, FileCheck, X } from 'lucide-react';
 import { Customer, CustomerStatus, CustomerNote, InvoiceData, ReceiptData, CompanyConfig } from '../types';
-import { useData } from '../contexts/DataContext.tsx';
+import { useSales } from '../contexts/SalesContext.tsx';
 
 const STATUS_LABELS: Record<CustomerStatus, { label: string, color: string }> = {
   new: { label: 'عميل جديد', color: 'bg-blue-100 text-blue-700' },
@@ -27,8 +27,8 @@ interface Transaction {
 export const CustomerModule: React.FC = () => {
   const {
     customers, invoices: allInvoices, receipts: allReceipts,
-    saveRecord, deleteRecordLocallyAndCloud
-  } = useData();
+    saveSalesRecord, deleteSalesRecord
+  } = useSales();
 
   const [viewMode, setViewMode] = useState<'list' | 'form' | 'details' | 'statement'>('list');
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
@@ -86,7 +86,7 @@ export const CustomerModule: React.FC = () => {
       finalData.notes.push({ id: Date.now().toString(), date: new Date().toISOString().split('T')[0], content: 'تم إنشاء ملف العميل', type: 'note' });
     }
 
-    await saveRecord('jilco_customers', finalData.id, finalData);
+    await saveSalesRecord('jilco_customers', finalData.id, finalData);
 
     setViewMode('list');
     setSelectedCustomer(null);
@@ -97,7 +97,7 @@ export const CustomerModule: React.FC = () => {
     const note: CustomerNote = { id: Date.now().toString(), date: new Date().toISOString().split('T')[0], content: newNote, type: noteType };
     const updatedCustomer = { ...selectedCustomer, lastContactDate: new Date().toISOString().split('T')[0], notes: [note, ...selectedCustomer.notes] };
 
-    await saveRecord('jilco_customers', updatedCustomer.id, updatedCustomer);
+    await saveSalesRecord('jilco_customers', updatedCustomer.id, updatedCustomer);
     setSelectedCustomer(updatedCustomer);
     setNewNote('');
   };
@@ -107,7 +107,7 @@ export const CustomerModule: React.FC = () => {
     const note: CustomerNote = { id: Date.now().toString(), date: new Date().toISOString().split('T')[0], content: `تم تغيير الحالة من ${STATUS_LABELS[selectedCustomer.status].label} إلى ${STATUS_LABELS[newStatus].label}`, type: 'note' };
     const updatedCustomer = { ...selectedCustomer, status: newStatus, lastContactDate: new Date().toISOString().split('T')[0], notes: [note, ...selectedCustomer.notes] };
 
-    await saveRecord('jilco_customers', updatedCustomer.id, updatedCustomer);
+    await saveSalesRecord('jilco_customers', updatedCustomer.id, updatedCustomer);
     setSelectedCustomer(updatedCustomer);
   };
 
@@ -302,7 +302,7 @@ export const CustomerModule: React.FC = () => {
                         <button onClick={() => handleViewDetails(customer)} className="p-2 text-jilco-600 hover:bg-jilco-50 rounded-full" title="عرض التفاصيل"><UserCheck size={16} /></button>
                         <button onClick={() => { setSelectedCustomer(customer); setViewMode('statement'); }} className="p-2 text-gold-600 hover:bg-gold-50 rounded-full" title="كشف الحساب"><PieChart size={16} /></button>
                         <button onClick={() => handleEdit(customer)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-full"><Edit size={16} /></button>
-                        <button onClick={async () => { if (window.confirm('حذف العميل؟')) await deleteRecordLocallyAndCloud('jilco_customers', customer.id) }} className="p-2 text-red-500 hover:bg-red-50 rounded-full"><Trash2 size={16} /></button>
+                        <button onClick={async () => { if (window.confirm('حذف العميل؟')) await deleteSalesRecord('jilco_customers', customer.id) }} className="p-2 text-red-500 hover:bg-red-50 rounded-full"><Trash2 size={16} /></button>
                       </div>
                     </td>
                   </tr>
@@ -367,7 +367,7 @@ export const CustomerModule: React.FC = () => {
                   <button onClick={async () => {
                     if (window.confirm('حذف؟')) {
                       const updated = { ...selectedCustomer, notes: selectedCustomer.notes.filter(n => n.id !== note.id) };
-                      await saveRecord('jilco_customers', updated.id, updated);
+                      await saveSalesRecord('jilco_customers', updated.id, updated);
                       setSelectedCustomer(updated);
                     }
                   }} className="absolute top-2 left-2 text-red-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 size={12} /></button>

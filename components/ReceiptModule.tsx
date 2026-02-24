@@ -5,6 +5,7 @@ import { ReceiptData, CompanyConfig, Customer, Attachment } from '../types';
 import { loggerService } from '../services/loggerService.ts';
 import { useAuth } from '../contexts/AuthContext.tsx';
 import { useData } from '../contexts/DataContext.tsx';
+import { useSales } from '../contexts/SalesContext.tsx';
 
 // --- Helper: Arabic Number to Words (Tafqit) ---
 const tafqit = (number: number): string => {
@@ -77,8 +78,8 @@ export const ReceiptModule: React.FC = () => {
     const { currentUser } = useAuth();
     const {
         receipts, customers,
-        saveRecord, deleteRecordLocallyAndCloud
-    } = useData();
+        saveSalesRecord, deleteSalesRecord
+    } = useSales();
 
     const [viewMode, setViewMode] = useState<'list' | 'editor' | 'statement'>('list');
     const [searchTerm, setSearchTerm] = useState('');
@@ -139,7 +140,7 @@ export const ReceiptModule: React.FC = () => {
     const handleSaveReceipt = async () => {
         if (!currentReceipt.receivedFrom || currentReceipt.amount <= 0) return alert('الرجاء تعبئة بيانات العميل والمبلغ');
 
-        await saveRecord('jilco_receipts_archive', currentReceipt.number, currentReceipt);
+        await saveSalesRecord('jilco_receipts_archive', currentReceipt.number, currentReceipt);
 
         const exists = receipts.find(r => r.number === currentReceipt.number);
         if (exists) {
@@ -152,7 +153,7 @@ export const ReceiptModule: React.FC = () => {
 
     const handleDelete = async (number: string) => {
         if (window.confirm("هل أنت متأكد من حذف هذا السند؟")) {
-            await deleteRecordLocallyAndCloud('jilco_receipts_archive', number);
+            await deleteSalesRecord('jilco_receipts_archive', number);
             loggerService.addLog(currentUser, 'حذف سند قبض', `رقم السند: ${number}`, 'المحاسبة');
         }
     };
