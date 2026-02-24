@@ -161,7 +161,7 @@ export const ShareButton: React.FC<ShareButtonProps> = ({
                     <div className="p-4 space-y-3">
                         {/* رقم الهاتف */}
                         <div>
-                            <label className="text-[11px] font-black text-gray-500 mb-1 flex items-center gap-1">
+                            <label className="text-[11px] font-black text-gray-700 mb-1 flex items-center gap-1">
                                 <Phone size={11} /> رقم الواتساب (اختياري)
                             </label>
                             <input
@@ -170,15 +170,15 @@ export const ShareButton: React.FC<ShareButtonProps> = ({
                                 placeholder="966501234567"
                                 value={phone}
                                 onChange={e => setPhone(e.target.value.replace(/[^0-9+]/g, ''))}
-                                className="w-full p-2.5 border border-gray-200 rounded-xl text-sm font-mono font-bold outline-none focus:border-[#25D366] focus:ring-1 focus:ring-[#25D366] text-left"
+                                className="w-full p-2.5 border border-gray-300 rounded-xl text-sm text-gray-900 bg-white font-mono font-bold outline-none focus:border-[#25D366] focus:ring-2 focus:ring-[#25D366] text-left placeholder-gray-400"
                                 dir="ltr"
                             />
-                            <p className="text-[10px] text-gray-400 mt-1">بدون + أو 00 — مثال: 966501234567</p>
+                            <p className="text-[10px] text-gray-500 mt-1">بدون + أو 00 — مثال: 966501234567</p>
                         </div>
 
                         {/* الرسالة */}
                         <div>
-                            <label className="text-[11px] font-black text-gray-500 mb-1 flex items-center gap-1">
+                            <label className="text-[11px] font-black text-gray-700 mb-1 flex items-center gap-1">
                                 <MessageCircle size={11} /> نص الرسالة
                             </label>
                             <textarea
@@ -186,7 +186,7 @@ export const ShareButton: React.FC<ShareButtonProps> = ({
                                 value={message}
                                 onChange={e => setMessage(e.target.value)}
                                 rows={4}
-                                className="w-full p-2.5 border border-gray-200 rounded-xl text-xs font-bold outline-none focus:border-[#25D366] focus:ring-1 focus:ring-[#25D366] resize-none leading-relaxed"
+                                className="w-full p-2.5 border border-gray-300 rounded-xl text-xs text-gray-900 bg-white font-bold outline-none focus:border-[#25D366] focus:ring-2 focus:ring-[#25D366] resize-none leading-relaxed"
                             />
                         </div>
 

@@ -86,32 +86,10 @@ export async function shareDocument(options: ShareOptions): Promise<ShareResult>
     const { elementId, fileName, recipientPhone, message, documentTitle } = options;
 
     try {
+        // 1. توليد PDF
         const blob = await generatePdfBlob(elementId, fileName);
-        const pdfFile = new File([blob], `${fileName}.pdf`, { type: 'application/pdf' });
 
-        // -------------------------------------------------------
-        // 1️⃣ الجهاز يدعم مشاركة الملفات (موبايل بشكل رئيسي)
-        // -------------------------------------------------------
-        if (navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
-            try {
-                await navigator.share({
-                    files: [pdfFile],
-                    title: documentTitle || fileName,
-                    text: message || `مرفق: ${documentTitle || fileName}`,
-                });
-                return { status: 'shared' };
-            } catch (shareErr: any) {
-                // إذا أغلق المستخدم نافذة المشاركة يدوياً
-                if (shareErr.name === 'AbortError') return { status: 'downloaded' };
-                // وإلا نتجاهل تفريعة المشاركة ونهبط للبديل Desktop/WhatsApp Web
-                console.warn('Web Share API failed, falling back to Web WhatsApp', shareErr);
-            }
-        }
-
-        // -------------------------------------------------------
-        // 2️⃣ Desktop: تحميل PDF + فتح واتساب ويب
-        // -------------------------------------------------------
-        // تحميل الملف أولاً
+        // 2. تحميل الملف للمستخدم (ليتمكن من إرساله)
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
@@ -119,25 +97,38 @@ export async function shareDocument(options: ShareOptions): Promise<ShareResult>
         a.click();
         URL.revokeObjectURL(url);
 
-        // فتح واتساب ويب مع رسالة جاهزة
-        const whatsappMsg = encodeURIComponent(
-            message || `مرحباً،\n\nمرفق ${documentTitle || fileName}.\n\nيُرجى مراجعته والتواصل معنا لأي استفسار.\n\nجيلكو للمصاعد 🏢`
-        );
+        // 3. تجهيز رسالة الواتساب
+        const defaultMessage = `مرحباً،\n\nمرفق ${documentTitle || fileName}.\n\nيُرجى مراجعته والتواصل معنا لأي استفسار.\n\nجيلكو للمصاعد 🏢`;
+        const finalMessage = message ? message.trim() : defaultMessage;
+        const encodedMessage = encodeURIComponent(finalMessage);
+
+        // 4. تحديد الرابط بناءً على وجود رقم الهاتف ونوع الجهاز
+        let whatsappUrl = '';
+        const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 
         if (recipientPhone) {
             const phone = recipientPhone.replace(/[^0-9]/g, '');
-            window.open(`https://wa.me/${phone}?text=${whatsappMsg}`, '_blank');
+            // استخدام رابط wa.me الموحد الذي يفتح التطبيق أو الويب تلقائياً
+            whatsappUrl = `https://wa.me/${phone}?text=${encodedMessage}`;
         } else {
-            window.open(`https://web.whatsapp.com/`, '_blank');
+            // في حال عدم وجود رقم، توجيه المستخدم لفتح الواتساب عام للبحث عن جهة الاتصال
+            whatsappUrl = isMobile
+                ? `whatsapp://send?text=${encodedMessage}`
+                : `https://web.whatsapp.com/send?text=${encodedMessage}`;
+        }
+
+        // 5. محاولة فتح الرابط في نافذة جديدة
+        const newWindow = window.open(whatsappUrl, '_blank');
+
+        // Fallback إذا كان المتصفح يمنع النوافذ المنبثقة
+        if (!newWindow || newWindow.closed || typeof newWindow.closed == 'undefined') {
+            window.location.href = whatsappUrl;
         }
 
         return { status: 'whatsapp_web' };
 
     } catch (error: any) {
-        if (error?.name === 'AbortError') {
-            // المستخدم أغلق قائمة المشاركة يدوياً
-            return { status: 'downloaded' };
-        }
-        return { status: 'error', message: error?.message || 'خطأ غير متوقع' };
+        console.error('Share Error:', error);
+        return { status: 'error', message: error?.message || 'تعذر المعالجة' };
     }
 }
