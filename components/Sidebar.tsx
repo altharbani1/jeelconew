@@ -182,6 +182,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <div className="mb-4">
             <label className="block text-[11px] font-black text-gray-500 mb-1 uppercase">{label}</label>
             <select
+                title={`اختر ${label}`}
                 value={techSpecs[field] || ''}
                 onChange={e => setTechSpecs({ ...techSpecs, [field]: e.target.value })}
                 className="w-full p-2.5 border border-gray-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-jilco-600 outline-none shadow-sm font-bold text-gray-900"
@@ -229,6 +230,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                 <Users size={12} /> استيراد بيانات عميل مسجل
                             </label>
                             <select
+                                title="اختر عميلاً لاستيراد بياناته"
                                 onChange={handleCustomerSelect}
                                 className="w-full p-2 text-xs border border-gray-300 rounded-lg outline-none bg-white font-bold text-gray-900"
                                 defaultValue=""
@@ -240,13 +242,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             </select>
                         </div>
 
-                        <div><label className="block text-[10px] font-black text-gray-500 mb-1">رقم العرض</label><input type="text" value={details.number} onChange={e => setDetails({ ...details, number: e.target.value })} className="w-full p-2.5 border border-gray-300 rounded-lg font-mono text-sm bg-white text-gray-900 focus:border-jilco-500 outline-none" /></div>
-                        <div><label className="block text-[10px] font-black text-gray-500 mb-1">اسم العميل</label><input type="text" value={details.customerName} onChange={e => setDetails({ ...details, customerName: e.target.value })} className="w-full p-2.5 border border-gray-300 rounded-lg text-sm bg-white text-gray-900 focus:border-jilco-500 outline-none" /></div>
-                        <div><label className="block text-[10px] font-black text-gray-500 mb-1">الموقع/المشروع</label><input type="text" value={details.projectName} onChange={e => setDetails({ ...details, projectName: e.target.value })} className="w-full p-2.5 border border-gray-300 rounded-lg text-sm bg-white text-gray-900 focus:border-jilco-500 outline-none" /></div>
+                        <div><label className="block text-[10px] font-black text-gray-500 mb-1">رقم العرض</label><input type="text" title="رقم العرض" placeholder="Q-2024-001" value={details.number} onChange={e => setDetails({ ...details, number: e.target.value })} className="w-full p-2.5 border border-gray-300 rounded-lg font-mono text-sm bg-white text-gray-900 focus:border-jilco-500 outline-none" /></div>
+                        <div><label className="block text-[10px] font-black text-gray-500 mb-1">اسم العميل</label><input type="text" title="اسم العميل" placeholder="اسم العميل" value={details.customerName} onChange={e => setDetails({ ...details, customerName: e.target.value })} className="w-full p-2.5 border border-gray-300 rounded-lg text-sm bg-white text-gray-900 focus:border-jilco-500 outline-none" /></div>
+                        <div><label className="block text-[10px] font-black text-gray-500 mb-1">الموقع/المشروع</label><input type="text" title="اسم المشروع أو الموقع" placeholder="موقع المشروع" value={details.projectName} onChange={e => setDetails({ ...details, projectName: e.target.value })} className="w-full p-2.5 border border-gray-300 rounded-lg text-sm bg-white text-gray-900 focus:border-jilco-500 outline-none" /></div>
 
                         <div className="grid grid-cols-2 gap-4 pt-4 border-t border-gray-200">
-                            <div><label className="block text-[10px] font-black text-gray-500 mb-1 uppercase">ضمان التركيب (سنة)</label><input type="text" value={details.warrantyInstallation} onChange={e => setDetails({ ...details, warrantyInstallation: e.target.value })} className="w-full p-2 border border-gray-300 rounded text-center font-bold bg-white text-gray-900" /></div>
-                            <div><label className="block text-[10px] font-black text-gray-500 mb-1 uppercase">ضمان الماكينة (سنة)</label><input type="text" value={details.warrantyMotor} onChange={e => setDetails({ ...details, warrantyMotor: e.target.value })} className="w-full p-2 border border-gray-300 rounded text-center font-bold bg-white text-gray-900" /></div>
+                            <div><label className="block text-[10px] font-black text-gray-500 mb-1 uppercase">ضمان التركيب (سنة)</label><input type="text" title="فترة ضمان التركيب" placeholder="1" value={details.warrantyInstallation} onChange={e => setDetails({ ...details, warrantyInstallation: e.target.value })} className="w-full p-2 border border-gray-300 rounded text-center font-bold bg-white text-gray-900" /></div>
+                            <div><label className="block text-[10px] font-black text-gray-500 mb-1 uppercase">ضمان الماكينة (سنة)</label><input type="text" title="فترة ضمان الماكينة" placeholder="3" value={details.warrantyMotor} onChange={e => setDetails({ ...details, warrantyMotor: e.target.value })} className="w-full p-2 border border-gray-300 rounded text-center font-bold bg-white text-gray-900" /></div>
                         </div>
 
                         <div className="pt-2">
@@ -326,7 +328,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                         <p className="font-black text-sm text-gray-900">{item.description}</p>
                                         <p className="text-xs font-mono text-jilco-600 font-bold">{item.total.toLocaleString()} SAR</p>
                                     </div>
-                                    <button onClick={() => setItems(items.filter(i => i.id !== item.id))} className="text-red-300 hover:text-red-600 p-2"><Trash2 size={18} /></button>
+                                    <button title="حذف البند" onClick={() => setItems(items.filter(i => i.id !== item.id))} className="text-red-300 hover:text-red-600 p-2"><Trash2 size={18} /></button>
                                 </div>
                             ))}
                         </div>
@@ -375,6 +377,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                         <div className="relative w-16">
                                             <input
                                                 type="number"
+                                                title="نسبة الدفعة"
+                                                placeholder="0"
                                                 value={term.percentage}
                                                 onChange={(e) => updatePaymentTerm(idx, 'percentage', parseFloat(e.target.value))}
                                                 className="w-full p-1.5 text-xs border border-gray-300 rounded outline-none text-center font-black bg-white text-gray-900"
@@ -396,6 +400,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
                             <h3 className="text-xs font-black text-jilco-900 mb-2">إلتزامات الطرف الأول (المؤسسة)</h3>
                             <textarea
+                                title="إلتزامات الطرف الأول"
+                                placeholder="تحديد إلتزامات المؤسسة..."
                                 value={details.firstPartyObligations || ''}
                                 onChange={e => setDetails({ ...details, firstPartyObligations: e.target.value })}
                                 className="w-full h-32 p-3 border border-gray-300 rounded-lg text-xs leading-loose outline-none focus:border-jilco-500 font-bold resize-none bg-white text-gray-900"
@@ -405,6 +411,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
                             <h3 className="text-xs font-black text-jilco-900 mb-2">إلتزامات الطرف الثاني (العميل)</h3>
                             <textarea
+                                title="إلتزامات الطرف الثاني"
+                                placeholder="تحديد إلتزامات العميل..."
                                 value={details.secondPartyObligations || ''}
                                 onChange={e => setDetails({ ...details, secondPartyObligations: e.target.value })}
                                 className="w-full h-32 p-3 border border-gray-300 rounded-lg text-xs leading-loose outline-none focus:border-jilco-500 font-bold resize-none bg-white text-gray-900"
@@ -436,6 +444,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                 <ShieldCheck size={16} /> بنود التسليم والضمان
                             </h3>
                             <textarea
+                                title="بنود التسليم والضمان"
+                                placeholder="أدخل بنود التسليم والضمان..."
                                 value={details.handoverAndWarranty || ''}
                                 onChange={e => setDetails({ ...details, handoverAndWarranty: e.target.value })}
                                 className="w-full h-96 p-4 border border-gray-300 rounded-lg text-xs leading-loose outline-none focus:border-jilco-500 font-black resize-none bg-white text-gray-900"
