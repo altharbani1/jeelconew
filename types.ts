@@ -97,6 +97,7 @@ export interface InvoiceData {
   items: QuoteItem[];
   status: 'paid' | 'pending' | 'overdue';
   discountAmount?: number;
+  isTaxInclusive?: boolean; // خيار شامل الضريبة
 }
 
 export interface ContractData {

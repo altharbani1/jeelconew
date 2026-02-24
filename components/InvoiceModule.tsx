@@ -63,7 +63,8 @@ export const InvoiceModule: React.FC = () => {
         customerVatNumber: '',
         items: [],
         status: 'pending',
-        discountAmount: 0
+        discountAmount: 0,
+        isTaxInclusive: true // افتراضي شامل الضريبة
     });
 
     const [availableQuotes, setAvailableQuotes] = useState<SavedQuote[]>([]);
@@ -89,7 +90,8 @@ export const InvoiceModule: React.FC = () => {
             customerVatNumber: '',
             items: [],
             status: 'pending',
-            discountAmount: 0
+            discountAmount: 0,
+            isTaxInclusive: true // افتراضي شامل الضريبة
         });
         setAvailableQuotes([]);
         setViewMode('editor');
@@ -141,9 +143,24 @@ export const InvoiceModule: React.FC = () => {
     };
 
     const subtotal = currentInvoice.items.reduce((s, i) => s + i.total, 0);
-    const tax = subtotal * 0.15;
     const discount = currentInvoice.discountAmount || 0;
-    const grandTotal = Math.max(0, subtotal + tax - discount);
+
+    // حسابات الضريبة بناء على الخيار (شامل أو غير شامل)
+    let tax = 0;
+    let grandTotal = 0;
+    let baseAmount = 0; // المبلغ قبل الضريبة
+
+    if (currentInvoice.isTaxInclusive) {
+        // إذا كان السعر الشامل: السعر الأساسي = الاجمالي / 1.15
+        baseAmount = (subtotal - discount) / 1.15;
+        tax = (subtotal - discount) - baseAmount;
+        grandTotal = Math.max(0, subtotal - discount);
+    } else {
+        // إذا كان السعر غير شامل: الضريبة 15% تضاف فوق المبلغ
+        baseAmount = subtotal - discount;
+        tax = baseAmount * 0.15;
+        grandTotal = Math.max(0, baseAmount + tax);
+    }
 
     if (viewMode === 'list') {
         return (
@@ -185,9 +202,14 @@ export const InvoiceModule: React.FC = () => {
                                         <td className="p-4 font-black text-green-700">
                                             {(() => {
                                                 const sub = inv.items.reduce((s, it) => s + it.total, 0);
-                                                const taxAmt = sub * 0.15;
                                                 const disc = inv.discountAmount || 0;
-                                                return Math.max(0, sub + taxAmt - disc).toLocaleString();
+                                                if (inv.isTaxInclusive) {
+                                                    return Math.max(0, sub - disc).toLocaleString();
+                                                } else {
+                                                    const baseAmt = sub - disc;
+                                                    const taxAmt = baseAmt * 0.15;
+                                                    return Math.max(0, baseAmt + taxAmt).toLocaleString();
+                                                }
                                             })()}
                                         </td>
                                         <td className="p-4">
@@ -265,6 +287,17 @@ export const InvoiceModule: React.FC = () => {
                             <div>
                                 <label className="block text-[10px] font-bold text-gray-500 mb-1">خصم مكتسب (مبلغ مالي)</label>
                                 <input type="number" min="0" value={currentInvoice.discountAmount || ''} onChange={e => setCurrentInvoice({ ...currentInvoice, discountAmount: parseFloat(e.target.value) || 0 })} className="w-full p-2 border rounded text-sm bg-white font-bold" placeholder="مثال: 500" />
+                            </div>
+                            <div className="flex items-end pb-1">
+                                <label className="flex items-center gap-2 cursor-pointer bg-white p-2 w-full border border-gray-200 rounded text-sm font-bold shadow-sm transition-all hover:bg-gray-50">
+                                    <input
+                                        type="checkbox"
+                                        checked={currentInvoice.isTaxInclusive ?? false}
+                                        onChange={e => setCurrentInvoice({ ...currentInvoice, isTaxInclusive: e.target.checked })}
+                                        className="w-4 h-4 text-jilco-600 rounded border-gray-300 focus:ring-jilco-500 cursor-pointer"
+                                    />
+                                    <span>إجمالي الفاتورة تشمل الضريبة (15%)</span>
+                                </label>
                             </div>
                         </div>
                     </div>
@@ -375,24 +408,23 @@ export const InvoiceModule: React.FC = () => {
                                     <p className="text-[8px] text-center font-bold text-gray-400 mt-1 uppercase">ZATCA Compliant</p>
                                 </div>
                                 <div className="w-72 bg-white p-5 rounded-2xl border-4 border-jilco-900 shadow-xl space-y-3 relative overflow-hidden">
+                                    {/* عرض المبلغ قبل الضريبة إذا كان شامل */}
                                     <div className="flex justify-between text-[10px] font-black text-gray-500 uppercase">
-                                        <span>المجموع / Subtotal:</span>
-                                        <span className="font-mono text-black">{subtotal.toLocaleString()}</span>
+                                        <span>المبلغ (غير شامل الضريبة) / Ex. VAT:</span>
+                                        <span className="font-mono text-black">
+                                            {baseAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                        </span>
                                     </div>
                                     <div className="flex justify-between text-[10px] font-black text-gray-500 uppercase">
                                         <span>الضريبة / VAT 15%:</span>
-                                        <span className="font-mono text-red-600">+{tax.toLocaleString()}</span>
+                                        <span className="font-mono text-red-600">
+                                            +{tax.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                        </span>
                                     </div>
-                                    {(currentInvoice.discountAmount || 0) > 0 && (
-                                        <div className="flex justify-between text-[10px] font-black text-gray-500 uppercase">
-                                            <span>الخصم / Discount:</span>
-                                            <span className="font-mono text-red-600">-{(currentInvoice.discountAmount || 0).toLocaleString()}</span>
-                                        </div>
-                                    )}
                                     <div className="border-t-2 border-gray-100 pt-3 flex justify-between items-center">
                                         <span className="font-black text-jilco-900 text-xs uppercase">Grand Total:</span>
                                         <div className="text-left">
-                                            <span className="font-black text-black text-2xl font-mono">{grandTotal.toLocaleString()}</span>
+                                            <span className="font-black text-black text-2xl font-mono">{grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                                             <p className="text-[8px] text-gold-600 font-black text-center uppercase">SAR</p>
                                         </div>
                                     </div>
