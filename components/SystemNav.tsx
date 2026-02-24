@@ -1,5 +1,6 @@
-
-import { User, Bell, Search, LayoutDashboard, Calculator, Database, Users, Building, ShieldCheck, ChevronRight, Menu, FileText, FileSignature, Receipt, Settings, Scale, Coins, Clock, Smartphone, ScrollText, Activity, Box, TrendingUp, Wrench } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { User, Bell, Search, LayoutDashboard, Calculator, Database, Users, Building, ShieldCheck, ChevronRight, Menu, FileText, FileSignature, Receipt, Settings, Scale, Coins, Clock, Smartphone, ScrollText, Activity, Box, TrendingUp, Wrench, Briefcase, Wallet, ShoppingBag, FileWarning, UserCog, FolderOpen, ClipboardCheck, Lock, QrCode, CloudRain, CloudOff, CheckCircle2, Wifi, X, Languages, LogOut } from 'lucide-react';
+import { SystemView, Permission } from '../types';
 import { useAuth } from '../contexts/AuthContext.tsx';
 import { useLanguage } from '../contexts/LanguageContext.tsx';
 import { useNotifications } from '../lib/useNotifications';
