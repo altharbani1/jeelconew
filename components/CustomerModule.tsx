@@ -116,10 +116,17 @@ export const CustomerModule: React.FC = () => {
     if (!selectedCustomer) return { transactions: [], totalDebit: 0, totalCredit: 0, balance: 0 };
 
     const invoices = allInvoices.filter(i => i.customerName === selectedCustomer.fullName).map(i => {
-      const subtotal = i.items.reduce((s: number, it: any) => s + it.total, 0);
-      const tax = subtotal * 0.15;
-      const discount = i.discountAmount || 0;
-      const debit = Math.max(0, subtotal + tax - discount);
+      let debit = 0;
+      if (i.grandTotal !== undefined) {
+        debit = i.grandTotal;
+      } else {
+        const subtotal = i.items.reduce((s: number, it: any) => s + it.total, 0);
+        const discount = i.discountAmount || 0;
+        const afterDiscount = Math.max(0, subtotal - discount);
+        const tax = afterDiscount * 0.15;
+        debit = afterDiscount + tax;
+      }
+
       return {
         date: i.date, type: 'invoice' as const, number: i.number, description: 'فاتورة ضريبية',
         debit, credit: 0
