@@ -93,12 +93,19 @@ export async function shareDocument(options: ShareOptions): Promise<ShareResult>
         // 1️⃣ الجهاز يدعم مشاركة الملفات (موبايل بشكل رئيسي)
         // -------------------------------------------------------
         if (navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
-            await navigator.share({
-                files: [pdfFile],
-                title: documentTitle || fileName,
-                text: message || `مرفق: ${documentTitle || fileName}`,
-            });
-            return { status: 'shared' };
+            try {
+                await navigator.share({
+                    files: [pdfFile],
+                    title: documentTitle || fileName,
+                    text: message || `مرفق: ${documentTitle || fileName}`,
+                });
+                return { status: 'shared' };
+            } catch (shareErr: any) {
+                // إذا أغلق المستخدم نافذة المشاركة يدوياً
+                if (shareErr.name === 'AbortError') return { status: 'downloaded' };
+                // وإلا نتجاهل تفريعة المشاركة ونهبط للبديل Desktop/WhatsApp Web
+                console.warn('Web Share API failed, falling back to Web WhatsApp', shareErr);
+            }
         }
 
         // -------------------------------------------------------

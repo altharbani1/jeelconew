@@ -141,7 +141,7 @@ export const ShareButton: React.FC<ShareButtonProps> = ({
 
             {/* الدرابدون */}
             {isOpen && (
-                <div className="absolute top-full mt-2 right-0 w-80 bg-white rounded-2xl shadow-2xl border border-gray-100 z-[9999] overflow-hidden animate-in">
+                <div className="absolute top-full mt-2 left-0 w-80 bg-white rounded-2xl shadow-2xl border border-gray-100 z-[9999] overflow-hidden animate-in">
                     {/* Header */}
                     <div className="bg-gradient-to-r from-[#25D366] to-[#128C7E] p-4 text-white">
                         <div className="flex justify-between items-center mb-1">
