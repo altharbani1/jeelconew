@@ -1,178 +1,204 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>جيلكو للمصاعد | Jilco Elevators - نظام الإدارة المتكامل</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
-    <script>
-      tailwind.config = {
-        theme: {
-          extend: {
-            fontFamily: {
-              sans: ['Cairo', 'sans-serif'],
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>جيلكو للمصاعد | Jilco Elevators - نظام الإدارة المتكامل</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800;900&display=swap"
+    rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Cairo', 'sans-serif'],
+          },
+          colors: {
+            jilco: {
+              50: '#f0f9ff',
+              100: '#e0f2fe',
+              200: '#bae6fd',
+              300: '#7dd3fc',
+              400: '#38bdf8',
+              500: '#0ea5e9',
+              600: '#0284c7',
+              700: '#0369a1',
+              800: '#075985',
+              900: '#0c4a6e',
+              950: '#082f49',
             },
-            colors: {
-              jilco: {
-                50: '#f0f9ff',
-                100: '#e0f2fe',
-                200: '#bae6fd',
-                300: '#7dd3fc',
-                400: '#38bdf8',
-                500: '#0ea5e9',
-                600: '#0284c7',
-                700: '#0369a1',
-                800: '#075985',
-                900: '#0c4a6e',
-                950: '#082f49',
-              },
-              gold: {
-                50: '#fffbeb',
-                100: '#fef3c7',
-                200: '#fde68a',
-                300: '#fcd34d',
-                400: '#fbbf24',
-                500: '#f59e0b',
-                600: '#d97706',
-                700: '#b45309',
-                800: '#92400e',
-                900: '#78350f',
-              }
+            gold: {
+              50: '#fffbeb',
+              100: '#fef3c7',
+              200: '#fde68a',
+              300: '#fcd34d',
+              400: '#fbbf24',
+              500: '#f59e0b',
+              600: '#d97706',
+              700: '#b45309',
+              800: '#92400e',
+              900: '#78350f',
             }
           }
         }
       }
-    </script>
-    <style>
-      body {
-        font-family: 'Cairo', sans-serif;
-        background-color: #f8fafc;
+    }
+  </script>
+  <style>
+    body {
+      font-family: 'Cairo', sans-serif;
+      background-color: #f8fafc;
+      margin: 0;
+      padding: 0;
+    }
+
+    /* Utilities */
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+
+    /* --- PROFESSIONAL PRINT ENGINE CSS v2.2 --- */
+    @media print {
+
+      /* 1. Global Reset */
+      *,
+      *::before,
+      *::after {
+        box-shadow: none !important;
+        text-shadow: none !important;
+      }
+
+      body,
+      html {
+        background-color: #ffffff !important;
+        width: 100% !important;
+        height: auto !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        overflow: visible !important;
+      }
+
+      /* 2. Hide UI Elements */
+      .no-print,
+      .sidebar-container,
+      nav,
+      button,
+      input[type="file"],
+      .hidden-print,
+      aside,
+      header.dashboard-header {
+        display: none !important;
+      }
+
+      /* 3. Page Geometry */
+      @page {
+        size: A4;
         margin: 0;
-        padding: 0;
-      }
-      
-      /* Utilities */
-      .no-scrollbar::-webkit-scrollbar {
-          display: none;
-      }
-      .no-scrollbar {
-          -ms-overflow-style: none;
-          scrollbar-width: none;
       }
 
-      /* --- PROFESSIONAL PRINT ENGINE CSS v2.2 --- */
-      @media print {
-        /* 1. Global Reset */
-        *, *::before, *::after {
-          box-shadow: none !important;
-          text-shadow: none !important;
-        }
-
-        body, html {
-          background-color: #ffffff !important;
-          width: 100% !important;
-          height: auto !important;
-          margin: 0 !important;
-          padding: 0 !important;
-          overflow: visible !important;
-        }
-
-        /* 2. Hide UI Elements */
-        .no-print, 
-        .sidebar-container, 
-        nav, 
-        button, 
-        input[type="file"],
-        .hidden-print,
-        aside,
-        header.dashboard-header {
-          display: none !important;
-        }
-
-        /* 3. Page Geometry */
-        @page {
-          size: A4;
-          margin: 0;
-        }
-
-        /* 4. Content Visibility */
-        body {
-          visibility: hidden;
-        }
-
-        #printable-area {
-          visibility: visible !important;
-          position: absolute;
-          top: 0;
-          left: 0;
-          width: 100% !important;
-          z-index: 9999;
-          background-color: white;
-        }
-        
-        #printable-area * {
-          visibility: visible !important;
-        }
-
-        /* 5. The A4 Page Container - Strict Height Enforcement */
-        .a4-page {
-          width: 210mm !important;
-          height: 296mm !important; /* Strict height to prevent overflow */
-          min-height: 296mm !important;
-          position: relative !important;
-          background: white !important;
-          margin: 0 auto !important;
-          page-break-after: always !important;
-          break-after: page !important;
-          overflow: hidden !important; /* Clip content to avoid spillover */
-        }
-
-        /* Prevent extra blank page after the last sheet */
-        .a4-page:last-child {
-          page-break-after: auto !important;
-          break-after: auto !important;
-          margin-bottom: 0 !important;
-        }
-
-        /* 6. Color Accuracy */
-        .a4-page, .a4-page * {
-          -webkit-print-color-adjust: exact !important;
-          print-color-adjust: exact !important;
-          color-adjust: exact !important;
-        }
-
-        /* 7. Typography & Layout Fixes */
-        h1, h2, h3, h4, h5, h6 {
-          break-after: avoid;
-          page-break-after: avoid;
-        }
-
-        /* 8. Table Optimizations */
-        table {
-          width: 100% !important;
-          border-collapse: collapse !important;
-        }
-        
-        tr {
-          break-inside: avoid !important;
-        }
-
-        /* 9. Link Cleanup */
-        a {
-          text-decoration: none !important;
-          color: inherit !important;
-        }
+      /* 4. Content Visibility */
+      body {
+        visibility: hidden;
       }
 
-      /* Custom scrollbar for better professional look on screen */
-      ::-webkit-scrollbar { width: 6px; }
-      ::-webkit-scrollbar-track { background: #f1f1f1; }
-      ::-webkit-scrollbar-thumb { background: #0c4a6e; border-radius: 10px; }
-    </style>
-    <script type="importmap">
+      #printable-area {
+        visibility: visible !important;
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100% !important;
+        z-index: 9999;
+        background-color: white;
+      }
+
+      #printable-area * {
+        visibility: visible !important;
+      }
+
+      /* 5. The A4 Page Container - Strict Height Enforcement */
+      .a4-page {
+        width: 210mm !important;
+        height: 296mm !important;
+        /* Strict height to prevent overflow */
+        min-height: 296mm !important;
+        position: relative !important;
+        background: white !important;
+        margin: 0 auto !important;
+        page-break-after: always !important;
+        break-after: page !important;
+        overflow: hidden !important;
+        /* Clip content to avoid spillover */
+      }
+
+      /* Prevent extra blank page after the last sheet */
+      .a4-page:last-child {
+        page-break-after: auto !important;
+        break-after: auto !important;
+        margin-bottom: 0 !important;
+      }
+
+      /* 6. Color Accuracy */
+      .a4-page,
+      .a4-page * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        color-adjust: exact !important;
+      }
+
+      /* 7. Typography & Layout Fixes */
+      h1,
+      h2,
+      h3,
+      h4,
+      h5,
+      h6 {
+        break-after: avoid;
+        page-break-after: avoid;
+      }
+
+      /* 8. Table Optimizations */
+      table {
+        width: 100% !important;
+        border-collapse: collapse !important;
+      }
+
+      tr {
+        break-inside: avoid !important;
+      }
+
+      /* 9. Link Cleanup */
+      a {
+        text-decoration: none !important;
+        color: inherit !important;
+      }
+    }
+
+    /* Custom scrollbar for better professional look on screen */
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: #f1f1f1;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: #0c4a6e;
+      border-radius: 10px;
+    }
+  </style>
+  <script type="importmap">
 {
   "imports": {
     "@google/genai": "https://aistudiocdn.com/@google/genai@^1.30.0",
@@ -186,9 +212,11 @@
   }
 }
 </script>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="index.tsx"></script>
-  </body>
+</head>
+
+<body>
+  <div id="root"></div>
+  <script type="module" src="index.tsx"></script>
+</body>
+
 </html>

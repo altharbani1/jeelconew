@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext.tsx';
 import { Plus, Trash2, Printer, Sparkles, Save, Database, User, ClipboardList, DollarSign, FileText, Star, ShieldCheck, Scale, Users, ImageIcon, Image as ImageIconLucide, ChevronDown } from 'lucide-react';
 import { QuoteItem, QuoteDetails, CompanyConfig, TechnicalSpecs, SpecsDatabase, SupplierProduct, Customer } from '../types.ts';
 import { generateTechnicalDescription } from '../services/geminiService.ts';
+import { ShareButton } from './ShareButton.tsx';
 
 const DEFAULT_SPECS_DB: SpecsDatabase = {
     elevatorType: ['مصعد ركاب (Passenger)', 'مصعد بضائع (Freight)', 'مصعد طعام (Dumbwaiter)', 'مصعد بانوراما (Panoramic)', 'مصعد منزلي (Home Lift)'],
@@ -202,9 +203,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     <h2 className="text-xl font-bold">جيلكو | التحكم</h2>
                     <p className="text-[10px] opacity-60">نظام عروض الأسعار الذكي</p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-2 items-center">
                     <button onClick={onSave} className="bg-green-600 p-2.5 rounded-xl hover:bg-green-700 shadow-lg transition-all" title="حفظ العرض"><Save size={18} /></button>
                     <button onClick={onPrint} className="bg-gold-500 p-2.5 rounded-xl hover:bg-gold-600 shadow-lg transition-all" title="تحميل PDF / طباعة"><Printer size={18} /></button>
+                    <ShareButton
+                        elementId="printable-area"
+                        fileName={`عرض_سعر_${details.number || 'جديد'}`}
+                        documentTitle={`عرض السعر رقم ${details.number || ''}`}
+                        recipientName={details.customerName || ''}
+                        documentType="quote"
+                        className="shrink-0"
+                    />
                 </div>
             </div>
 

@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Printer, Banknote, Building, AlertCircle, Search, Plus, Edit, Trash2, ArrowLeft, Save, Send, Download, User, Phone, Mail, MapPin, Globe, Upload, ImageIcon, FileText, X, Paperclip, PieChart, Filter, Users } from 'lucide-react';
 import { ReceiptData, CompanyConfig, Customer, Attachment } from '../types';
+import { ShareButton } from './ShareButton';
 import { loggerService } from '../services/loggerService.ts';
 import { useAuth } from '../contexts/AuthContext.tsx';
 import { useData } from '../contexts/DataContext.tsx';
@@ -269,7 +270,17 @@ export const ReceiptModule: React.FC = () => {
                     <button onClick={() => setViewMode('list')} className="p-2 hover:bg-gray-100 rounded-full"><ArrowLeft size={20} /></button>
                 </div>
                 <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-2"><button onClick={handleSaveReceipt} className="bg-green-600 text-white py-2 rounded-lg font-bold text-sm flex items-center justify-center gap-2 hover:bg-green-700"><Save size={16} /> حفظ</button><button onClick={() => window.print()} className="bg-jilco-900 text-white py-2 rounded-lg font-bold text-sm flex items-center justify-center gap-2 hover:bg-jilco-800"><Printer size={16} /> طباعة</button></div>
+                    <div className="grid grid-cols-3 gap-2">
+                        <button onClick={handleSaveReceipt} className="bg-green-600 text-white py-2 rounded-lg font-bold text-sm flex items-center justify-center gap-2 hover:bg-green-700"><Save size={16} /> حفظ</button>
+                        <button onClick={() => window.print()} className="bg-jilco-900 text-white py-2 rounded-lg font-bold text-sm flex items-center justify-center gap-2 hover:bg-jilco-800"><Printer size={16} /> طباعة</button>
+                        <ShareButton
+                            elementId="printable-area"
+                            fileName={`سند_قبض_${currentReceipt.number}`}
+                            documentTitle={`سند قبض رقم ${currentReceipt.number}`}
+                            recipientName={currentReceipt.receivedFrom || ''}
+                            documentType="receipt"
+                        />
+                    </div>
 
                     <div className="bg-blue-50 p-4 rounded-lg border border-blue-200 space-y-3">
                         <label className="text-xs font-bold text-blue-800 flex items-center gap-1"><Users size={14} /> ربط العميل (من قاعدة البيانات)</label>

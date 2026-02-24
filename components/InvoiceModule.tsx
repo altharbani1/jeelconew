@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Printer, FileText, Phone, Mail, QrCode, Globe, MapPin, Plus, ArrowLeft, Search, Trash2, Edit, Send, Save, User, ShoppingCart, DollarSign, Calendar, PieChart, CheckCircle2, X } from 'lucide-react';
 import { InvoiceData, QuoteItem, CompanyConfig, Customer, SupplierProduct, QuoteDetails } from '../types';
+import { ShareButton } from './ShareButton';
 import { useAuth } from '../contexts/AuthContext.tsx';
 import { loggerService } from '../services/loggerService.ts';
 import { useSales } from '../contexts/SalesContext.tsx';
@@ -218,9 +219,16 @@ export const InvoiceModule: React.FC = () => {
                 </div>
 
                 <div className="space-y-6">
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="grid grid-cols-3 gap-2">
                         <button onClick={handleSaveInvoice} className="bg-green-600 text-white py-2 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-green-700"><Save size={18} /> حفظ</button>
                         <button onClick={() => window.print()} className="bg-jilco-900 text-white py-2 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-jilco-800"><Printer size={18} /> طباعة</button>
+                        <ShareButton
+                            elementId="printable-area"
+                            fileName={`فاتورة_${currentInvoice.number}`}
+                            documentTitle={`فاتورة ضريبية رقم ${currentInvoice.number}`}
+                            recipientName={currentInvoice.customerName || ''}
+                            documentType="invoice"
+                        />
                     </div>
 
                     <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 space-y-3">
