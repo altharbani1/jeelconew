@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Wrench, Calendar, FileText, AlertTriangle, Plus, Search, Filter, Tool, CheckCircle2, Factory, Trash2, Edit } from 'lucide-react';
+import { Wrench, Calendar, FileText, AlertTriangle, Plus, Search, Filter, CheckCircle2, Factory, Trash2, Edit } from 'lucide-react';
 import { useMaintenance } from '../contexts/MaintenanceContext';
 import { useSales } from '../contexts/SalesContext';
 import { useHR } from '../contexts/HRContext';
@@ -7,8 +7,8 @@ import { MaintenanceContract, MaintenanceTicket, TicketStatus, TicketPriority, T
 
 export const MaintenanceModule: React.FC = () => {
     const { contracts, tickets, addContract, updateContract, deleteContract, addTicket, updateTicket, deleteTicket } = useMaintenance();
-    const { customers } = useSales();
-    const { employees } = useHR();
+    const { customers = [] } = useSales();
+    const { hrEmployees: employees = [] } = useHR();
 
     const [activeTab, setActiveTab] = useState<'dashboard' | 'contracts' | 'tickets'>('dashboard');
     const [searchTerm, setSearchTerm] = useState('');
