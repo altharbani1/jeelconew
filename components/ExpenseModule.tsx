@@ -2,8 +2,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Wallet, Plus, Search, Edit, Trash2, Printer, Save, ArrowLeft, Upload, FileText, X, ImageIcon, Banknote, Calendar, Download, PieChart, Filter, Eye, Paperclip, Briefcase } from 'lucide-react';
 import { Expense, ExpenseCategory, Attachment, CompanyConfig, Project, SupplierPayment, Supplier } from '../types';
-import { useData } from '../contexts/DataContext.tsx';
 import { useProject } from '../contexts/ProjectContext.tsx';
+import { usePurchase } from '../contexts/PurchaseContext.tsx';
 
 const INITIAL_CONFIG: CompanyConfig = {
     logo: null,
@@ -63,7 +63,7 @@ export const ExpenseModule: React.FC = () => {
     const {
         suppliers,
         supplierPayments
-    } = useData();
+    } = usePurchase();
     const {
         expenses: rawExpenses,
         projects,

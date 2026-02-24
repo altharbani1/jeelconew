@@ -9,6 +9,7 @@ import {
 import { useData } from '../contexts/DataContext.tsx';
 import { useSales } from '../contexts/SalesContext.tsx';
 import { useInventory } from '../contexts/InventoryContext.tsx';
+import { useProject } from '../contexts/ProjectContext.tsx';
 
 // --- Default Phases Generator ---
 const createDefaultPhases = (projectId: string): ProjectPhase[] => [
@@ -40,8 +41,9 @@ const StatusBadge = ({ status }: { status: ProjectStatus | PhaseStatus }) => {
 export const ProjectModule: React.FC = () => {
     const {
         projects, phases, expenses: allExpenses,
-        saveRecord, deleteRecordLocallyAndCloud
-    } = useData();
+        saveProjectRecord: saveRecord,
+        deleteProjectRecord: deleteRecordLocallyAndCloud
+    } = useProject();
     const { invoices: allInvoices } = useSales();
     const { supplierProducts, inventoryTransactions, saveInventoryRecord } = useInventory();
 

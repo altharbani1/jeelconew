@@ -7,6 +7,8 @@ import {
 import { Supplier, SupplierProduct, PurchaseInvoice, SupplierPayment, QuoteItem, Attachment, Project, CompanyConfig } from '../types';
 import { useData } from '../contexts/DataContext.tsx';
 import { useInventory } from '../contexts/InventoryContext.tsx';
+import { usePurchase } from '../contexts/PurchaseContext.tsx';
+import { useProject } from '../contexts/ProjectContext.tsx';
 
 type PurchaseTab = 'suppliers' | 'products' | 'invoices' | 'payments' | 'statement';
 
@@ -39,10 +41,11 @@ export const PurchaseModule: React.FC = () => {
     suppliers,
     purchaseInvoices: invoices,
     supplierPayments: payments,
-    projects,
-    saveRecord, deleteRecordLocallyAndCloud
-  } = useData();
+    savePurchaseRecord: saveRecord,
+    deletePurchaseRecord: deleteRecordLocallyAndCloud
+  } = usePurchase();
 
+  const { projects } = useProject();
   const { supplierProducts: products, saveInventoryRecord } = useInventory();
 
   const [activeTab, setActiveTab] = useState<PurchaseTab>('invoices');
