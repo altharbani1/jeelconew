@@ -123,8 +123,12 @@ export const CustomerModule: React.FC = () => {
         const subtotal = i.items.reduce((s: number, it: any) => s + it.total, 0);
         const discount = i.discountAmount || 0;
         const afterDiscount = Math.max(0, subtotal - discount);
-        const tax = afterDiscount * 0.15;
-        debit = afterDiscount + tax;
+        if (i.isTaxInclusive) {
+          debit = afterDiscount; // السعر بالفعل شامل الضريبة، لا نضيف ضريبة أخرى
+        } else {
+          const tax = afterDiscount * 0.15;
+          debit = afterDiscount + tax;
+        }
       }
 
       return {

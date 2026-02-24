@@ -103,7 +103,29 @@ export const InvoiceModule: React.FC = () => {
         if (!currentInvoice.customerName) return alert('يرجى اختيار العميل');
         if (currentInvoice.items.length === 0) return alert('يرجى إضافة بند واحد على الأقل');
 
-        await saveSalesRecord('jilco_invoices_archive', currentInvoice.number, currentInvoice);
+        const calcSubtotal = currentInvoice.items.reduce((s, i) => s + i.total, 0);
+        const calcDiscount = currentInvoice.discountAmount || 0;
+        let calcTax = 0;
+        let calcGrandTotal = 0;
+
+        if (currentInvoice.isTaxInclusive) {
+            const baseAmount = (calcSubtotal - calcDiscount) / 1.15;
+            calcTax = (calcSubtotal - calcDiscount) - baseAmount;
+            calcGrandTotal = Math.max(0, calcSubtotal - calcDiscount);
+        } else {
+            const baseAmount = calcSubtotal - calcDiscount;
+            calcTax = baseAmount * 0.15;
+            calcGrandTotal = Math.max(0, baseAmount + calcTax);
+        }
+
+        const invoiceToSave = {
+            ...currentInvoice,
+            subtotal: calcSubtotal,
+            taxAmount: calcTax,
+            grandTotal: calcGrandTotal
+        };
+
+        await saveSalesRecord('jilco_invoices_archive', currentInvoice.number, invoiceToSave);
 
         const exists = invoices.find(i => i.number === currentInvoice.number);
         if (exists) {
