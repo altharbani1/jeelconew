@@ -1,12 +1,13 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Printer, Banknote, Building, AlertCircle, Search, Plus, Edit, Trash2, ArrowLeft, Save, Send, Download, User, Phone, Mail, MapPin, Globe, Upload, ImageIcon, FileText, X, Paperclip, PieChart, Filter, Users } from 'lucide-react';
+import { Printer, Banknote, Building, AlertCircle, Search, Plus, Edit, Trash2, ArrowLeft, Save, Send, Download, User, Phone, Mail, MapPin, Globe, Upload, ImageIcon, FileText, X, Paperclip, PieChart, Filter, Users, Wrench } from 'lucide-react';
 import { ReceiptData, CompanyConfig, Customer, Attachment } from '../types';
 import { ShareButton } from './ShareButton';
 import { loggerService } from '../services/loggerService.ts';
 import { useAuth } from '../contexts/AuthContext.tsx';
 import { useData } from '../contexts/DataContext.tsx';
 import { useSales } from '../contexts/SalesContext.tsx';
+import { useMaintenance } from '../contexts/MaintenanceContext.tsx';
 
 // --- Helper: Arabic Number to Words (Tafqit) ---
 const tafqit = (number: number): string => {
@@ -81,6 +82,7 @@ export const ReceiptModule: React.FC = () => {
         receipts, customers,
         saveSalesRecord, deleteSalesRecord
     } = useSales();
+    const { contracts, tickets } = useMaintenance();
 
     const [viewMode, setViewMode] = useState<'list' | 'editor' | 'statement'>('list');
     const [searchTerm, setSearchTerm] = useState('');
@@ -304,6 +306,30 @@ export const ReceiptModule: React.FC = () => {
                         <select onChange={handleCustomerSelect} className="w-full p-2 border border-gray-400 rounded-lg bg-white font-bold text-sm outline-none">
                             <option value="">-- اختر عميل مسجل --</option>
                             {customers.map(c => <option key={c.id} value={c.id}>{c.fullName}</option>)}
+                        </select>
+                    </div>
+
+                    <div className="bg-orange-50 p-4 rounded-lg border border-orange-200 space-y-3">
+                        <label className="text-xs font-bold text-orange-800 flex items-center gap-1"><Wrench size={14} /> ربط الصيانة والتذاكر تلقائياً</label>
+                        <select onChange={(e) => {
+                            const contract = contracts.find(c => c.id === e.target.value);
+                            if (contract) {
+                                const customer = customers.find(c => c.id === contract.customerId);
+                                setCurrentReceipt(prev => ({ ...prev, receivedFrom: customer?.fullName || prev.receivedFrom, amount: contract.amount, forReason: `دفعة تخص عقد صيانة مصاعد رقم: ${contract.number}` }));
+                            }
+                        }} className="w-full p-2 border border-gray-400 rounded-lg bg-white font-bold text-sm outline-none mb-2">
+                            <option value="">-- دمج عقد صيانة --</option>
+                            {contracts.map(c => <option key={c.id} value={c.id}>عقد {c.number} ({customers.find(cust => cust.id === c.customerId)?.fullName})</option>)}
+                        </select>
+                        <select onChange={(e) => {
+                            const ticket = tickets.find(c => c.id === e.target.value);
+                            if (ticket) {
+                                const customer = customers.find(c => c.id === ticket.customerId);
+                                setCurrentReceipt(prev => ({ ...prev, receivedFrom: customer?.fullName || prev.receivedFrom, forReason: `سداد طلب صيانة/עطل تذكرة رقم: ${ticket.number}\n${ticket.description || ''}` }));
+                            }
+                        }} className="w-full p-2 border border-gray-400 rounded-lg bg-white font-bold text-sm outline-none">
+                            <option value="">-- دمج تذكرة عطل --</option>
+                            {tickets.map(t => <option key={t.id} value={t.id}>تذكرة {t.number} ({customers.find(cust => cust.id === t.customerId)?.fullName})</option>)}
                         </select>
                     </div>
 

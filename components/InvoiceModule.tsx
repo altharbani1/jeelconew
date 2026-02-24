@@ -1,11 +1,12 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Printer, FileText, Phone, Mail, QrCode, Globe, MapPin, Plus, ArrowLeft, Search, Trash2, Edit, Send, Save, User, ShoppingCart, DollarSign, Calendar, PieChart, CheckCircle2, X } from 'lucide-react';
+import { Printer, FileText, Phone, Mail, QrCode, Globe, MapPin, Plus, ArrowLeft, Search, Trash2, Edit, Send, Save, User, ShoppingCart, DollarSign, Calendar, PieChart, CheckCircle2, X, Wrench } from 'lucide-react';
 import { InvoiceData, QuoteItem, CompanyConfig, Customer, SupplierProduct, QuoteDetails } from '../types';
 import { ShareButton } from './ShareButton';
 import { useAuth } from '../contexts/AuthContext.tsx';
 import { loggerService } from '../services/loggerService.ts';
 import { useSales } from '../contexts/SalesContext.tsx';
+import { useMaintenance } from '../contexts/MaintenanceContext.tsx';
 
 // --- Tafqit Helper ---
 const tafqit = (number: number): string => {
@@ -50,6 +51,7 @@ export const InvoiceModule: React.FC = () => {
         invoices, customers, quotes: savedQuotes,
         saveSalesRecord, deleteSalesRecord
     } = useSales();
+    const { contracts, tickets } = useMaintenance();
 
     const [viewMode, setViewMode] = useState<'list' | 'editor' | 'statement'>('list');
     const [searchTerm, setSearchTerm] = useState('');
@@ -287,6 +289,54 @@ export const InvoiceModule: React.FC = () => {
                                 ))}
                             </div>
                         )}
+                    </div>
+
+                    <div className="bg-orange-50 p-4 rounded-lg border border-orange-200 space-y-3">
+                        <label className="text-xs font-bold text-orange-800 flex items-center gap-1"><Wrench size={14} /> استيراد بنود صيانة (تلقائي)</label>
+                        <select onChange={(e) => {
+                            const contract = contracts.find(c => c.id === e.target.value);
+                            if (contract) {
+                                const customer = customers.find(c => c.id === contract.customerId);
+                                setCurrentInvoice(prev => ({
+                                    ...prev,
+                                    customerName: customer?.fullName || prev.customerName,
+                                    customerVatNumber: customer?.vatNumber || prev.customerVatNumber,
+                                    items: [{
+                                        id: 'contract-' + Date.now(),
+                                        description: `عقد صيانة مصعد الدورية رقم ${contract.number}`,
+                                        details: `صيانة مصعد لعدد ${contract.visitsPerYear} زيارات - تاريخ التغطية: ${contract.startDate} إلى ${contract.endDate}`,
+                                        quantity: 1,
+                                        unitPrice: contract.amount,
+                                        total: contract.amount
+                                    }]
+                                }));
+                            }
+                        }} className="w-full p-2 border border-orange-300 rounded-lg bg-white font-bold text-sm outline-none mb-2 focus:ring-1 focus:ring-orange-500">
+                            <option value="">-- استيراد من عقد صيانة --</option>
+                            {contracts.map(c => <option key={c.id} value={c.id}>عقد {c.number} ({customers.find(cust => cust.id === c.customerId)?.fullName})</option>)}
+                        </select>
+                        <select onChange={(e) => {
+                            const ticket = tickets.find(t => t.id === e.target.value);
+                            if (ticket) {
+                                const customer = customers.find(c => c.id === ticket.customerId);
+                                setCurrentInvoice(prev => ({
+                                    ...prev,
+                                    customerName: customer?.fullName || prev.customerName,
+                                    customerVatNumber: customer?.vatNumber || prev.customerVatNumber,
+                                    items: [{
+                                        id: 'ticket-' + Date.now(),
+                                        description: `فاتورة إصلاح / تذكرة صيانة رقم ${ticket.number}`,
+                                        details: ticket.description || 'أجور الإصلاح وقطع الغيار',
+                                        quantity: 1,
+                                        unitPrice: 0,
+                                        total: 0
+                                    }]
+                                }));
+                            }
+                        }} className="w-full p-2 border border-orange-300 rounded-lg bg-white font-bold text-sm outline-none focus:ring-1 focus:ring-orange-500">
+                            <option value="">-- استيراد من تذكرة أعطال --</option>
+                            {tickets.map(t => <option key={t.id} value={t.id}>تذكرة {t.number} ({customers.find(cust => cust.id === t.customerId)?.fullName})</option>)}
+                        </select>
                     </div>
 
                     <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 space-y-3">

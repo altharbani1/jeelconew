@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Wrench, Calendar, FileText, AlertTriangle, Plus, Search, Filter, CheckCircle2, Factory, Trash2, Edit } from 'lucide-react';
+import { Wrench, Calendar, FileText, AlertTriangle, Plus, Search, Filter, CheckCircle2, Factory, Trash2, Edit, Printer } from 'lucide-react';
 import { useMaintenance } from '../contexts/MaintenanceContext';
 import { useSales } from '../contexts/SalesContext';
 import { useHR } from '../contexts/HRContext';
@@ -12,6 +12,7 @@ export const MaintenanceModule: React.FC = () => {
 
     const [activeTab, setActiveTab] = useState<'dashboard' | 'contracts' | 'tickets'>('dashboard');
     const [searchTerm, setSearchTerm] = useState('');
+    const [printingContract, setPrintingContract] = useState<MaintenanceContract | null>(null);
 
     // --- Contract State ---
     const [showContractCreator, setShowContractCreator] = useState(false);
@@ -116,6 +117,7 @@ export const MaintenanceModule: React.FC = () => {
                             <td className="p-4 font-black text-green-700">{contract.amount.toLocaleString()}</td>
                             <td className="p-4"><span className={`px-2 py-1 rounded text-[10px] font-bold ${contract.status === 'active' ? 'bg-green-100 text-green-700' : contract.status === 'expired' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-700'}`}>{contract.status === 'active' ? 'ساري' : contract.status === 'expired' ? 'منتهي' : 'ملغي'}</span></td>
                             <td className="p-4 flex gap-2 justify-center">
+                                <button onClick={() => { setPrintingContract(contract as MaintenanceContract); setTimeout(() => window.print(), 300); }} className="p-1.5 text-gray-600 hover:bg-gray-50 rounded" title="طباعة العقد"><Printer size={16} /></button>
                                 <button onClick={() => { setCurrentContract(contract); setShowContractCreator(true); }} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded" title="تعديل"><Edit size={16} /></button>
                                 <button onClick={() => { if (window.confirm('هل أنت متأكد من حذف العقد؟')) deleteContract(contract.id); }} className="p-1.5 text-red-500 hover:bg-red-50 rounded" title="حذف"><Trash2 size={16} /></button>
                             </td>
@@ -311,6 +313,76 @@ export const MaintenanceModule: React.FC = () => {
                             </div>
 
                             <button onClick={handleSaveTicket} className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3.5 rounded-xl shadow-lg transition-all active:scale-95">تأكيد تذكرة الصيانة</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* قـالـب طـبـاعـة عـقـد الـصـيـانـة */}
+            {printingContract && (
+                <div className="hidden print:block fixed inset-0 bg-white z-[99999] overflow-visible">
+                    <div className="max-w-[210mm] min-h-[297mm] mx-auto p-12 bg-white text-right" dir="rtl">
+                        <div className="border-b-4 border-jilco-900 pb-6 mb-8 flex justify-between items-start">
+                            <div>
+                                <h1 className="text-4xl font-black text-jilco-900 tracking-tight">عقد صـيـانـة مـصـاعـد</h1>
+                                <p className="text-xl text-gray-600 font-bold mt-2">Maintenance Contract</p>
+                            </div>
+                            <div className="text-left">
+                                <h2 className="text-2xl font-black text-jilco-900">شركة جيلكو للمصاعد</h2>
+                                <p className="text-gray-600 font-bold mt-1">الرقم الضريبي: 311029107900003</p>
+                                <p className="text-gray-500 text-sm mt-1">www.jilco.com.sa</p>
+                            </div>
+                        </div>
+
+                        <div className="mb-8 grid grid-cols-2 gap-8 bg-gray-50 p-6 rounded-2xl border border-gray-200">
+                            <div>
+                                <p className="text-sm text-gray-500 font-bold mb-1">بيانات العقد</p>
+                                <p className="font-bold text-lg text-jilco-900">رقم العقد: {printingContract.number}</p>
+                                <p className="font-bold">تاريخ البداية: {printingContract.startDate}</p>
+                                <p className="font-bold text-red-600">تاريخ الانتهاء: {printingContract.endDate}</p>
+                                <p className="font-bold">عدد الزيارات الدورية: {printingContract.visitsPerYear} زيارات/سنوياً</p>
+                            </div>
+                            <div>
+                                <p className="text-sm text-gray-500 font-bold mb-1">بيانات العميل (الطرف الثاني)</p>
+                                <p className="font-bold text-lg text-jilco-900">{getCustomerName(printingContract.customerId)}</p>
+                                {customers.find(c => c.id === printingContract.customerId)?.phone && <p className="font-bold" style={{ direction: 'ltr', textAlign: 'right' }}>{customers.find(c => c.id === printingContract.customerId)?.phone}</p>}
+                                <p className="font-bold text-gray-600">{customers.find(c => c.id === printingContract.customerId)?.address}</p>
+                            </div>
+                        </div>
+
+                        <div className="space-y-6 mb-12">
+                            <h3 className="text-xl font-black text-jilco-900 border-b-2 border-gray-100 pb-2">بنود وشروط العقد:</h3>
+                            <div className="text-sm leading-8 text-gray-800 font-bold space-y-4">
+                                <p>1. يلتزم الطرف الأول (شركة جيلكو للمصاعد) بإجراء الصيانة الوقائية الدورية للمصعد التابع للطرف الثاني حسب عدد الزيارات المحددة أعلاه.</p>
+                                <p>2. تشمل هذه الصيانة الفحص الظاهري والميكانيكي والكهربائي وتزييت وتشحيم وتنظيف الأجزاء اللازمة.</p>
+                                <p>3. يلتزم الطرف الأول بتلبية استدعاءات الأعطال الطارئة في أسرع وقت ممكن خلال أوقات الدوام الرسمي، وتغطية الحالات الحرجة فوراً.</p>
+                                <p>4. هذا العقد <span className="font-black text-red-600 uppercase">لا يشمل</span> قيمة قطع الغيار التالفة أو التي تحتاج للاستبدال، ويتم إصدار فاتورة مستقلة بأسعارها للطرف الثاني للموافقة عليها قبل التركيب.</p>
+                                <p>5. قيمة العقد الإجمالية المتفق عليها هي: <span className="font-black text-xl bg-yellow-100 px-2 rounded">{printingContract.amount.toLocaleString()} ريال سعودي</span> (غير شاملة ضريبة القيمة المضافة إن وجدت).</p>
+                                {printingContract.notes && (
+                                    <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-xl">
+                                        <p className="font-black text-blue-900 mb-2">شروط إضافية خاصة:</p>
+                                        <p className="whitespace-pre-wrap">{printingContract.notes}</p>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-16 mt-20">
+                            <div className="text-center">
+                                <p className="font-black text-lg text-jilco-900 mb-12">الطرف الأول (الشركة)</p>
+                                <div className="border-b-2 border-dashed border-gray-300 w-48 mx-auto mb-2"></div>
+                                <p className="text-sm text-gray-500 font-bold">التوقيع والختم</p>
+                            </div>
+                            <div className="text-center">
+                                <p className="font-black text-lg text-jilco-900 mb-12">الطرف الثاني (العميل)</p>
+                                <div className="border-b-2 border-dashed border-gray-300 w-48 mx-auto mb-2"></div>
+                                <p className="text-sm text-gray-500 font-bold">{getCustomerName(printingContract.customerId)}</p>
+                            </div>
+                        </div>
+
+                        <div className="mt-20 text-center border-t border-gray-200 pt-6 text-sm text-gray-500 font-bold flex justify-between">
+                            <span>طُبع بواسطة نظام جيلكو الإلكتروني</span>
+                            <span>التاريخ: {new Date().toLocaleDateString('ar-SA')}</span>
                         </div>
                     </div>
                 </div>
