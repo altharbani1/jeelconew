@@ -729,7 +729,7 @@ export const PurchaseModule: React.FC = () => {
     });
 
     return (
-      <div className="space-y-4">
+      <div className="space-y-4 print:space-y-0 print:p-0 print:m-0 print:bg-white text-right">
         {/* Controls Bar */}
         <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex items-center gap-4 print:hidden">
           <label className="font-bold text-gray-700 shrink-0">اختر المورد:</label>

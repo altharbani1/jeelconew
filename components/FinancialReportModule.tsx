@@ -109,8 +109,8 @@ export const FinancialReportModule: React.FC = () => {
     const toggle = (s: string) => setExpandedSection(prev => prev === s ? null : s);
 
     return (
-        <div className="flex-1 bg-gray-100 p-8 overflow-auto h-full animate-fade-in">
-            <div className="max-w-6xl mx-auto">
+        <div className="flex-1 bg-gray-100 p-8 overflow-auto h-full animate-fade-in print:bg-white print:p-0 print:overflow-visible print:h-auto print:block">
+            <div className="max-w-6xl mx-auto print:max-w-none print:w-full">
 
                 {/* Header */}
                 <div className="flex justify-between items-center mb-8 print:hidden">
@@ -147,7 +147,7 @@ export const FinancialReportModule: React.FC = () => {
                 </div>
 
                 {/* ===== PRINTABLE REPORT ===== */}
-                <div id="pl-report" className="space-y-6 print:space-y-4">
+                <div id="pl-report" className="space-y-6 print:space-y-0 print:block">
 
                     {/* Print Header */}
                     <div className="hidden print:flex justify-between items-center pb-4 border-b-2 border-jilco-900 mb-4">

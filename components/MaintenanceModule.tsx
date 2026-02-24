@@ -320,8 +320,8 @@ export const MaintenanceModule: React.FC = () => {
 
             {/* قـالـب طـبـاعـة عـقـد الـصـيـانـة */}
             {printingContract && (
-                <div className="hidden print:block fixed inset-0 bg-white z-[99999] overflow-visible">
-                    <div className="max-w-[210mm] min-h-[297mm] mx-auto p-12 bg-white text-right" dir="rtl">
+                <div className="hidden print:block fixed inset-0 bg-white z-[99999] overflow-visible print:static print:h-auto">
+                    <div className="max-w-[210mm] min-h-[297mm] mx-auto p-12 bg-white text-right print:shadow-none print:m-0 print:w-full" dir="rtl">
                         <div className="border-b-4 border-jilco-900 pb-6 mb-8 flex justify-between items-start">
                             <div>
                                 <h1 className="text-4xl font-black text-jilco-900 tracking-tight">عقد صـيـانـة مـصـاعـد</h1>
@@ -367,7 +367,7 @@ export const MaintenanceModule: React.FC = () => {
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-16 mt-20">
+                        <div className="grid grid-cols-2 gap-16 mt-20 print:break-inside-avoid">
                             <div className="text-center">
                                 <p className="font-black text-lg text-jilco-900 mb-12">الطرف الأول (الشركة)</p>
                                 <div className="border-b-2 border-dashed border-gray-300 w-48 mx-auto mb-2"></div>
