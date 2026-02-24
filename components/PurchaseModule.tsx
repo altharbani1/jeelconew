@@ -677,6 +677,130 @@ export const PurchaseModule: React.FC = () => {
     </div>
   );
 
+  const renderStatement = () => {
+    const supplier = suppliers.find(s => s.id === statementSupplierId);
+    const supplierInvoices = invoices.filter(i => i.supplierId === statementSupplierId);
+    const supplierPayments = payments.filter(p => p.supplierId === statementSupplierId);
+    const totalInvoices = supplierInvoices.reduce((s, i) => s + i.grandTotal, 0);
+    const totalPaid = supplierPayments.reduce((s, p) => s + p.amount, 0);
+    const balance = totalInvoices - totalPaid;
+
+    return (
+      <div className="space-y-4">
+        {/* Supplier Selector */}
+        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex items-center gap-4">
+          <label className="font-bold text-gray-700 shrink-0">اختر المورد:</label>
+          <select
+            title="اختر المورد لعرض كشف حسابه"
+            value={statementSupplierId}
+            onChange={e => setStatementSupplierId(e.target.value)}
+            className="flex-1 max-w-md p-2 border border-gray-400 rounded-lg font-bold bg-white text-black"
+          >
+            <option value="">-- اختر مورداً --</option>
+            {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+          </select>
+        </div>
+
+        {statementSupplierId && supplier && (
+          <>
+            {/* Summary Cards */}
+            <div className="grid grid-cols-3 gap-4">
+              <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm text-center">
+                <p className="text-xs font-bold text-gray-500 mb-1">إجمالي المشتريات</p>
+                <p className="text-2xl font-black text-jilco-900">{totalInvoices.toLocaleString()}</p>
+                <p className="text-xs text-gray-400">ريال</p>
+              </div>
+              <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm text-center">
+                <p className="text-xs font-bold text-gray-500 mb-1">إجمالي المدفوعات</p>
+                <p className="text-2xl font-black text-green-600">{totalPaid.toLocaleString()}</p>
+                <p className="text-xs text-gray-400">ريال</p>
+              </div>
+              <div className={`p-4 rounded-xl border shadow-sm text-center ${balance > 0 ? 'bg-red-50 border-red-200' : 'bg-green-50 border-green-200'}`}>
+                <p className="text-xs font-bold text-gray-500 mb-1">الرصيد المستحق</p>
+                <p className={`text-2xl font-black ${balance > 0 ? 'text-red-600' : 'text-green-600'}`}>{Math.abs(balance).toLocaleString()}</p>
+                <p className="text-xs text-gray-400">{balance > 0 ? 'مستحق للمورد' : 'دفع زائد'}</p>
+              </div>
+            </div>
+
+            {/* Invoices Table */}
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+              <div className="p-4 border-b bg-gray-50">
+                <h3 className="font-bold text-gray-800">فواتير الشراء ({supplierInvoices.length})</h3>
+              </div>
+              <table className="w-full text-sm text-right">
+                <thead className="bg-gray-50 text-gray-500">
+                  <tr>
+                    <th className="p-3">رقم الفاتورة</th>
+                    <th className="p-3">التاريخ</th>
+                    <th className="p-3">المشروع</th>
+                    <th className="p-3 text-center">الإجمالي</th>
+                    <th className="p-3 text-center">الحالة</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {supplierInvoices.map(inv => (
+                    <tr key={inv.id} className="hover:bg-gray-50">
+                      <td className="p-3 font-mono font-bold text-gray-800">{inv.number}</td>
+                      <td className="p-3 font-mono text-xs text-gray-500">{inv.date}</td>
+                      <td className="p-3 text-xs text-gray-500">{inv.projectName || '-'}</td>
+                      <td className="p-3 text-center font-black text-jilco-900">{inv.grandTotal.toLocaleString()}</td>
+                      <td className="p-3 text-center">
+                        <span className={`px-2 py-1 rounded text-xs font-bold ${inv.status === 'paid' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
+                          {inv.status === 'paid' ? 'مدفوعة' : 'مستحقة'}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                  {supplierInvoices.length === 0 && <tr><td colSpan={5} className="p-6 text-center text-gray-400">لا توجد فواتير</td></tr>}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Payments Table */}
+            <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+              <div className="p-4 border-b bg-gray-50">
+                <h3 className="font-bold text-gray-800">المدفوعات ({supplierPayments.length})</h3>
+              </div>
+              <table className="w-full text-sm text-right">
+                <thead className="bg-gray-50 text-gray-500">
+                  <tr>
+                    <th className="p-3">رقم السند</th>
+                    <th className="p-3">التاريخ</th>
+                    <th className="p-3">طريقة الدفع</th>
+                    <th className="p-3 text-center">المبلغ</th>
+                    <th className="p-3">ملاحظات</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {supplierPayments.map(pay => (
+                    <tr key={pay.id} className="hover:bg-gray-50">
+                      <td className="p-3 font-mono font-bold text-gray-800">PV-{pay.id.slice(-6)}</td>
+                      <td className="p-3 font-mono text-xs text-gray-500">{pay.date}</td>
+                      <td className="p-3 text-xs">{pay.method === 'cash' ? 'نقد' : pay.method === 'check' ? 'شيك' : 'تحويل'}</td>
+                      <td className="p-3 text-center font-black text-green-600">{pay.amount.toLocaleString()}</td>
+                      <td className="p-3 text-xs text-gray-500">{pay.notes || '-'}</td>
+                    </tr>
+                  ))}
+                  {supplierPayments.length === 0 && <tr><td colSpan={5} className="p-6 text-center text-gray-400">لا توجد مدفوعات</td></tr>}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
+
+        {statementSupplierId && !supplier && (
+          <div className="text-center text-gray-400 p-12">المورد غير موجود</div>
+        )}
+
+        {!statementSupplierId && (
+          <div className="text-center text-gray-400 p-12 bg-white rounded-xl border border-gray-200">
+            اختر مورداً من القائمة أعلاه لعرض كشف حسابه
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="flex-1 bg-gray-100 p-8 overflow-auto h-full animate-fade-in">
       <div className="max-w-7xl mx-auto">
@@ -690,9 +814,10 @@ export const PurchaseModule: React.FC = () => {
         </div>
 
         {/* Tabs */}
-        <div className="flex bg-white rounded-xl shadow-sm border border-gray-200 mb-6 overflow-hidden max-w-3xl">
+        <div className="flex bg-white rounded-xl shadow-sm border border-gray-200 mb-6 overflow-hidden">
           <button onClick={() => setActiveTab('invoices')} className={`flex-1 py-3 text-sm font-bold flex justify-center items-center gap-2 transition-colors ${activeTab === 'invoices' ? 'bg-jilco-50 text-jilco-800 border-b-4 border-jilco-600' : 'text-gray-500 hover:bg-gray-50'}`}><FileText size={16} /> فواتير الشراء</button>
           <button onClick={() => setActiveTab('payments')} className={`flex-1 py-3 text-sm font-bold flex justify-center items-center gap-2 transition-colors ${activeTab === 'payments' ? 'bg-jilco-50 text-jilco-800 border-b-4 border-jilco-600' : 'text-gray-500 hover:bg-gray-50'}`}><Banknote size={16} /> المدفوعات</button>
+          <button onClick={() => setActiveTab('statement')} className={`flex-1 py-3 text-sm font-bold flex justify-center items-center gap-2 transition-colors ${activeTab === 'statement' ? 'bg-jilco-50 text-jilco-800 border-b-4 border-jilco-600' : 'text-gray-500 hover:bg-gray-50'}`}><CreditCard size={16} /> كشف الحساب</button>
           <button onClick={() => setActiveTab('suppliers')} className={`flex-1 py-3 text-sm font-bold flex justify-center items-center gap-2 transition-colors ${activeTab === 'suppliers' ? 'bg-jilco-50 text-jilco-800 border-b-4 border-jilco-600' : 'text-gray-500 hover:bg-gray-50'}`}><Users size={16} /> الموردين</button>
           <button onClick={() => setActiveTab('products')} className={`flex-1 py-3 text-sm font-bold flex justify-center items-center gap-2 transition-colors ${activeTab === 'products' ? 'bg-jilco-50 text-jilco-800 border-b-4 border-jilco-600' : 'text-gray-500 hover:bg-gray-50'}`}><Package size={16} /> المنتجات</button>
         </div>
@@ -702,6 +827,7 @@ export const PurchaseModule: React.FC = () => {
         {activeTab === 'products' && renderProducts()}
         {activeTab === 'invoices' && renderInvoices()}
         {activeTab === 'payments' && renderPayments()}
+        {activeTab === 'statement' && renderStatement()}
       </div>
 
       {/* Modals */}
