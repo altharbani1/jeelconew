@@ -203,7 +203,7 @@ export const InvoiceModule: React.FC = () => {
                         <div className="p-4 border-b border-gray-100 flex gap-4">
                             <div className="relative flex-1">
                                 <Search className="absolute right-3 top-2.5 text-gray-400" size={18} />
-                                <input type="text" placeholder="بحث برقم الفاتورة أو اسم العميل..." className="w-full pr-10 pl-4 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-jilco-500 outline-none" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+                                <input title="بحث" type="text" placeholder="بحث برقم الفاتورة أو اسم العميل..." className="w-full pr-10 pl-4 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-jilco-500 outline-none" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
                             </div>
                         </div>
                         <table className="w-full text-sm text-right">
@@ -278,7 +278,7 @@ export const InvoiceModule: React.FC = () => {
             <div className="w-full lg:w-1/3 bg-white border-l border-gray-200 h-full overflow-y-auto p-6 no-print shadow-lg z-10">
                 <div className="mb-6 flex items-center justify-between border-b border-gray-100 pb-4">
                     <h2 className="text-xl font-bold text-jilco-900 flex items-center gap-2"><FileText className="text-blue-600" /> محرر الفاتورة</h2>
-                    <button onClick={() => setViewMode('list')} className="p-2 hover:bg-gray-100 rounded-full"><ArrowLeft size={20} /></button>
+                    <button title="رجوع" onClick={() => setViewMode('list')} className="p-2 hover:bg-gray-100 rounded-full"><ArrowLeft size={20} /></button>
                 </div>
 
                 <div className="space-y-6">
@@ -296,7 +296,7 @@ export const InvoiceModule: React.FC = () => {
 
                     <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 space-y-3">
                         <label className="text-xs font-bold text-gray-700">بيانات العميل</label>
-                        <select onChange={handleCustomerSelect} className="w-full p-2 border rounded text-sm bg-white font-bold text-black" defaultValue="">
+                        <select title="اختيار العميل" onChange={handleCustomerSelect} className="w-full p-2 border rounded text-sm bg-white font-bold text-black" defaultValue="">
                             <option value="" disabled>-- اختر عميل مسجل --</option>
                             {customers.map(c => <option key={c.id} value={c.id}>{c.fullName}</option>)}
                         </select>
@@ -315,7 +315,7 @@ export const InvoiceModule: React.FC = () => {
 
                     <div className="bg-orange-50 p-4 rounded-lg border border-orange-200 space-y-3">
                         <label className="text-xs font-bold text-orange-800 flex items-center gap-1"><Wrench size={14} /> استيراد بنود صيانة (تلقائي)</label>
-                        <select onChange={(e) => {
+                        <select title="استيراد من عقد صيانة" onChange={(e) => {
                             const contract = contracts.find(c => c.id === e.target.value);
                             if (contract) {
                                 const customer = customers.find(c => c.id === contract.customerId);
@@ -337,7 +337,7 @@ export const InvoiceModule: React.FC = () => {
                             <option value="">-- استيراد من عقد صيانة --</option>
                             {contracts.map(c => <option key={c.id} value={c.id}>عقد {c.number} ({customers.find(cust => cust.id === c.customerId)?.fullName})</option>)}
                         </select>
-                        <select onChange={(e) => {
+                        <select title="استيراد من تذكرة أعطال" onChange={(e) => {
                             const ticket = tickets.find(t => t.id === e.target.value);
                             if (ticket) {
                                 const customer = customers.find(c => c.id === ticket.customerId);
@@ -365,21 +365,22 @@ export const InvoiceModule: React.FC = () => {
                         <div className="grid grid-cols-2 gap-3">
                             <div>
                                 <label className="block text-[10px] font-bold text-gray-500 mb-1">رقم الفاتورة</label>
-                                <input type="text" value={currentInvoice.number} onChange={e => setCurrentInvoice({ ...currentInvoice, number: e.target.value })} className="w-full p-2 border rounded text-sm bg-white font-bold" />
+                                <input title="رقم الفاتورة" placeholder="رقم الفاتورة" type="text" value={currentInvoice.number} onChange={e => setCurrentInvoice({ ...currentInvoice, number: e.target.value })} className="w-full p-2 border rounded text-sm bg-white font-bold" />
                             </div>
                             <div>
                                 <label className="block text-[10px] font-bold text-gray-500 mb-1">التاريخ</label>
-                                <input type="date" value={currentInvoice.date} onChange={e => setCurrentInvoice({ ...currentInvoice, date: e.target.value })} className="w-full p-2 border rounded text-sm bg-white font-bold" />
+                                <input title="التاريخ" type="date" value={currentInvoice.date} onChange={e => setCurrentInvoice({ ...currentInvoice, date: e.target.value })} className="w-full p-2 border rounded text-sm bg-white font-bold" />
                             </div>
                         </div>
                         <div className="grid grid-cols-2 gap-3 mt-3">
                             <div>
                                 <label className="block text-[10px] font-bold text-gray-500 mb-1">خصم مكتسب (مبلغ مالي)</label>
-                                <input type="number" min="0" value={currentInvoice.discountAmount || ''} onChange={e => setCurrentInvoice({ ...currentInvoice, discountAmount: parseFloat(e.target.value) || 0 })} className="w-full p-2 border rounded text-sm bg-white font-bold" placeholder="مثال: 500" />
+                                <input title="خصم مكتسب" type="number" min="0" value={currentInvoice.discountAmount || ''} onChange={e => setCurrentInvoice({ ...currentInvoice, discountAmount: parseFloat(e.target.value) || 0 })} className="w-full p-2 border rounded text-sm bg-white font-bold" placeholder="مثال: 500" />
                             </div>
                             <div className="flex items-end pb-1">
                                 <label className="flex items-center gap-2 cursor-pointer bg-white p-2 w-full border border-gray-200 rounded text-sm font-bold shadow-sm transition-all hover:bg-gray-50">
                                     <input
+                                        title="تفعيل الضريبة"
                                         type="checkbox"
                                         checked={currentInvoice.isTaxInclusive ?? false}
                                         onChange={e => setCurrentInvoice({ ...currentInvoice, isTaxInclusive: e.target.checked })}
@@ -394,10 +395,10 @@ export const InvoiceModule: React.FC = () => {
                     <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
                         <h3 className="text-xs font-bold text-gray-700 mb-4">إضافة أصناف يدوياً</h3>
                         <div className="space-y-3">
-                            <input type="text" placeholder="اسم الصنف / الوصف" value={currentItem.description} onChange={e => setCurrentItem({ ...currentItem, description: e.target.value })} className="w-full p-2 border rounded text-sm bg-white font-bold" />
+                            <input title="اسم الصنف / الوصف" type="text" placeholder="اسم الصنف / الوصف" value={currentItem.description} onChange={e => setCurrentItem({ ...currentItem, description: e.target.value })} className="w-full p-2 border rounded text-sm bg-white font-bold" />
                             <div className="grid grid-cols-2 gap-3">
-                                <input type="number" placeholder="الكمية" value={currentItem.quantity} onChange={e => setCurrentItem({ ...currentItem, quantity: parseFloat(e.target.value) || 1 })} className="p-2 border rounded text-sm text-center bg-white font-bold" />
-                                <input type="number" placeholder="سعر الوحدة" value={currentItem.unitPrice} onChange={e => setCurrentItem({ ...currentItem, unitPrice: parseFloat(e.target.value) || 0 })} className="p-2 border rounded text-sm text-center bg-white font-bold" />
+                                <input title="الكمية" type="number" placeholder="الكمية" value={currentItem.quantity} onChange={e => setCurrentItem({ ...currentItem, quantity: parseFloat(e.target.value) || 1 })} className="p-2 border rounded text-sm text-center bg-white font-bold" />
+                                <input title="سعر الوحدة" type="number" placeholder="سعر الوحدة" value={currentItem.unitPrice} onChange={e => setCurrentItem({ ...currentItem, unitPrice: parseFloat(e.target.value) || 0 })} className="p-2 border rounded text-sm text-center bg-white font-bold" />
                             </div>
                             <button
                                 onClick={() => {
@@ -421,7 +422,7 @@ export const InvoiceModule: React.FC = () => {
                                         <p className="text-xs font-bold text-gray-800">{item.description}</p>
                                         <p className="text-[10px] text-gray-400">{item.quantity} x {item.unitPrice.toLocaleString()}</p>
                                     </div>
-                                    <button onClick={() => setCurrentInvoice({ ...currentInvoice, items: currentInvoice.items.filter(i => i.id !== item.id) })} className="text-red-300 hover:text-red-600 p-1 opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 size={14} /></button>
+                                    <button title="حذف البند" onClick={() => setCurrentInvoice({ ...currentInvoice, items: currentInvoice.items.filter(i => i.id !== item.id) })} className="text-red-300 hover:text-red-600 p-1 opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 size={14} /></button>
                                 </div>
                             ))}
                         </div>

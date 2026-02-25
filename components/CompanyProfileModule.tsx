@@ -144,7 +144,7 @@ export const CompanyProfileModule: React.FC = () => {
                                 {config.logo ? (
                                     <>
                                         <img src={config.logo} alt="Logo" className="w-full h-full object-contain p-4" />
-                                        <button onClick={() => setConfig(c => ({ ...c, logo: null }))} className="absolute top-2 right-2 bg-red-500 text-white p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"><Trash2 size={14} /></button>
+                                        <button title="حذف الشعار" onClick={() => setConfig(c => ({ ...c, logo: null }))} className="absolute top-2 right-2 bg-red-500 text-white p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"><Trash2 size={14} /></button>
                                     </>
                                 ) : (
                                     <div className="text-center text-gray-400">
@@ -168,7 +168,7 @@ export const CompanyProfileModule: React.FC = () => {
                                 {config.stamp ? (
                                     <>
                                         <img src={config.stamp} alt="Stamp" className="w-full h-full object-contain p-4" />
-                                        <button onClick={() => setConfig(c => ({ ...c, stamp: null }))} className="absolute top-2 right-2 bg-red-500 text-white p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"><Trash2 size={14} /></button>
+                                        <button title="حذف الختم" onClick={() => setConfig(c => ({ ...c, stamp: null }))} className="absolute top-2 right-2 bg-red-500 text-white p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"><Trash2 size={14} /></button>
                                     </>
                                 ) : (
                                     <div className="text-center text-gray-400">
@@ -193,15 +193,15 @@ export const CompanyProfileModule: React.FC = () => {
                             <div className="space-y-4">
                                 <div>
                                     <label className="block text-xs font-bold text-gray-500 mb-1">اسم الشركة (العنوان الرئيسي)</label>
-                                    <input type="text" value={config.headerTitle} onChange={e => setConfig({ ...config, headerTitle: e.target.value })} className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-jilco-500 outline-none text-sm text-black font-bold" />
+                                    <input title="اسم الشركة" placeholder="اسم الشركة" type="text" value={config.headerTitle} onChange={e => setConfig({ ...config, headerTitle: e.target.value })} className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-jilco-500 outline-none text-sm text-black font-bold" />
                                 </div>
                                 <div>
                                     <label className="block text-xs font-bold text-gray-500 mb-1">العنوان الفرعي (Subtitle)</label>
-                                    <input type="text" value={config.headerSubtitle} onChange={e => setConfig({ ...config, headerSubtitle: e.target.value })} className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-jilco-500 outline-none text-sm text-black font-bold" />
+                                    <input title="العنوان الفرعي" placeholder="العنوان الفرعي" type="text" value={config.headerSubtitle} onChange={e => setConfig({ ...config, headerSubtitle: e.target.value })} className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-jilco-500 outline-none text-sm text-black font-bold" />
                                 </div>
                                 <div>
                                     <label className="block text-xs font-bold text-gray-500 mb-1">نص التذييل (Footer Text)</label>
-                                    <input type="text" value={config.footerText} onChange={e => setConfig({ ...config, footerText: e.target.value })} className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-jilco-500 outline-none text-sm text-black font-bold" />
+                                    <input title="نص التذييل" placeholder="نص التذييل" type="text" value={config.footerText} onChange={e => setConfig({ ...config, footerText: e.target.value })} className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-jilco-500 outline-none text-sm text-black font-bold" />
                                 </div>
                             </div>
                         </div>
@@ -214,14 +214,14 @@ export const CompanyProfileModule: React.FC = () => {
                                     <label className="block text-xs font-bold text-gray-500 mb-1">رقم الهاتف الرسمي</label>
                                     <div className="relative">
                                         <Phone size={16} className="absolute right-3 top-3 text-gray-400" />
-                                        <input type="text" value={config.contactPhone} onChange={e => setConfig({ ...config, contactPhone: e.target.value })} className="w-full pr-9 pl-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-jilco-500 outline-none text-sm text-black font-bold" dir="ltr" />
+                                        <input title="رقم الهاتف" placeholder="رقم الهاتف" type="text" value={config.contactPhone} onChange={e => setConfig({ ...config, contactPhone: e.target.value })} className="w-full pr-9 pl-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-jilco-500 outline-none text-sm text-black font-bold" dir="ltr" />
                                     </div>
                                 </div>
                                 <div>
                                     <label className="block text-xs font-bold text-gray-500 mb-1">البريد الإلكتروني</label>
                                     <div className="relative">
                                         <Mail size={16} className="absolute right-3 top-3 text-gray-400" />
-                                        <input type="email" value={config.contactEmail} onChange={e => setConfig({ ...config, contactEmail: e.target.value })} className="w-full pr-9 pl-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-jilco-500 outline-none text-sm text-black font-bold" dir="ltr" />
+                                        <input title="البريد الإلكتروني" placeholder="البريد الإلكتروني" type="email" value={config.contactEmail} onChange={e => setConfig({ ...config, contactEmail: e.target.value })} className="w-full pr-9 pl-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-jilco-500 outline-none text-sm text-black font-bold" dir="ltr" />
                                     </div>
                                 </div>
                             </div>
@@ -237,19 +237,19 @@ export const CompanyProfileModule: React.FC = () => {
                             <div className="space-y-4">
                                 {config.bankAccounts.map((bank, idx) => (
                                     <div key={idx} className="p-4 bg-gray-50 rounded-xl border border-gray-200 relative group">
-                                        <button onClick={() => removeBankAccount(idx)} className="absolute top-2 left-2 text-red-300 hover:text-red-500"><Trash2 size={16} /></button>
+                                        <button title="حذف الحساب" onClick={() => removeBankAccount(idx)} className="absolute top-2 left-2 text-red-300 hover:text-red-500"><Trash2 size={16} /></button>
                                         <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                                             <div>
                                                 <label className="block text-[10px] font-bold text-gray-400 mb-1">اسم البنك</label>
-                                                <input type="text" value={bank.bankName} onChange={e => handleBankChange(idx, 'bankName', e.target.value)} className="w-full p-2 border border-gray-300 rounded text-xs font-bold bg-white text-black" />
+                                                <input title="اسم البنك" placeholder="اسم البنك" type="text" value={bank.bankName} onChange={e => handleBankChange(idx, 'bankName', e.target.value)} className="w-full p-2 border border-gray-300 rounded text-xs font-bold bg-white text-black" />
                                             </div>
                                             <div>
                                                 <label className="block text-[10px] font-bold text-gray-400 mb-1">رقم الحساب</label>
-                                                <input type="text" value={bank.accountNumber} onChange={e => handleBankChange(idx, 'accountNumber', e.target.value)} className="w-full p-2 border border-gray-300 rounded text-xs font-bold font-mono bg-white text-black" dir="ltr" />
+                                                <input title="رقم الحساب" placeholder="رقم الحساب" type="text" value={bank.accountNumber} onChange={e => handleBankChange(idx, 'accountNumber', e.target.value)} className="w-full p-2 border border-gray-300 rounded text-xs font-bold font-mono bg-white text-black" dir="ltr" />
                                             </div>
                                             <div>
                                                 <label className="block text-[10px] font-bold text-gray-400 mb-1">IBAN</label>
-                                                <input type="text" value={bank.iban} onChange={e => handleBankChange(idx, 'iban', e.target.value)} className="w-full p-2 border border-gray-300 rounded text-xs font-bold font-mono bg-white text-black" dir="ltr" />
+                                                <input title="الآيبان" placeholder="الآيبان" type="text" value={bank.iban} onChange={e => handleBankChange(idx, 'iban', e.target.value)} className="w-full p-2 border border-gray-300 rounded text-xs font-bold font-mono bg-white text-black" dir="ltr" />
                                             </div>
                                         </div>
                                     </div>

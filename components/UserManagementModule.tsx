@@ -111,6 +111,7 @@ export const UserManagementModule: React.FC = () => {
                         <p className="text-gray-500 text-sm mt-1">إضافة موظفين للنظام وتحديد صلاحيات الوصول بدقة</p>
                     </div>
                     <button
+                        title="إضافة مستخدم جديد"
                         onClick={() => { setEditingUser({ role: 'sales', status: 'active' }); setShowForm(true); }}
                         className="bg-jilco-900 text-white px-6 py-2.5 rounded-lg font-bold flex items-center gap-2 hover:bg-jilco-800 shadow-md text-sm"
                     >
@@ -125,8 +126,8 @@ export const UserManagementModule: React.FC = () => {
                             <div className="p-5 flex justify-between items-start">
                                 <div className="flex gap-3">
                                     <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg text-white shadow-md ${user.role === 'admin' ? 'bg-red-600' :
-                                            user.role === 'accountant' ? 'bg-green-600' :
-                                                user.role === 'sales' ? 'bg-blue-600' : 'bg-gray-600'
+                                        user.role === 'accountant' ? 'bg-green-600' :
+                                            user.role === 'sales' ? 'bg-blue-600' : 'bg-gray-600'
                                         }`}>
                                         {user.name.charAt(0)}
                                     </div>
@@ -161,10 +162,10 @@ export const UserManagementModule: React.FC = () => {
                             </div>
 
                             <div className="p-3 border-t border-gray-100 flex gap-2 bg-gray-50/50">
-                                <button onClick={() => { setEditingUser(user); setShowForm(true); }} className="flex-1 py-2 bg-white border border-gray-200 rounded text-blue-600 text-xs font-bold hover:bg-blue-50 flex items-center justify-center gap-1 transition-colors">
+                                <button title="تعديل المستخدم" onClick={() => { setEditingUser(user); setShowForm(true); }} className="flex-1 py-2 bg-white border border-gray-200 rounded text-blue-600 text-xs font-bold hover:bg-blue-50 flex items-center justify-center gap-1 transition-colors">
                                     <Edit size={14} /> تعديل
                                 </button>
-                                <button onClick={() => handleDelete(user.id)} className="flex-1 py-2 bg-white border border-gray-200 rounded text-red-600 text-xs font-bold hover:bg-red-50 flex items-center justify-center gap-1 transition-colors">
+                                <button title="حذف المستخدم" onClick={() => handleDelete(user.id)} className="flex-1 py-2 bg-white border border-gray-200 rounded text-red-600 text-xs font-bold hover:bg-red-50 flex items-center justify-center gap-1 transition-colors">
                                     <Trash2 size={14} /> حذف
                                 </button>
                             </div>
@@ -183,7 +184,7 @@ export const UserManagementModule: React.FC = () => {
                                     {editingUser.id ? <Edit size={20} /> : <Plus size={20} />}
                                     {editingUser.id ? 'تعديل بيانات وصلاحيات المستخدم' : 'إضافة مستخدم جديد'}
                                 </h3>
-                                <button onClick={() => setShowForm(false)} className="p-2 hover:bg-gray-200 rounded-full transition-colors"><X size={20} /></button>
+                                <button title="إغلاق النافذة" onClick={() => setShowForm(false)} className="p-2 hover:bg-gray-200 rounded-full transition-colors"><X size={20} /></button>
                             </div>
 
                             <div className="flex-1 overflow-y-auto p-6">
@@ -193,22 +194,23 @@ export const UserManagementModule: React.FC = () => {
                                         <h4 className="font-bold text-gray-800 text-sm border-b pb-2 mb-4">البيانات الأساسية</h4>
                                         <div>
                                             <label className="block text-xs font-bold text-gray-600 mb-1">الاسم الكامل</label>
-                                            <input type="text" value={editingUser.name || ''} onChange={e => setEditingUser({ ...editingUser, name: e.target.value })} className="w-full p-2.5 border rounded-lg text-sm focus:ring-2 focus:ring-jilco-500 outline-none" />
+                                            <input title="الاسم الكامل" type="text" value={editingUser.name || ''} onChange={e => setEditingUser({ ...editingUser, name: e.target.value })} className="w-full p-2.5 border rounded-lg text-sm focus:ring-2 focus:ring-jilco-500 outline-none" />
                                         </div>
 
                                         <div>
                                             <label className="block text-xs font-bold text-gray-600 mb-1">اسم الدخول (Username)</label>
-                                            <input type="text" value={editingUser.username || ''} onChange={e => setEditingUser({ ...editingUser, username: e.target.value })} className="w-full p-2.5 border rounded-lg text-sm font-mono focus:ring-2 focus:ring-jilco-500 outline-none" dir="ltr" />
+                                            <input title="اسم الدخول" type="text" value={editingUser.username || ''} onChange={e => setEditingUser({ ...editingUser, username: e.target.value })} className="w-full p-2.5 border rounded-lg text-sm font-mono focus:ring-2 focus:ring-jilco-500 outline-none" dir="ltr" />
                                         </div>
 
                                         <div>
                                             <label className="block text-xs font-bold text-gray-600 mb-1">كلمة المرور</label>
-                                            <input type="text" value={editingUser.password || ''} onChange={e => setEditingUser({ ...editingUser, password: e.target.value })} placeholder={editingUser.id ? 'ترك فارغاً للإبقاء' : '••••••'} className="w-full p-2.5 border rounded-lg text-sm font-mono focus:ring-2 focus:ring-jilco-500 outline-none" dir="ltr" />
+                                            <input title="كلمة المرور" type="text" value={editingUser.password || ''} onChange={e => setEditingUser({ ...editingUser, password: e.target.value })} placeholder={editingUser.id ? 'ترك فارغاً للإبقاء' : '••••••'} className="w-full p-2.5 border rounded-lg text-sm font-mono focus:ring-2 focus:ring-jilco-500 outline-none" dir="ltr" />
                                         </div>
 
                                         <div>
                                             <label className="block text-xs font-bold text-gray-600 mb-1">الصلاحية / الدور (Role)</label>
                                             <select
+                                                title="دور المستخدم"
                                                 value={editingUser.role || 'sales'}
                                                 onChange={e => {
                                                     const newRole = e.target.value as UserRole;
@@ -224,7 +226,7 @@ export const UserManagementModule: React.FC = () => {
 
                                         <div>
                                             <label className="block text-xs font-bold text-gray-600 mb-1">حالة الحساب</label>
-                                            <select value={editingUser.status || 'active'} onChange={e => setEditingUser({ ...editingUser, status: e.target.value as any })} className="w-full p-2.5 border rounded-lg text-sm bg-white focus:ring-2 focus:ring-jilco-500 outline-none">
+                                            <select title="حالة الحساب" value={editingUser.status || 'active'} onChange={e => setEditingUser({ ...editingUser, status: e.target.value as any })} className="w-full p-2.5 border rounded-lg text-sm bg-white focus:ring-2 focus:ring-jilco-500 outline-none">
                                                 <option value="active">نشط (يمكنه الدخول)</option>
                                                 <option value="inactive">موقوف (ممنوع من الدخول)</option>
                                             </select>
@@ -265,7 +267,7 @@ export const UserManagementModule: React.FC = () => {
                                                                 <div className={`w-4 h-4 rounded border flex items-center justify-center ${selectedPermissions.includes(perm.id) ? 'bg-blue-600 border-blue-600' : 'bg-white border-gray-300'}`}>
                                                                     {selectedPermissions.includes(perm.id) && <Check size={12} className="text-white" />}
                                                                 </div>
-                                                                <input type="checkbox" className="hidden" checked={selectedPermissions.includes(perm.id)} onChange={() => togglePermission(perm.id)} />
+                                                                <input title={`صلاحية الوصول: ${perm.label}`} type="checkbox" className="hidden" checked={selectedPermissions.includes(perm.id)} onChange={() => togglePermission(perm.id)} />
                                                                 <span className={`text-xs font-bold ${selectedPermissions.includes(perm.id) ? 'text-blue-800' : 'text-gray-600'}`}>{perm.label}</span>
                                                             </label>
                                                         ))}
@@ -281,7 +283,7 @@ export const UserManagementModule: React.FC = () => {
                                                                 <div className={`w-4 h-4 rounded border flex items-center justify-center ${selectedPermissions.includes(perm.id) ? 'bg-amber-600 border-amber-600' : 'bg-white border-gray-300'}`}>
                                                                     {selectedPermissions.includes(perm.id) && <Check size={12} className="text-white" />}
                                                                 </div>
-                                                                <input type="checkbox" className="hidden" checked={selectedPermissions.includes(perm.id)} onChange={() => togglePermission(perm.id)} />
+                                                                <input title={`صلاحية إدارية: ${perm.label}`} type="checkbox" className="hidden" checked={selectedPermissions.includes(perm.id)} onChange={() => togglePermission(perm.id)} />
                                                                 <span className={`text-xs font-bold ${selectedPermissions.includes(perm.id) ? 'text-amber-800' : 'text-gray-600'}`}>{perm.label}</span>
                                                             </label>
                                                         ))}
@@ -294,8 +296,8 @@ export const UserManagementModule: React.FC = () => {
                             </div>
 
                             <div className="flex justify-end gap-3 p-6 border-t border-gray-100 bg-gray-50">
-                                <button onClick={() => setShowForm(false)} className="px-6 py-2.5 text-gray-600 hover:bg-gray-200 rounded-lg font-bold text-sm transition-colors">إلغاء</button>
-                                <button onClick={handleSave} className="px-8 py-2.5 bg-jilco-900 text-white rounded-lg hover:bg-jilco-800 font-bold text-sm shadow-lg flex items-center gap-2 transition-colors">
+                                <button title="إلغاء النافذة" onClick={() => setShowForm(false)} className="px-6 py-2.5 text-gray-600 hover:bg-gray-200 rounded-lg font-bold text-sm transition-colors">إلغاء</button>
+                                <button title="حفظ المستحدم" onClick={handleSave} className="px-8 py-2.5 bg-jilco-900 text-white rounded-lg hover:bg-jilco-800 font-bold text-sm shadow-lg flex items-center gap-2 transition-colors">
                                     <CheckCircle2 size={18} /> حفظ التغييرات
                                 </button>
                             </div>

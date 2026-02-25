@@ -206,7 +206,7 @@ export const DocumentsModule: React.FC = () => {
                             {previewDoc.fileType === 'image' ? <Eye size={20} /> : <FileText size={20} />}
                             {previewDoc.title}
                         </h3>
-                        <button onClick={() => setPreviewDoc(null)} className="p-2 hover:bg-gray-200 rounded-full text-gray-600"><X size={20} /></button>
+                        <button title="إغلاق" onClick={() => setPreviewDoc(null)} className="p-2 hover:bg-gray-200 rounded-full text-gray-600"><X size={20} /></button>
                     </div>
                     <div className="flex-1 bg-gray-100 overflow-auto p-4 flex justify-center items-center h-[600px]">
                         {previewDoc.fileType === 'image' ? (
@@ -240,7 +240,7 @@ export const DocumentsModule: React.FC = () => {
                     <h3 className="font-bold text-lg text-jilco-900 flex items-center gap-2">
                         <Upload size={20} className="text-gold-500" /> إضافة وثيقة جديدة
                     </h3>
-                    <button onClick={() => setViewMode('list')} className="p-2 hover:bg-gray-200 rounded-full"><XCircle size={20} /></button>
+                    <button title="إغلاق" onClick={() => setViewMode('list')} className="p-2 hover:bg-gray-200 rounded-full"><XCircle size={20} /></button>
                 </div>
 
                 <div className="p-6 space-y-6">
@@ -251,7 +251,7 @@ export const DocumentsModule: React.FC = () => {
                         </div>
                         <div>
                             <label className="block text-xs font-bold text-gray-700 mb-1">التصنيف</label>
-                            <select value={newDoc.category} onChange={e => setNewDoc({ ...newDoc, category: e.target.value as DocumentCategory })} className="w-full p-2 border border-gray-400 rounded-lg text-sm bg-white text-black font-bold">
+                            <select title="التصنيف" value={newDoc.category} onChange={e => setNewDoc({ ...newDoc, category: e.target.value as DocumentCategory })} className="w-full p-2 border border-gray-400 rounded-lg text-sm bg-white text-black font-bold">
                                 {CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
                             </select>
                         </div>
@@ -261,11 +261,11 @@ export const DocumentsModule: React.FC = () => {
                         </div>
                         <div>
                             <label className="block text-xs font-bold text-gray-700 mb-1">تاريخ الإصدار</label>
-                            <input type="date" value={newDoc.issueDate || ''} onChange={e => setNewDoc({ ...newDoc, issueDate: e.target.value })} className="w-full p-2 border border-gray-400 rounded-lg text-sm text-black bg-white font-bold" />
+                            <input title="تاريخ الإصدار" type="date" value={newDoc.issueDate || ''} onChange={e => setNewDoc({ ...newDoc, issueDate: e.target.value })} className="w-full p-2 border border-gray-400 rounded-lg text-sm text-black bg-white font-bold" />
                         </div>
                         <div>
                             <label className="block text-xs font-bold text-gray-700 mb-1">تاريخ الانتهاء (للتنبيهات)</label>
-                            <input type="date" value={newDoc.expiryDate || ''} onChange={e => setNewDoc({ ...newDoc, expiryDate: e.target.value })} className="w-full p-2 border border-gray-400 rounded-lg text-sm text-black bg-white font-bold" />
+                            <input title="تاريخ الانتهاء" type="date" value={newDoc.expiryDate || ''} onChange={e => setNewDoc({ ...newDoc, expiryDate: e.target.value })} className="w-full p-2 border border-gray-400 rounded-lg text-sm text-black bg-white font-bold" />
                         </div>
                     </div>
 
@@ -422,7 +422,7 @@ export const DocumentsModule: React.FC = () => {
                     </div>
                     <div className="flex items-center gap-2">
                         <Filter size={16} className="text-gray-400" />
-                        <select value={filterCategory} onChange={e => setFilterCategory(e.target.value as any)} className="p-2 border border-gray-400 rounded-lg text-sm bg-white text-black font-bold outline-none">
+                        <select title="تصفية بالتصنيف" value={filterCategory} onChange={e => setFilterCategory(e.target.value as any)} className="p-2 border border-gray-400 rounded-lg text-sm bg-white text-black font-bold outline-none">
                             <option value="all">جميع التصنيفات</option>
                             {CATEGORIES.map(c => <option key={c.id} value={c.id}>{c.label}</option>)}
                         </select>

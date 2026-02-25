@@ -141,11 +141,11 @@ export const HRModule: React.FC = () => {
                     <div className="grid grid-cols-2 gap-4">
                         <div>
                             <label className="block text-xs font-bold mb-1">الاسم الكامل</label>
-                            <input type="text" className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold" value={currentEmployee.name || ''} onChange={e => setCurrentEmployee({ ...currentEmployee, name: e.target.value })} />
+                            <input title="الاسم الكامل" type="text" className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold" value={currentEmployee.name || ''} onChange={e => setCurrentEmployee({ ...currentEmployee, name: e.target.value })} />
                         </div>
                         <div>
                             <label className="block text-xs font-bold mb-1">المسمى الوظيفي</label>
-                            <select className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold" value={currentEmployee.role || 'technician'} onChange={e => setCurrentEmployee({ ...currentEmployee, role: e.target.value as EmployeeRole })}>
+                            <select title="المسمى الوظيفي" className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold" value={currentEmployee.role || 'technician'} onChange={e => setCurrentEmployee({ ...currentEmployee, role: e.target.value as EmployeeRole })}>
                                 {Object.entries(ROLES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                             </select>
                         </div>
@@ -153,32 +153,33 @@ export const HRModule: React.FC = () => {
                     <div className="grid grid-cols-2 gap-4">
                         <div>
                             <label className="block text-xs font-bold mb-1">رقم الهوية / الإقامة</label>
-                            <input type="text" className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold" value={currentEmployee.nationalId || ''} onChange={e => setCurrentEmployee({ ...currentEmployee, nationalId: e.target.value })} />
+                            <input title="رقم الهوية / الإقامة" type="text" className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold" value={currentEmployee.nationalId || ''} onChange={e => setCurrentEmployee({ ...currentEmployee, nationalId: e.target.value })} />
                         </div>
                         <div>
                             <label className="block text-xs font-bold mb-1">رقم الجوال</label>
-                            <input type="text" className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold" value={currentEmployee.phone || ''} onChange={e => setCurrentEmployee({ ...currentEmployee, phone: e.target.value })} />
+                            <input title="رقم الجوال" type="text" className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold" value={currentEmployee.phone || ''} onChange={e => setCurrentEmployee({ ...currentEmployee, phone: e.target.value })} />
                         </div>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                         <div>
                             <label className="block text-xs font-bold mb-1">الراتب الأساسي</label>
-                            <input type="number" className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold" value={currentEmployee.basicSalary || ''} onChange={e => setCurrentEmployee({ ...currentEmployee, basicSalary: parseFloat(e.target.value) })} />
+                            <input title="الراتب الأساسي" type="number" className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold" value={currentEmployee.basicSalary || ''} onChange={e => setCurrentEmployee({ ...currentEmployee, basicSalary: parseFloat(e.target.value) })} />
                         </div>
                         <div>
                             <label className="block text-xs font-bold mb-1">تاريخ المباشرة</label>
-                            <input type="date" className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold" value={currentEmployee.joinDate || ''} onChange={e => setCurrentEmployee({ ...currentEmployee, joinDate: e.target.value })} />
+                            <input title="تاريخ المباشرة" type="date" className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold" value={currentEmployee.joinDate || ''} onChange={e => setCurrentEmployee({ ...currentEmployee, joinDate: e.target.value })} />
                         </div>
                     </div>
                     <div>
                         <label className="block text-xs font-bold mb-1">الحالة الوظيفية</label>
-                        <select className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold" value={currentEmployee.status || 'active'} onChange={e => setCurrentEmployee({ ...currentEmployee, status: e.target.value as EmployeeStatus })}>
+                        <select title="الحالة الوظيفية" className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold" value={currentEmployee.status || 'active'} onChange={e => setCurrentEmployee({ ...currentEmployee, status: e.target.value as EmployeeStatus })}>
                             {Object.entries(STATUSES).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
                         </select>
                     </div>
                     <div>
                         <label className="block text-xs font-bold text-gray-500 mb-1 flex items-center gap-1"><Wrench size={12} /> العهد المستلمة (افصل بفاصلة)</label>
                         <textarea
+                            title="العهد المستلمة"
                             className="w-full p-2 border border-gray-400 rounded h-20 text-sm text-black bg-white font-bold"
                             placeholder="مثال: سيارة رقم 123، لابتوب عهدة، جهاز قياس..."
                             value={currentEmployee.custodyItems?.join(', ') || ''}
@@ -203,7 +204,7 @@ export const HRModule: React.FC = () => {
                 <div className="space-y-4">
                     <div>
                         <label className="block text-xs font-bold mb-1">الموظف المستحق</label>
-                        <select className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold" value={currentCommission.employeeId || ''} onChange={e => setCurrentCommission({ ...currentCommission, employeeId: e.target.value })}>
+                        <select title="الموظف المستحق للعمولة" className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold" value={currentCommission.employeeId || ''} onChange={e => setCurrentCommission({ ...currentCommission, employeeId: e.target.value })}>
                             <option value="">-- اختر موظف --</option>
                             {employees.filter(e => e.role === 'sales' || e.role === 'manager').map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
                         </select>
@@ -212,6 +213,7 @@ export const HRModule: React.FC = () => {
                         <div>
                             <label className="block text-xs font-bold mb-1">استيراد من عقد</label>
                             <input
+                                title="استيراد من عقد"
                                 type="text"
                                 className="w-full p-2 border border-gray-400 rounded text-xs text-black bg-white font-bold"
                                 list="contractsList"
@@ -226,21 +228,21 @@ export const HRModule: React.FC = () => {
                         </div>
                         <div>
                             <label className="block text-xs font-bold mb-1">رقم العقد المرجعي</label>
-                            <input type="text" className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold" value={currentCommission.contractNumber || ''} onChange={e => setCurrentCommission({ ...currentCommission, contractNumber: e.target.value })} placeholder="CN-2024-..." />
+                            <input title="رقم العقد المرجعي" type="text" className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold" value={currentCommission.contractNumber || ''} onChange={e => setCurrentCommission({ ...currentCommission, contractNumber: e.target.value })} placeholder="CN-2024-..." />
                         </div>
                     </div>
                     <div>
                         <label className="block text-xs font-bold mb-1">تاريخ الاستحقاق</label>
-                        <input type="date" className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold" value={currentCommission.date || ''} onChange={e => setCurrentCommission({ ...currentCommission, date: e.target.value })} />
+                        <input title="تاريخ الاستحقاق" type="date" className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold" value={currentCommission.date || ''} onChange={e => setCurrentCommission({ ...currentCommission, date: e.target.value })} />
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                         <div>
                             <label className="block text-xs font-bold mb-1">قيمة العقد (ر.س)</label>
-                            <input type="number" className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold" value={currentCommission.contractValue || ''} onChange={e => setCurrentCommission({ ...currentCommission, contractValue: parseFloat(e.target.value) })} />
+                            <input title="قيمة العقد" type="number" className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold" value={currentCommission.contractValue || ''} onChange={e => setCurrentCommission({ ...currentCommission, contractValue: parseFloat(e.target.value) })} />
                         </div>
                         <div>
                             <label className="block text-xs font-bold mb-1">نسبة العمولة (%)</label>
-                            <input type="number" className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold" value={currentCommission.commissionPercentage || ''} onChange={e => setCurrentCommission({ ...currentCommission, commissionPercentage: parseFloat(e.target.value) })} />
+                            <input title="نسبة العمولة" type="number" className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold" value={currentCommission.commissionPercentage || ''} onChange={e => setCurrentCommission({ ...currentCommission, commissionPercentage: parseFloat(e.target.value) })} />
                         </div>
                     </div>
 
@@ -253,7 +255,7 @@ export const HRModule: React.FC = () => {
 
                     <div>
                         <label className="block text-xs font-bold mb-1">ملاحظات</label>
-                        <input type="text" className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold" value={currentCommission.notes || ''} onChange={e => setCurrentCommission({ ...currentCommission, notes: e.target.value })} />
+                        <input title="ملاحظات" type="text" className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold" value={currentCommission.notes || ''} onChange={e => setCurrentCommission({ ...currentCommission, notes: e.target.value })} />
                     </div>
                 </div>
                 <div className="flex justify-end gap-2 mt-6 pt-4 border-t border-gray-100">
@@ -323,6 +325,7 @@ export const HRModule: React.FC = () => {
                             <div className="relative max-w-md flex-1">
                                 <Search className="absolute right-3 top-2.5 text-gray-400" size={18} />
                                 <input
+                                    title="بحث بالاسم، الهوية، الجوال"
                                     type="text" placeholder="بحث بالاسم، الهوية، الجوال..."
                                     value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
                                     className="w-full pr-10 pl-4 py-2 border border-gray-400 rounded-lg focus:ring-2 focus:ring-jilco-500 outline-none text-sm bg-white text-black font-bold"
@@ -331,6 +334,7 @@ export const HRModule: React.FC = () => {
                             <div className="flex items-center gap-2">
                                 <Filter size={16} className="text-gray-400" />
                                 <select
+                                    title="تصفية الوظائف"
                                     value={roleFilter}
                                     onChange={(e) => setRoleFilter(e.target.value as any)}
                                     className="p-2 border border-gray-400 rounded-lg text-sm bg-white text-black font-bold outline-none focus:ring-2 focus:ring-jilco-500"
@@ -387,8 +391,8 @@ export const HRModule: React.FC = () => {
                                         </div>
                                     )}
                                     <div className="p-3 bg-gray-50 border-t border-gray-100 flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity mt-auto">
-                                        <button onClick={() => { setCurrentEmployee(emp); setShowEmployeeForm(true); }} className="p-2 text-blue-600 hover:bg-blue-100 rounded-lg"><Edit size={16} /></button>
-                                        <button onClick={async () => await deleteHRRecord('jilco_hr_employees', emp.id)} className="p-2 text-red-600 hover:bg-red-100 rounded-lg"><Trash2 size={16} /></button>
+                                        <button title="تعديل الموظف" onClick={() => { setCurrentEmployee(emp); setShowEmployeeForm(true); }} className="p-2 text-blue-600 hover:bg-blue-100 rounded-lg"><Edit size={16} /></button>
+                                        <button title="حذف الموظف" onClick={async () => await deleteHRRecord('jilco_hr_employees', emp.id)} className="p-2 text-red-600 hover:bg-red-100 rounded-lg"><Trash2 size={16} /></button>
                                     </div>
                                 </div>
                             ))}
@@ -455,8 +459,8 @@ export const HRModule: React.FC = () => {
                                                         صرف
                                                     </button>
                                                 )}
-                                                <button onClick={() => window.print()} className="p-1.5 text-gray-400 hover:text-jilco-600 rounded"><Printer size={16} /></button>
-                                                <button onClick={async () => await deleteHRRecord('jilco_hr_commissions', comm.id)} className="p-1.5 text-red-400 hover:text-red-600 rounded opacity-0 group-hover:opacity-100"><Trash2 size={16} /></button>
+                                                <button title="طباعة العمولة" onClick={() => window.print()} className="p-1.5 text-gray-400 hover:text-jilco-600 rounded"><Printer size={16} /></button>
+                                                <button title="حذف العمولة" onClick={async () => await deleteHRRecord('jilco_hr_commissions', comm.id)} className="p-1.5 text-red-400 hover:text-red-600 rounded opacity-0 group-hover:opacity-100"><Trash2 size={16} /></button>
                                             </div>
                                         </td>
                                     </tr>

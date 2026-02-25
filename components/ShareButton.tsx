@@ -151,7 +151,7 @@ export const ShareButton: React.FC<ShareButtonProps> = ({
                                 </svg>
                                 إرسال عبر واتساب
                             </span>
-                            <button onClick={() => setIsOpen(false)} className="text-white/70 hover:text-white">
+                            <button title="إغلاق نافذة المشاركة" onClick={() => setIsOpen(false)} className="text-white/70 hover:text-white">
                                 <X size={16} />
                             </button>
                         </div>
@@ -193,6 +193,7 @@ export const ShareButton: React.FC<ShareButtonProps> = ({
                         {/* أزرار الإجراءات */}
                         <div className="grid grid-cols-2 gap-2 pt-1">
                             <button
+                                title="إرسال عبر واتساب"
                                 onClick={() => handleShare('whatsapp')}
                                 className="flex items-center justify-center gap-2 bg-[#25D366] hover:bg-[#1da851] text-white py-2.5 rounded-xl font-black text-sm transition-all active:scale-95 shadow-md"
                             >
@@ -202,6 +203,7 @@ export const ShareButton: React.FC<ShareButtonProps> = ({
                                 واتساب
                             </button>
                             <button
+                                title="تحميل المستند كملف PDF"
                                 onClick={() => handleShare('download')}
                                 className="flex items-center justify-center gap-2 bg-gray-800 hover:bg-black text-white py-2.5 rounded-xl font-black text-sm transition-all active:scale-95 shadow-md"
                             >

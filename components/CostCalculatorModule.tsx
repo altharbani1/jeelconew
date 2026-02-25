@@ -337,7 +337,7 @@ export const CostCalculatorModule: React.FC = () => {
                                 <ShoppingCart className="text-jilco-600" />
                                 إدراج صنف من المخزون
                             </h2>
-                            <button onClick={() => setShowInventorySelector(false)} className="text-gray-400 hover:text-red-500 transition-colors p-2 hover:bg-white rounded-xl">
+                            <button title="إغلاق" onClick={() => setShowInventorySelector(false)} className="text-gray-400 hover:text-red-500 transition-colors p-2 hover:bg-white rounded-xl">
                                 <X size={24} />
                             </button>
                         </div>

@@ -89,16 +89,16 @@ export const SmartElevatorModule: React.FC = () => {
                             </div>
                         </div>
 
-                        <button className="w-full bg-red-600 text-white py-3 rounded-xl font-bold shadow-lg shadow-red-200 mb-3 active:scale-95 transition-transform">
+                        <button title="طلب صيانة طارئة" className="w-full bg-red-600 text-white py-3 rounded-xl font-bold shadow-lg shadow-red-200 mb-3 active:scale-95 transition-transform">
                             طلب صيانة طارئة 🚨
                         </button>
-                        <button className="w-full bg-white border border-gray-200 text-gray-700 py-3 rounded-xl font-bold shadow-sm active:scale-95 transition-transform">
+                        <button title="تحديث سجل الصيانة" className="w-full bg-white border border-gray-200 text-gray-700 py-3 rounded-xl font-bold shadow-sm active:scale-95 transition-transform">
                             تحديث سجل الصيانة
                         </button>
                     </div>
 
                     {/* Close Simulation Button */}
-                    <button onClick={() => setViewMode('list')} className="absolute top-4 right-4 bg-white/20 p-2 rounded-full text-white z-30">
+                    <button title="إغلاق المحاكاة" onClick={() => setViewMode('list')} className="absolute top-4 right-4 bg-white/20 p-2 rounded-full text-white z-30">
                         <X size={20} />
                     </button>
                 </div>
@@ -113,7 +113,7 @@ export const SmartElevatorModule: React.FC = () => {
         return (
             <div className="flex-1 bg-gray-100 flex flex-col justify-center items-center p-8 animate-fade-in">
                 <div className="bg-white p-12 rounded-3xl shadow-2xl text-center max-w-md w-full border border-gray-200 relative print:shadow-none print:w-full print:max-w-none print:border-none">
-                    <button onClick={() => setViewMode('list')} className="absolute top-4 right-4 p-2 hover:bg-gray-100 rounded-full print:hidden"><X /></button>
+                    <button title="إغلاق عرض رمز الاستجابة" onClick={() => setViewMode('list')} className="absolute top-4 right-4 p-2 hover:bg-gray-100 rounded-full print:hidden"><X /></button>
 
                     <h2 className="text-2xl font-black text-jilco-900 mb-2">جيلكو للمصاعد</h2>
                     <p className="text-sm text-gray-500 mb-8">امسح الكود لطلب الصيانة أو عرض السجل</p>
@@ -128,7 +128,7 @@ export const SmartElevatorModule: React.FC = () => {
                         <p className="font-mono text-jilco-600">{currentElevator.id}</p>
                     </div>
 
-                    <button onClick={() => window.print()} className="mt-8 bg-jilco-900 text-white px-8 py-3 rounded-xl font-bold shadow-lg hover:bg-jilco-800 print:hidden flex items-center justify-center gap-2 w-full">
+                    <button title="طباعة الملصق" onClick={() => window.print()} className="mt-8 bg-jilco-900 text-white px-8 py-3 rounded-xl font-bold shadow-lg hover:bg-jilco-800 print:hidden flex items-center justify-center gap-2 w-full">
                         <Printer size={18} /> طباعة الملصق
                     </button>
                 </div>
@@ -147,7 +147,7 @@ export const SmartElevatorModule: React.FC = () => {
                             </h1>
                             <p className="text-gray-500 text-sm mt-1">توليد رموز QR للمصاعد لتسهيل الصيانة والمتابعة</p>
                         </div>
-                        <button onClick={() => setShowAddModal(true)} className="bg-jilco-600 text-white px-6 py-2.5 rounded-lg font-bold flex items-center gap-2 hover:bg-jilco-700 shadow-md">
+                        <button title="إضافة مصعد جديد" onClick={() => setShowAddModal(true)} className="bg-jilco-600 text-white px-6 py-2.5 rounded-lg font-bold flex items-center gap-2 hover:bg-jilco-700 shadow-md">
                             <Plus size={20} /> إضافة مصعد
                         </button>
                     </div>
@@ -169,12 +169,14 @@ export const SmartElevatorModule: React.FC = () => {
 
                                 <div className="flex gap-2">
                                     <button
+                                        title="عرض رمز الاستجابة"
                                         onClick={() => { setCurrentElevator(elev); setViewMode('qr_view'); }}
                                         className="flex-1 bg-gray-900 text-white py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-2 hover:bg-black"
                                     >
                                         <QrCode size={14} /> عرض QR
                                     </button>
                                     <button
+                                        title="محاكاة التطبيق"
                                         onClick={() => { setCurrentElevator(elev); setViewMode('simulation'); }}
                                         className="flex-1 bg-blue-50 text-blue-600 border border-blue-200 py-2 rounded-lg text-xs font-bold flex items-center justify-center gap-2 hover:bg-blue-100"
                                     >
@@ -182,7 +184,7 @@ export const SmartElevatorModule: React.FC = () => {
                                     </button>
                                 </div>
 
-                                <button onClick={() => handleDelete(elev.id)} className="absolute top-4 left-4 text-red-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                                <button title="حذف المصعد" onClick={() => handleDelete(elev.id)} className="absolute top-4 left-4 text-red-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
                                     <Trash2 size={16} />
                                 </button>
                             </div>
@@ -198,24 +200,24 @@ export const SmartElevatorModule: React.FC = () => {
                             <div className="space-y-3">
                                 <div>
                                     <label className="block text-xs font-bold mb-1">اسم المشروع / العميل</label>
-                                    <input type="text" className="w-full p-2 border rounded" value={newElevator.projectName || ''} onChange={e => setNewElevator({ ...newElevator, projectName: e.target.value })} placeholder="برج التحرير - المصعد أ" />
+                                    <input title="اسم المشروع أو العميل" type="text" className="w-full p-2 border rounded" value={newElevator.projectName || ''} onChange={e => setNewElevator({ ...newElevator, projectName: e.target.value })} placeholder="برج التحرير - المصعد أ" />
                                 </div>
                                 <div>
                                     <label className="block text-xs font-bold mb-1">الموقع</label>
-                                    <input type="text" className="w-full p-2 border rounded" value={newElevator.location || ''} onChange={e => setNewElevator({ ...newElevator, location: e.target.value })} />
+                                    <input title="موقع المصعد" type="text" className="w-full p-2 border rounded" value={newElevator.location || ''} onChange={e => setNewElevator({ ...newElevator, location: e.target.value })} />
                                 </div>
                                 <div>
                                     <label className="block text-xs font-bold mb-1">نوع المصعد</label>
-                                    <input type="text" className="w-full p-2 border rounded" value={newElevator.type || ''} onChange={e => setNewElevator({ ...newElevator, type: e.target.value })} placeholder="ركاب - 630 كجم" />
+                                    <input title="نوع المصعد" type="text" className="w-full p-2 border rounded" value={newElevator.type || ''} onChange={e => setNewElevator({ ...newElevator, type: e.target.value })} placeholder="ركاب - 630 كجم" />
                                 </div>
                                 <div>
                                     <label className="block text-xs font-bold mb-1">تاريخ التركيب</label>
-                                    <input type="date" className="w-full p-2 border rounded" value={newElevator.installationDate || ''} onChange={e => setNewElevator({ ...newElevator, installationDate: e.target.value })} />
+                                    <input title="تاريخ التركيب" type="date" className="w-full p-2 border rounded" value={newElevator.installationDate || ''} onChange={e => setNewElevator({ ...newElevator, installationDate: e.target.value })} />
                                 </div>
                             </div>
                             <div className="flex justify-end gap-2 mt-6">
-                                <button onClick={() => setShowAddModal(false)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded">إلغاء</button>
-                                <button onClick={handleAddElevator} className="px-4 py-2 bg-jilco-600 text-white rounded hover:bg-jilco-700">إنشاء</button>
+                                <button title="إلغاء الإضافة" onClick={() => setShowAddModal(false)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded">إلغاء</button>
+                                <button title="حفظ المصعد الذكي" onClick={handleAddElevator} className="px-4 py-2 bg-jilco-600 text-white rounded hover:bg-jilco-700">إنشاء</button>
                             </div>
                         </div>
                     </div>

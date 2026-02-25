@@ -446,8 +446,8 @@ export const ProjectModule: React.FC = () => {
                             <div>
                                 <p className="text-sm font-bold text-gray-500 mb-2">نسبة الإنجاز الكلية</p>
                                 <div className="flex items-center gap-4">
-                                    <div className="flex-1 bg-gray-300 rounded-full h-4">
-                                        <div className={`bg-jilco-600 h-4 rounded-full w-[${project.progress}%]`}></div>
+                                    <div className="w-full bg-gray-200 rounded-full h-2.5 mt-2 overflow-hidden flex">
+                                        <div className={`bg-jilco-600 h-2.5 rounded-full shrink-0 ${project.progress > 0 ? `w-[${Math.round(project.progress)}%]` : 'hidden'}`}></div>
                                     </div>
                                     <span className="font-black text-xl text-jilco-900">{project.progress}%</span>
                                 </div>
@@ -593,8 +593,8 @@ export const ProjectModule: React.FC = () => {
                                         <td className="p-4 font-mono text-xs text-gray-500">{p.startDate}</td>
                                         <td className="p-4">
                                             {/* eslint-disable react/style-prop-object */}
-                                            <div className="w-full bg-gray-200 rounded-full h-2.5" role="progressbar" aria-label="Project Progress" aria-valuenow={String(p.progress || 0)} aria-valuemin={"0"} aria-valuemax={"100"} title={`Progress: ${p.progress}%`}>
-                                                <div className={`bg-jilco-600 h-2.5 rounded-full`} style={{ width: `${p.progress || 0}%` }}></div>
+                                            <div className="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden flex" role="progressbar" aria-label="Project Progress" aria-valuenow={String(p.progress || 0)} aria-valuemin={"0"} aria-valuemax={"100"} title={`Progress: ${p.progress}%`}>
+                                                <div className={`bg-jilco-600 h-2.5 rounded-full shrink-0 ${p.progress > 0 ? `w-[${Math.round(p.progress)}%]` : 'hidden'}`}></div>
                                             </div>
                                             <span className="text-[10px] font-bold text-gray-500 mt-1 block">{p.progress}%</span>
                                         </td>
@@ -709,6 +709,7 @@ export const ProjectModule: React.FC = () => {
                                     <div>
                                         <label className="text-[10px] font-bold text-gray-400 block mb-1">تاريخ البداية (المتوقع)</label>
                                         <input
+                                            title="تاريخ البداية المتوقع"
                                             type="date"
                                             value={phase.startDate || ''}
                                             onChange={e => updatePhase(phase.id, { startDate: e.target.value })}
@@ -718,6 +719,7 @@ export const ProjectModule: React.FC = () => {
                                     <div>
                                         <label className="text-[10px] font-bold text-gray-400 block mb-1">تاريخ النهاية (المستهدف)</label>
                                         <input
+                                            title="تاريخ النهاية المستهدف"
                                             type="date"
                                             value={phase.endDate || ''}
                                             onChange={e => updatePhase(phase.id, { endDate: e.target.value })}
@@ -789,6 +791,7 @@ export const ProjectModule: React.FC = () => {
                                 <div>
                                     <label className="text-[10px] font-bold text-gray-400 block mb-1">ملاحظات الفني / المهندس</label>
                                     <textarea
+                                        title="ملاحظات"
                                         value={phase.notes || ''}
                                         onChange={e => updatePhase(phase.id, { notes: e.target.value })}
                                         className="w-full p-2 border border-gray-400 rounded-lg text-xs h-16 bg-white text-black font-bold resize-none"

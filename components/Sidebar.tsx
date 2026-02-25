@@ -259,6 +259,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         <div className="pt-2">
                             <label className="block text-[10px] font-black text-gray-500 mb-1 uppercase text-jilco-900">مدة التنفيذ (يوم)</label>
                             <input
+                                title="مدة التنفيذ"
                                 type="text"
                                 value={details.worksDuration}
                                 onChange={e => setDetails({ ...details, worksDuration: e.target.value })}
@@ -276,6 +277,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             <div className="space-y-4">
                                 <div>
                                     <input
+                                        title="اسم البند"
                                         type="text"
                                         placeholder="اسم البند (مثال: توريد مصعد إيطالي)"
                                         value={newItemDesc}
@@ -292,12 +294,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
                                 <div className="relative">
                                     <textarea
+                                        title="المواصفات الفنية التفصيلية"
                                         placeholder="المواصفات الفنية التفصيلية..."
                                         value={newItemDetails}
                                         onChange={e => setNewItemDetails(e.target.value)}
                                         className="w-full p-3 border border-gray-300 rounded-xl h-40 text-xs leading-relaxed font-bold bg-white text-gray-900 focus:border-jilco-500 outline-none"
                                     />
-                                    <button onClick={handleAIAssist} disabled={isGenerating} className="absolute bottom-3 left-3 bg-jilco-900 text-white px-3 py-2 rounded-lg text-[10px] font-bold flex items-center gap-2 hover:bg-black transition-all shadow-md">
+                                    <button title="توليد ذكي (AI)" onClick={handleAIAssist} disabled={isGenerating} className="absolute bottom-3 left-3 bg-jilco-900 text-white px-3 py-2 rounded-lg text-[10px] font-bold flex items-center gap-2 hover:bg-black transition-all shadow-md">
                                         <Sparkles size={14} className="text-gold-400" /> {isGenerating ? 'جاري التوليد...' : 'توليد ذكي (AI)'}
                                     </button>
                                 </div>
@@ -307,6 +310,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                             <label className="text-[10px] font-black text-gray-500 block">السعر (SAR)</label>
                                             <label className="flex items-center gap-1 cursor-pointer select-none">
                                                 <input
+                                                    title="ضريبة مشمولة بالمبلغ"
                                                     type="checkbox"
                                                     checked={priceIncludesTax}
                                                     onChange={e => setPriceIncludesTax(e.target.checked)}
@@ -315,14 +319,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                                 <span className={`text-[9px] font-bold ${priceIncludesTax ? 'text-jilco-700' : 'text-gray-400'}`}>شامل؟</span>
                                             </label>
                                         </div>
-                                        <input type="number" value={newItemPrice} onChange={e => setNewItemPrice(parseFloat(e.target.value) || 0)} className="w-full p-3 border border-gray-300 rounded-xl font-mono font-black text-jilco-700 bg-white focus:border-jilco-500 outline-none" />
+                                        <input title="السعر" type="number" value={newItemPrice} onChange={e => setNewItemPrice(parseFloat(e.target.value) || 0)} className="w-full p-3 border border-gray-300 rounded-xl font-mono font-black text-jilco-700 bg-white focus:border-jilco-500 outline-none" />
                                     </div>
                                     <div>
                                         <label className="text-[10px] font-black text-gray-500 mb-1 block">الكمية</label>
-                                        <input type="number" value={newItemQty} onChange={e => setNewItemQty(parseFloat(e.target.value) || 1)} className="w-full p-3 border border-gray-300 rounded-xl text-center font-black bg-white text-gray-900 focus:border-jilco-500 outline-none" />
+                                        <input title="الكمية" type="number" value={newItemQty} onChange={e => setNewItemQty(parseFloat(e.target.value) || 1)} className="w-full p-3 border border-gray-300 rounded-xl text-center font-black bg-white text-gray-900 focus:border-jilco-500 outline-none" />
                                     </div>
                                 </div>
-                                <button onClick={handleAddItem} className="w-full bg-jilco-600 text-white py-3 rounded-xl font-black text-sm hover:bg-jilco-700 transition-all shadow-lg">+ إدراج البند</button>
+                                <button title="إدراج البند" onClick={handleAddItem} className="w-full bg-jilco-600 text-white py-3 rounded-xl font-black text-sm hover:bg-jilco-700 transition-all shadow-lg">+ إدراج البند</button>
                             </div>
                         </div>
 
@@ -373,6 +377,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                     <div key={idx} className="flex gap-2 items-center bg-gray-50 p-2 rounded border border-gray-200">
                                         <span className="text-[10px] font-black text-gray-400 w-4">{idx + 1}</span>
                                         <input
+                                            title="نسبة الدفعة واسمها"
                                             type="text"
                                             value={term.name}
                                             onChange={(e) => updatePaymentTerm(idx, 'name', e.target.value)}
@@ -390,7 +395,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                             />
                                             <span className="absolute left-1 top-1.5 text-[9px] text-gray-400 pointer-events-none">%</span>
                                         </div>
-                                        <button onClick={() => removePaymentTerm(idx)} className="text-red-300 hover:text-red-500"><Trash2 size={14} /></button>
+                                        <button title="حذف الدفعة" onClick={() => removePaymentTerm(idx)} className="text-red-300 hover:text-red-500"><Trash2 size={14} /></button>
                                     </div>
                                 ))}
                             </div>
@@ -398,7 +403,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                 <span className={`text-xs font-black ${details.paymentTerms.reduce((sum, t) => sum + t.percentage, 0) === 100 ? 'text-green-600' : 'text-red-500'}`}>
                                     الإجمالي: {details.paymentTerms.reduce((sum, t) => sum + t.percentage, 0)}%
                                 </span>
-                                <button onClick={addPaymentTerm} className="text-xs bg-jilco-50 text-jilco-700 px-3 py-1 rounded font-black hover:bg-jilco-100">+ إضافة دفعة</button>
+                                <button title="إضافة دفعة" onClick={addPaymentTerm} className="text-xs bg-jilco-50 text-jilco-700 px-3 py-1 rounded font-black hover:bg-jilco-100">+ إضافة دفعة</button>
                             </div>
                         </div>
 
@@ -433,6 +438,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                 <Star size={16} /> قائمة المزايا الإضافية
                             </h3>
                             <textarea
+                                title="قائمة المزايا الإضافية"
                                 value={details.features ? details.features.join('\n') : ''}
                                 onChange={e => setDetails({ ...details, features: e.target.value.split('\n') })}
                                 className="w-full h-96 p-4 border border-gray-300 rounded-lg text-xs leading-loose outline-none focus:border-jilco-500 font-black resize-none bg-white text-gray-900"
@@ -466,6 +472,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                 <h3 className="text-xs font-black text-jilco-900 flex items-center gap-2"><ImageIcon size={16} /> صور الملحقات</h3>
                                 <label className="flex items-center gap-2 cursor-pointer bg-blue-50 px-3 py-1 rounded-lg">
                                     <input
+                                        title="تفعيل صفحة الصور"
                                         type="checkbox"
                                         checked={details.showGallery || false}
                                         onChange={e => setDetails({ ...details, showGallery: e.target.checked })}
@@ -491,7 +498,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                             </div>
                                             <label className="px-4 py-2 bg-jilco-900 text-white rounded-lg text-xs font-black cursor-pointer hover:bg-black shadow-md">
                                                 رفع صورة
-                                                <input type="file" className="hidden" accept="image/*" onChange={e => handleGalleryUpload(e, type as any)} />
+                                                <input title="رفع صورة" type="file" className="hidden" accept="image/*" onChange={e => handleGalleryUpload(e, type as any)} />
                                             </label>
                                         </div>
                                     </div>
@@ -506,6 +513,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
                             <h3 className="text-xs font-black text-jilco-900 mb-3">الشروط والأحكام العامة</h3>
                             <textarea
+                                title="الشروط والأحكام"
                                 value={details.termsAndConditions || ''}
                                 onChange={e => setDetails({ ...details, termsAndConditions: e.target.value })}
                                 className="w-full h-96 p-4 border border-gray-300 rounded-lg text-xs leading-loose outline-none focus:border-jilco-500 font-black resize-none bg-white text-gray-900"

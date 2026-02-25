@@ -280,11 +280,11 @@ export const FinancialReportModule: React.FC = () => {
                     {totalRevenue > 0 && (
                         <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm print:hidden">
                             <p className="text-xs font-bold text-gray-500 mb-3">توزيع التكاليف من الإيرادات</p>
-                            <div className="flex rounded-full overflow-hidden h-6 text-xs font-bold">
-                                <div style={{ width: `${(totalPurchases / totalRevenue) * 100}%` }} className="bg-orange-400 flex items-center justify-center text-white truncate px-1">مشتريات</div>
-                                <div style={{ width: `${(totalExpenses / totalRevenue) * 100}%` }} className="bg-red-400 flex items-center justify-center text-white truncate px-1">مصروفات</div>
-                                <div style={{ width: `${(paidSalaries / totalRevenue) * 100}%` }} className="bg-purple-400 flex items-center justify-center text-white truncate px-1">رواتب</div>
-                                <div style={{ width: `${Math.max(0, (netProfit / totalRevenue) * 100)}%` }} className={`flex items-center justify-center text-white truncate px-1 ${netProfit >= 0 ? 'bg-green-500' : 'bg-gray-300'}`}>ربح</div>
+                            <div className="flex rounded-full overflow-hidden h-6 text-xs font-bold w-full">
+                                <div className={`bg-orange-400 flex items-center justify-center text-white truncate px-1 shrink-0 ${totalPurchases > 0 ? `w-[${Math.round((totalPurchases / totalRevenue) * 100)}%]` : 'hidden'}`}>مشتريات</div>
+                                <div className={`bg-red-400 flex items-center justify-center text-white truncate px-1 shrink-0 ${totalExpenses > 0 ? `w-[${Math.round((totalExpenses / totalRevenue) * 100)}%]` : 'hidden'}`}>مصروفات</div>
+                                <div className={`bg-purple-400 flex items-center justify-center text-white truncate px-1 shrink-0 ${paidSalaries > 0 ? `w-[${Math.round((paidSalaries / totalRevenue) * 100)}%]` : 'hidden'}`}>رواتب</div>
+                                <div className={`flex items-center justify-center text-white truncate px-1 shrink-0 ${netProfit >= 0 ? 'bg-green-500' : 'bg-gray-300'} ${Math.max(0, netProfit) > 0 ? `w-[${Math.round(Math.max(0, (netProfit / totalRevenue) * 100))}%]` : 'hidden'}`}>ربح</div>
                             </div>
                             <div className="flex gap-4 mt-2 flex-wrap">
                                 <span className="text-xs text-gray-500 flex items-center gap-1"><span className="w-3 h-3 bg-orange-400 rounded-full inline-block"></span>مشتريات {fmt(totalPurchases)}</span>

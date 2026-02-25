@@ -74,9 +74,9 @@ export const SystemNav: React.FC<SystemNavProps> = ({ currentView, setView, sync
 
   return (
     <div className="w-28 bg-jilco-950 flex flex-col items-center py-6 h-screen text-white shadow-2xl z-50 print:hidden shrink-0 border-l border-white/5 relative transition-all duration-300">
-      <div className="mb-4 p-3 bg-gradient-to-b from-gold-500 to-gold-600 rounded-2xl cursor-pointer shadow-lg active:scale-95 transition-transform" onClick={() => hasPermission('view_dashboard') && setView('dashboard')}>
+      <button title="الرئيسية" className="mb-4 p-3 bg-gradient-to-b from-gold-500 to-gold-600 rounded-2xl cursor-pointer shadow-lg active:scale-95 transition-transform" onClick={() => hasPermission('view_dashboard') && setView('dashboard')}>
         <div className="font-black text-2xl tracking-tighter text-jilco-950 italic">J</div>
-      </div>
+      </button>
 
       <div className="mb-2 text-center px-1 w-full">
         <div className="w-10 h-10 rounded-full bg-white/10 mx-auto flex items-center justify-center font-bold text-sm mb-1 border border-white/20">
@@ -111,6 +111,7 @@ export const SystemNav: React.FC<SystemNavProps> = ({ currentView, setView, sync
           const isActive = currentView === item.id;
           return (
             <button
+              title={item.label}
               key={item.id}
               onClick={() => setView(item.id)}
               className={`flex flex-col items-center justify-center p-2 rounded-xl transition-all duration-300 group w-full min-h-[60px] ${isActive
@@ -152,7 +153,7 @@ export const SystemNav: React.FC<SystemNavProps> = ({ currentView, setView, sync
             <div className="absolute bottom-0 right-full ml-2 w-80 bg-white rounded-2xl shadow-2xl border border-gray-200 z-[9999] overflow-hidden">
               <div className="p-3 bg-jilco-900 text-white flex justify-between items-center">
                 <span className="font-black text-sm">الإشعارات {count > 0 && `(${count})`}</span>
-                <button onClick={() => setShowNotifications(false)} className="text-white/60 hover:text-white"><X size={16} /></button>
+                <button title="إغلاق الإشعارات" onClick={() => setShowNotifications(false)} className="text-white/60 hover:text-white"><X size={16} /></button>
               </div>
               <div className="max-h-80 overflow-y-auto divide-y divide-gray-100">
                 {notifications.length === 0 && (
@@ -160,6 +161,7 @@ export const SystemNav: React.FC<SystemNavProps> = ({ currentView, setView, sync
                 )}
                 {notifications.map(n => (
                   <button
+                    title={`عرض ${n.title}`}
                     key={n.id}
                     onClick={() => { if (n.actionView) setView(n.actionView as any); setShowNotifications(false); }}
                     className={`w-full text-right p-3 hover:bg-gray-50 transition-colors flex items-start gap-2 ${n.severity === 'critical' ? 'border-r-4 border-red-500' :

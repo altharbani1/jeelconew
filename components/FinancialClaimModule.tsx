@@ -168,9 +168,9 @@ export const FinancialClaimModule: React.FC = () => {
                     <td className="p-4 font-bold text-jilco-900">{c.claimAmount.toLocaleString()}</td>
                     <td className="p-4 font-mono text-xs">{c.date}</td>
                     <td className="p-4 flex justify-center gap-2">
-                      <button onClick={() => handleEdit(c)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-full"><Edit size={16} /></button>
-                      <button onClick={() => { handleEdit(c); setTimeout(() => window.print(), 500); }} className="p-2 text-gray-600 hover:bg-gray-50 rounded-full"><Printer size={16} /></button>
-                      <button onClick={() => handleDelete(c.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-full"><Trash2 size={16} /></button>
+                      <button title="تعديل المطالبة" onClick={() => handleEdit(c)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-full"><Edit size={16} /></button>
+                      <button title="طباعة المطالبة" onClick={() => { handleEdit(c); setTimeout(() => window.print(), 500); }} className="p-2 text-gray-600 hover:bg-gray-50 rounded-full"><Printer size={16} /></button>
+                      <button title="حذف المطالبة" onClick={() => handleDelete(c.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-full"><Trash2 size={16} /></button>
                     </td>
                   </tr>
                 ))}
@@ -193,53 +193,53 @@ export const FinancialClaimModule: React.FC = () => {
           <h2 className="text-xl font-bold text-jilco-900 flex items-center gap-2">
             <FileWarning className="text-gold-500" /> محرر المطالبة
           </h2>
-          <button onClick={() => setViewMode('list')} className="p-2 hover:bg-gray-100 rounded-full text-gray-600"><ArrowLeft size={20} /></button>
+          <button title="العودة إلى قائمة المطالبات" onClick={() => setViewMode('list')} className="p-2 hover:bg-gray-100 rounded-full text-gray-600"><ArrowLeft size={20} /></button>
         </div>
 
         <div className="space-y-6">
           <div className="grid grid-cols-2 gap-2">
-            <button onClick={handleSave} className="bg-green-600 text-white py-2 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-green-700">
+            <button title="حفظ التغييرات" onClick={handleSave} className="bg-green-600 text-white py-2 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-green-700">
               <Save size={18} /> حفظ
             </button>
-            <button onClick={() => window.print()} className="bg-jilco-900 text-white py-2 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-jilco-800">
+            <button title="طباعة المطالبة" onClick={() => window.print()} className="bg-jilco-900 text-white py-2 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-jilco-800">
               <Printer size={18} /> طباعة
             </button>
           </div>
 
           <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 space-y-3">
             <label className="text-xs font-bold text-gray-700 block">العميل</label>
-            <select onChange={handleCustomerSelect} className="w-full p-2 border rounded text-sm mb-2" value={currentClaim.customerId}>
+            <select title="اختيار العميل" onChange={handleCustomerSelect} className="w-full p-2 border rounded text-sm mb-2" value={currentClaim.customerId}>
               <option value="" disabled>-- اختر عميل مسجل --</option>
               {customers.map(c => <option key={c.id} value={c.id}>{c.fullName}</option>)}
             </select>
-            <input type="text" placeholder="اسم العميل" value={currentClaim.customerName} onChange={e => setCurrentClaim({ ...currentClaim, customerName: e.target.value })} className="w-full p-2 border rounded text-sm" />
-            <input type="text" placeholder="المشروع" value={currentClaim.projectName} onChange={e => setCurrentClaim({ ...currentClaim, projectName: e.target.value })} className="w-full p-2 border rounded text-sm" />
+            <input type="text" title="اسم العميل" placeholder="اسم العميل" value={currentClaim.customerName} onChange={e => setCurrentClaim({ ...currentClaim, customerName: e.target.value })} className="w-full p-2 border rounded text-sm" />
+            <input type="text" title="اسم المشروع" placeholder="المشروع" value={currentClaim.projectName} onChange={e => setCurrentClaim({ ...currentClaim, projectName: e.target.value })} className="w-full p-2 border rounded text-sm" />
           </div>
 
           <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 space-y-3">
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="text-xs font-bold text-gray-700 block mb-1">رقم المطالبة</label>
-                <input type="text" value={currentClaim.number} onChange={e => setCurrentClaim({ ...currentClaim, number: e.target.value })} className="w-full p-2 border rounded text-sm" />
+                <input type="text" title="رقم المطالبة" value={currentClaim.number} onChange={e => setCurrentClaim({ ...currentClaim, number: e.target.value })} className="w-full p-2 border rounded text-sm" />
               </div>
               <div>
                 <label className="text-xs font-bold text-gray-700 block mb-1">التاريخ</label>
-                <input type="date" value={currentClaim.date} onChange={e => setCurrentClaim({ ...currentClaim, date: e.target.value })} className="w-full p-2 border rounded text-sm" />
+                <input type="date" title="تاريخ المطالبة" value={currentClaim.date} onChange={e => setCurrentClaim({ ...currentClaim, date: e.target.value })} className="w-full p-2 border rounded text-sm" />
               </div>
             </div>
             <div>
               <label className="text-xs font-bold text-gray-700 block mb-1">المبلغ المطلوب (ر.س)</label>
-              <input type="number" value={currentClaim.claimAmount} onChange={e => setCurrentClaim({ ...currentClaim, claimAmount: parseFloat(e.target.value) })} className="w-full p-2 border rounded text-sm font-bold text-jilco-900" />
+              <input type="number" title="مبلغ المطالبة بالريال السعودي" value={currentClaim.claimAmount} onChange={e => setCurrentClaim({ ...currentClaim, claimAmount: parseFloat(e.target.value) })} className="w-full p-2 border rounded text-sm font-bold text-jilco-900" />
             </div>
             <div>
               <label className="text-xs font-bold text-gray-700 block mb-1">البيان / الوصف</label>
-              <textarea value={currentClaim.description} onChange={e => setCurrentClaim({ ...currentClaim, description: e.target.value })} className="w-full p-2 border rounded text-sm h-20" placeholder="مثال: دفعة تشغيل المصعد..." />
+              <textarea title="وصف المطالبة أو تفاصيل الدفعة" value={currentClaim.description} onChange={e => setCurrentClaim({ ...currentClaim, description: e.target.value })} className="w-full p-2 border rounded text-sm h-20" placeholder="مثال: دفعة تشغيل المصعد..." />
             </div>
           </div>
 
           <div>
             <label className="text-xs font-bold text-gray-700 block mb-1">ملاحظات ختامية</label>
-            <textarea value={currentClaim.notes} onChange={e => setCurrentClaim({ ...currentClaim, notes: e.target.value })} className="w-full p-2 border rounded text-sm h-20" />
+            <textarea title="ملاحظات إضافية على المطالبة" value={currentClaim.notes} onChange={e => setCurrentClaim({ ...currentClaim, notes: e.target.value })} className="w-full p-2 border rounded text-sm h-20" />
           </div>
         </div>
       </div>

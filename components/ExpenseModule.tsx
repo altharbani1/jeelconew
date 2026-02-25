@@ -221,7 +221,7 @@ export const ExpenseModule: React.FC = () => {
                 <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
                     <div className="p-4 border-b flex justify-between items-center bg-gray-50">
                         <h3 className="font-bold text-gray-800 flex items-center gap-2"><Paperclip size={18} /> مرفقات: {viewAttachments.title}</h3>
-                        <button onClick={() => setViewAttachments(null)} className="p-1 hover:bg-gray-200 rounded-full"><X size={20} /></button>
+                        <button title="إغلاق" onClick={() => setViewAttachments(null)} className="p-1 hover:bg-gray-200 rounded-full"><X size={20} /></button>
                     </div>
                     <div className="flex-1 overflow-y-auto p-4 bg-gray-100">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -229,7 +229,7 @@ export const ExpenseModule: React.FC = () => {
                                 <div key={att.id} className="bg-white p-2 rounded-lg shadow-sm border border-gray-200">
                                     <div className="flex justify-between items-center mb-2 px-1">
                                         <span className="text-xs font-bold text-gray-500 truncate max-w-[200px]">{att.name}</span>
-                                        <a href={att.url} download={att.name} className="text-blue-500 hover:text-blue-700"><Download size={16} /></a>
+                                        <a href={att.url} download={att.name} title="تحميل" aria-label="تحميل المرفق" className="text-blue-500 hover:text-blue-700"><Download size={16} /></a>
                                     </div>
                                     <div className="h-64 bg-gray-50 rounded flex items-center justify-center overflow-hidden border border-gray-100">
                                         {att.type === 'image' ? (
@@ -358,15 +358,15 @@ export const ExpenseModule: React.FC = () => {
                         </div>
                         <div>
                             <label className="text-xs font-bold text-gray-500 mb-1 block">من تاريخ</label>
-                            <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="p-2 border border-gray-400 rounded-lg text-sm outline-none w-36 text-black bg-white font-bold" />
+                            <input title="من تاريخ" type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="p-2 border border-gray-400 rounded-lg text-sm outline-none w-36 text-black bg-white font-bold" />
                         </div>
                         <div>
                             <label className="text-xs font-bold text-gray-500 mb-1 block">إلى تاريخ</label>
-                            <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="p-2 border border-gray-400 rounded-lg text-sm outline-none w-36 text-black bg-white font-bold" />
+                            <input title="إلى تاريخ" type="date" value={endDate} onChange={e => setEndDate(e.target.value)} className="p-2 border border-gray-400 rounded-lg text-sm outline-none w-36 text-black bg-white font-bold" />
                         </div>
                         <div className="w-48">
                             <label className="text-xs font-bold text-gray-500 mb-1 block">التصنيف</label>
-                            <select value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)} className="w-full p-2 border border-gray-400 rounded-lg text-sm outline-none bg-white text-black font-bold">
+                            <select title="تصفية بالتصنيف" value={categoryFilter} onChange={e => setCategoryFilter(e.target.value)} className="w-full p-2 border border-gray-400 rounded-lg text-sm outline-none bg-white text-black font-bold">
                                 <option value="all">الكل</option>
                                 {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                             </select>
@@ -433,9 +433,9 @@ export const ExpenseModule: React.FC = () => {
                                             ) : <span className="text-gray-300 text-xs">-</span>}
                                         </td>
                                         <td className="p-4 flex justify-center gap-2">
-                                            <button onClick={() => handleEdit(exp)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-full"><Edit size={16} /></button>
-                                            <button onClick={() => { handleEdit(exp); setTimeout(() => window.print(), 500); }} className="p-2 text-gray-600 hover:bg-gray-50 rounded-full"><Printer size={16} /></button>
-                                            <button onClick={() => handleDelete(exp.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-full"><Trash2 size={16} /></button>
+                                            <button title="تعديل" onClick={() => handleEdit(exp)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-full"><Edit size={16} /></button>
+                                            <button title="طباعة" onClick={() => { handleEdit(exp); setTimeout(() => window.print(), 500); }} className="p-2 text-gray-600 hover:bg-gray-50 rounded-full"><Printer size={16} /></button>
+                                            <button title="حذف" onClick={() => handleDelete(exp.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-full"><Trash2 size={16} /></button>
                                         </td>
                                     </tr>
                                 ))}
@@ -461,7 +461,7 @@ export const ExpenseModule: React.FC = () => {
                     <h2 className="text-xl font-bold text-jilco-900 flex items-center gap-2">
                         <Wallet className="text-red-500" /> سند صرف (Payment)
                     </h2>
-                    <button onClick={() => setViewMode('list')} className="p-2 hover:bg-gray-100 rounded-full text-gray-600"><ArrowLeft size={20} /></button>
+                    <button title="رجوع" onClick={() => setViewMode('list')} className="p-2 hover:bg-gray-100 rounded-full text-gray-600"><ArrowLeft size={20} /></button>
                 </div>
 
                 <div className="space-y-5">
@@ -478,17 +478,17 @@ export const ExpenseModule: React.FC = () => {
                         <div className="grid grid-cols-2 gap-3">
                             <div>
                                 <label className="block text-xs font-bold text-gray-700 mb-1">رقم السند</label>
-                                <input type="text" value={currentExpense.number} onChange={e => setCurrentExpense({ ...currentExpense, number: e.target.value })} className="w-full p-2 border border-gray-400 rounded text-sm bg-white text-black font-bold" />
+                                <input title="رقم السند" placeholder="رقم السند" type="text" value={currentExpense.number} onChange={e => setCurrentExpense({ ...currentExpense, number: e.target.value })} className="w-full p-2 border border-gray-400 rounded text-sm bg-white text-black font-bold" />
                             </div>
                             <div>
                                 <label className="block text-xs font-bold text-gray-700 mb-1">التاريخ</label>
-                                <input type="date" value={currentExpense.date} onChange={e => setCurrentExpense({ ...currentExpense, date: e.target.value })} className="w-full p-2 border border-gray-400 rounded text-sm bg-white text-black font-bold" />
+                                <input title="التاريخ" type="date" value={currentExpense.date} onChange={e => setCurrentExpense({ ...currentExpense, date: e.target.value })} className="w-full p-2 border border-gray-400 rounded text-sm bg-white text-black font-bold" />
                             </div>
                         </div>
 
                         <div>
                             <label className="block text-xs font-bold text-gray-700 mb-1">المبلغ (ر.س)</label>
-                            <input type="number" value={currentExpense.amount} onChange={e => setCurrentExpense({ ...currentExpense, amount: parseFloat(e.target.value) })} className="w-full p-2 border border-gray-400 rounded text-sm font-black text-red-600 bg-white" />
+                            <input title="المبلغ" placeholder="المبلغ" type="number" value={currentExpense.amount} onChange={e => setCurrentExpense({ ...currentExpense, amount: parseFloat(e.target.value) })} className="w-full p-2 border border-gray-400 rounded text-sm font-black text-red-600 bg-white" />
                             <p className="text-[10px] text-gray-500 mt-1 font-bold">{tafqit(currentExpense.amount)}</p>
                         </div>
                     </div>
@@ -502,7 +502,7 @@ export const ExpenseModule: React.FC = () => {
                         {/* Project Linking */}
                         <div className="bg-white border border-blue-200 rounded p-2">
                             <label className="text-[10px] font-bold text-blue-700 block mb-1 flex items-center gap-1"><Briefcase size={10} /> ربط بمشروع (اختياري)</label>
-                            <select
+                            <select title="المشروع"
                                 value={currentExpense.projectId || ''}
                                 onChange={e => setCurrentExpense({ ...currentExpense, projectId: e.target.value })}
                                 className="w-full p-1.5 border border-gray-400 rounded text-xs bg-white text-black font-bold"
@@ -518,7 +518,7 @@ export const ExpenseModule: React.FC = () => {
                         </div>
                         <div>
                             <label className="block text-xs font-bold text-gray-700 mb-1">تصنيف المصروف</label>
-                            <select value={currentExpense.categoryId} onChange={e => setCurrentExpense({ ...currentExpense, categoryId: e.target.value })} className="w-full p-2 border border-gray-400 rounded text-sm bg-white text-black font-bold">
+                            <select title="تصنيف المصروف" value={currentExpense.categoryId} onChange={e => setCurrentExpense({ ...currentExpense, categoryId: e.target.value })} className="w-full p-2 border border-gray-400 rounded text-sm bg-white text-black font-bold">
                                 <option value="">-- اختر تصنيف --</option>
                                 {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                             </select>
@@ -529,7 +529,7 @@ export const ExpenseModule: React.FC = () => {
                         <div className="grid grid-cols-2 gap-2">
                             <div>
                                 <label className="block text-xs font-bold text-gray-700 mb-1">طريقة الدفع</label>
-                                <select value={currentExpense.paymentMethod} onChange={e => setCurrentExpense({ ...currentExpense, paymentMethod: e.target.value as any })} className="w-full p-2 border border-gray-400 rounded text-sm bg-white text-black font-bold">
+                                <select title="طريقة الدفع" value={currentExpense.paymentMethod} onChange={e => setCurrentExpense({ ...currentExpense, paymentMethod: e.target.value as any })} className="w-full p-2 border border-gray-400 rounded text-sm bg-white text-black font-bold">
                                     <option value="cash">نقداً</option>
                                     <option value="transfer">تحويل بنكي</option>
                                     <option value="check">شيك</option>
@@ -538,7 +538,7 @@ export const ExpenseModule: React.FC = () => {
                             {currentExpense.paymentMethod !== 'cash' && (
                                 <div>
                                     <label className="block text-xs font-bold text-gray-700 mb-1">اسم البنك</label>
-                                    <select
+                                    <select title="اسم البنك"
                                         value={currentExpense.bankName || ''}
                                         onChange={e => setCurrentExpense({ ...currentExpense, bankName: e.target.value })}
                                         className="w-full p-2 border border-gray-400 rounded text-sm bg-white text-black font-bold"
@@ -552,7 +552,7 @@ export const ExpenseModule: React.FC = () => {
                         {currentExpense.paymentMethod !== 'cash' && (
                             <div>
                                 <label className="block text-xs font-bold text-gray-700 mb-1">رقم المرجع / الشيك</label>
-                                <input type="text" value={currentExpense.referenceNumber || ''} onChange={e => setCurrentExpense({ ...currentExpense, referenceNumber: e.target.value })} className="w-full p-2 border border-gray-400 rounded text-sm bg-white text-black font-bold" />
+                                <input title="رقم المرجع" placeholder="رقم المرجع" type="text" value={currentExpense.referenceNumber || ''} onChange={e => setCurrentExpense({ ...currentExpense, referenceNumber: e.target.value })} className="w-full p-2 border border-gray-400 rounded text-sm bg-white text-black font-bold" />
                             </div>
                         )}
                     </div>
@@ -574,7 +574,7 @@ export const ExpenseModule: React.FC = () => {
                                             {att.type === 'image' ? <ImageIcon size={14} className="text-purple-500 shrink-0" /> : <FileText size={14} className="text-red-500 shrink-0" />}
                                             <span className="truncate max-w-[150px]">{att.name}</span>
                                         </div>
-                                        <button onClick={() => removeAttachment(att.id)} className="text-red-400 hover:text-red-600 p-1 rounded"><X size={14} /></button>
+                                        <button title="إزالة المرفق" onClick={() => removeAttachment(att.id)} className="text-red-400 hover:text-red-600 p-1 rounded"><X size={14} /></button>
                                     </div>
                                 ))}
                             </div>
@@ -602,7 +602,7 @@ export const ExpenseModule: React.FC = () => {
                                 <p className="text-xs font-bold text-gray-500">{config.headerSubtitle}</p>
                             </div>
                             <div>
-                                {config.logo ? <img src={config.logo} className="h-20 object-contain" /> : <div className="text-gray-300 font-bold border p-2 rounded">LOGO</div>}
+                                {config.logo ? <img src={config.logo} alt="Logo" className="h-20 object-contain" /> : <div className="text-gray-300 font-bold border p-2 rounded">LOGO</div>}
                             </div>
                             <div className="text-left">
                                 <h2 className="text-xl font-black text-red-700 uppercase tracking-widest bg-red-50 px-4 py-1 rounded border border-red-100">Payment Voucher</h2>

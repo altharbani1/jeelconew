@@ -245,8 +245,9 @@ export const ContractModule: React.FC = () => {
                                         <td className="p-4 font-black text-green-700 font-mono">{c.data.totalValue.toLocaleString()}</td>
                                         <td className="p-4 font-mono text-gray-500 text-xs">{c.data.date}</td>
                                         <td className="p-4 flex justify-center gap-2">
-                                            <button onClick={() => { setCurrentContract(c.data); setCurrentSpecs(c.specs); setViewMode('editor'); }} className="p-2 text-blue-600 hover:bg-blue-50 rounded-full"><Edit size={16} /></button>
+                                            <button title="تعديل" onClick={() => { setCurrentContract(c.data); setCurrentSpecs(c.specs); setViewMode('editor'); }} className="p-2 text-blue-600 hover:bg-blue-50 rounded-full"><Edit size={16} /></button>
                                             <button
+                                                title="طباعة"
                                                 onClick={() => {
                                                     setCurrentContract(c.data);
                                                     setCurrentSpecs(c.specs);
@@ -257,7 +258,7 @@ export const ContractModule: React.FC = () => {
                                             >
                                                 <Printer size={16} />
                                             </button>
-                                            <button onClick={async () => await deleteProjectRecord('jilco_contracts_archive', c.id || c.data.number)} className="p-2 text-red-500 hover:bg-red-50 rounded-full"><Trash2 size={16} /></button>
+                                            <button title="حذف" onClick={async () => await deleteProjectRecord('jilco_contracts_archive', c.id || c.data.number)} className="p-2 text-red-500 hover:bg-red-50 rounded-full"><Trash2 size={16} /></button>
                                         </td>
                                     </tr>
                                 ))}
@@ -280,16 +281,16 @@ export const ContractModule: React.FC = () => {
                         <p className="text-[10px] opacity-60">صياغة العقود القانونية للمؤسسة</p>
                     </div>
                     <div className="flex gap-2">
-                        <button onClick={handleSave} className="bg-green-600 p-2.5 rounded-xl hover:bg-green-700 shadow-lg"><Save size={18} /></button>
-                        <button onClick={() => window.print()} className="bg-gold-500 p-2.5 rounded-xl hover:bg-gold-600 shadow-lg"><Printer size={18} /></button>
-                        <button onClick={() => setViewMode('list')} className="bg-white/10 p-2.5 rounded-xl hover:bg-white/20"><ArrowLeft size={18} /></button>
+                        <button title="حفظ" onClick={handleSave} className="bg-green-600 p-2.5 rounded-xl hover:bg-green-700 shadow-lg"><Save size={18} /></button>
+                        <button title="طباعة" onClick={() => window.print()} className="bg-gold-500 p-2.5 rounded-xl hover:bg-gold-600 shadow-lg"><Printer size={18} /></button>
+                        <button title="العودة" onClick={() => setViewMode('list')} className="bg-white/10 p-2.5 rounded-xl hover:bg-white/20"><ArrowLeft size={18} /></button>
                     </div>
                 </div>
 
                 {/* Quick Import Quote Bar */}
                 <div className="p-4 bg-amber-50 border-b border-amber-100">
                     <label className="block text-[10px] font-black text-amber-800 mb-2 uppercase flex items-center gap-1"><Import size={12} /> استيراد من عرض سعر</label>
-                    <select
+                    <select title="استيراد من عرض سعر"
                         onChange={e => {
                             const q = savedQuotes.find(sq => sq.id === e.target.value);
                             if (q) handleImportQuote(q);
@@ -313,22 +314,22 @@ export const ContractModule: React.FC = () => {
                         <div className="space-y-4 animate-fade-in">
                             <div className="bg-blue-50 p-3 rounded-xl border border-blue-200">
                                 <label className="text-[10px] font-black text-blue-800 mb-1 flex items-center gap-1"><User size={12} /> ربط العقد بعميل مسجل</label>
-                                <select onChange={e => handleCustomerSelect(e.target.value)} className="w-full p-2 text-xs border border-gray-400 rounded-lg outline-none bg-white text-black font-bold" defaultValue="">
+                                <select title="اختر العميل" onChange={e => handleCustomerSelect(e.target.value)} className="w-full p-2 text-xs border border-gray-400 rounded-lg outline-none bg-white text-black font-bold" defaultValue="">
                                     <option value="" disabled>-- اختر العميل --</option>
                                     {customers.map(c => <option key={c.id} value={c.id}>{c.fullName}</option>)}
                                 </select>
                             </div>
-                            <div><label className="block text-[10px] font-black text-gray-500 mb-1">رقم العقد</label><input type="text" value={currentContract.number} onChange={e => setCurrentContract({ ...currentContract, number: e.target.value })} className="w-full p-2.5 border border-gray-400 rounded-lg font-mono text-sm bg-white text-black font-bold" /></div>
-                            <div><label className="block text-[10px] font-black text-gray-500 mb-1">تاريخ العقد</label><input type="date" value={currentContract.date} onChange={e => setCurrentContract({ ...currentContract, date: e.target.value })} className="w-full p-2.5 border border-gray-400 rounded-lg text-sm bg-white text-black font-bold" /></div>
-                            <div><label className="block text-[10px] font-black text-gray-500 mb-1">اسم العميل (الطرف الثاني)</label><input type="text" value={currentContract.secondPartyName} onChange={e => setCurrentContract({ ...currentContract, secondPartyName: e.target.value })} className="w-full p-2.5 border border-gray-400 rounded-lg text-sm bg-white text-black font-bold" /></div>
-                            <div><label className="block text-[10px] font-black text-gray-500 mb-1">الموقع / المدينة</label><input type="text" value={currentContract.location} onChange={e => setCurrentContract({ ...currentContract, location: e.target.value })} className="w-full p-2.5 border border-gray-400 rounded-lg text-sm bg-white text-black font-bold" /></div>
+                            <div><label className="block text-[10px] font-black text-gray-500 mb-1">رقم العقد</label><input title="رقم العقد" placeholder="رقم العقد" type="text" value={currentContract.number} onChange={e => setCurrentContract({ ...currentContract, number: e.target.value })} className="w-full p-2.5 border border-gray-400 rounded-lg font-mono text-sm bg-white text-black font-bold" /></div>
+                            <div><label className="block text-[10px] font-black text-gray-500 mb-1">تاريخ العقد</label><input title="تاريخ العقد" type="date" value={currentContract.date} onChange={e => setCurrentContract({ ...currentContract, date: e.target.value })} className="w-full p-2.5 border border-gray-400 rounded-lg text-sm bg-white text-black font-bold" /></div>
+                            <div><label className="block text-[10px] font-black text-gray-500 mb-1">اسم العميل (الطرف الثاني)</label><input title="اسم العميل" placeholder="اسم العميل" type="text" value={currentContract.secondPartyName} onChange={e => setCurrentContract({ ...currentContract, secondPartyName: e.target.value })} className="w-full p-2.5 border border-gray-400 rounded-lg text-sm bg-white text-black font-bold" /></div>
+                            <div><label className="block text-[10px] font-black text-gray-500 mb-1">الموقع / المدينة</label><input title="الموقع" placeholder="الموقع" type="text" value={currentContract.location} onChange={e => setCurrentContract({ ...currentContract, location: e.target.value })} className="w-full p-2.5 border border-gray-400 rounded-lg text-sm bg-white text-black font-bold" /></div>
 
                             <div className="grid grid-cols-2 gap-4">
-                                <div><label className="block text-[10px] font-black text-gray-500 mb-1">قيمة العقد (شامل الضريبة)</label><input type="number" value={currentContract.totalValue} onChange={e => setCurrentContract({ ...currentContract, totalValue: parseFloat(e.target.value) || 0 })} className="w-full p-2.5 border border-gray-400 rounded-lg font-black text-green-700 bg-white" /></div>
-                                <div><label className="block text-[10px] font-black text-gray-500 mb-1">عدد المصاعد</label><input type="number" value={currentContract.elevatorCount || 1} onChange={e => setCurrentContract({ ...currentContract, elevatorCount: parseFloat(e.target.value) || 1 })} className="w-full p-2.5 border border-gray-400 rounded-lg font-black text-center bg-white text-black" /></div>
+                                <div><label className="block text-[10px] font-black text-gray-500 mb-1">قيمة العقد (شامل الضريبة)</label><input title="قيمة العقد" placeholder="قيمة العقد" type="number" value={currentContract.totalValue} onChange={e => setCurrentContract({ ...currentContract, totalValue: parseFloat(e.target.value) || 0 })} className="w-full p-2.5 border border-gray-400 rounded-lg font-black text-green-700 bg-white" /></div>
+                                <div><label className="block text-[10px] font-black text-gray-500 mb-1">عدد المصاعد</label><input title="عدد المصاعد" placeholder="عدد المصاعد" type="number" value={currentContract.elevatorCount || 1} onChange={e => setCurrentContract({ ...currentContract, elevatorCount: parseFloat(e.target.value) || 1 })} className="w-full p-2.5 border border-gray-400 rounded-lg font-black text-center bg-white text-black" /></div>
                             </div>
 
-                            <div><label className="block text-[10px] font-black text-gray-500 mb-1">مدة التنفيذ (أشهر)</label><input type="number" value={currentContract.durationMonths} onChange={e => setCurrentContract({ ...currentContract, durationMonths: parseInt(e.target.value) || 2 })} className="w-full p-2.5 border border-gray-400 rounded-lg text-sm bg-white text-black font-bold" /></div>
+                            <div><label className="block text-[10px] font-black text-gray-500 mb-1">مدة التنفيذ (أشهر)</label><input title="مدة التنفيذ" placeholder="مدة التنفيذ" type="number" value={currentContract.durationMonths} onChange={e => setCurrentContract({ ...currentContract, durationMonths: parseInt(e.target.value) || 2 })} className="w-full p-2.5 border border-gray-400 rounded-lg text-sm bg-white text-black font-bold" /></div>
                         </div>
                     )}
 
@@ -337,7 +338,7 @@ export const ContractModule: React.FC = () => {
                             {Object.entries(specsDb).map(([key, opts]) => (
                                 <div key={key}>
                                     <label className="block text-[10px] font-black text-gray-400 mb-1 uppercase">{key}</label>
-                                    <select
+                                    <select title={key}
                                         value={currentSpecs[key as keyof TechnicalSpecs] || ''}
                                         onChange={e => setCurrentSpecs({ ...currentSpecs, [key]: e.target.value })}
                                         className="w-full p-2.5 border border-gray-400 rounded-lg text-xs bg-white text-black font-bold"
@@ -357,20 +358,20 @@ export const ContractModule: React.FC = () => {
                                 <div className="space-y-2">
                                     {currentContract.paymentTerms.map((term, idx) => (
                                         <div key={idx} className="flex gap-2 items-center bg-gray-50 p-2 rounded border border-gray-200">
-                                            <input type="text" value={term.name} onChange={e => {
+                                            <input title="اسم الدفعة" placeholder="اسم الدفعة" type="text" value={term.name} onChange={e => {
                                                 const newTerms = [...currentContract.paymentTerms];
                                                 newTerms[idx].name = e.target.value;
                                                 setCurrentContract({ ...currentContract, paymentTerms: newTerms });
                                             }} className="flex-1 p-1.5 text-xs border border-gray-400 rounded bg-white text-black font-bold" />
                                             <div className="relative w-16">
-                                                <input type="number" value={term.percentage} onChange={e => {
+                                                <input title="نسبة الدفعة" placeholder="نسبة" type="number" value={term.percentage} onChange={e => {
                                                     const newTerms = [...currentContract.paymentTerms];
                                                     newTerms[idx].percentage = parseFloat(e.target.value) || 0;
                                                     setCurrentContract({ ...currentContract, paymentTerms: newTerms });
                                                 }} className="w-full p-1.5 text-xs border border-gray-400 rounded text-center bg-white text-black font-bold" />
                                                 <span className="absolute left-1 top-1.5 text-[9px] text-gray-400 pointer-events-none">%</span>
                                             </div>
-                                            <button onClick={() => setCurrentContract({ ...currentContract, paymentTerms: currentContract.paymentTerms.filter((_, i) => i !== idx) })} className="text-red-300 hover:text-red-500"><X size={14} /></button>
+                                            <button title="حذف الدفعة" onClick={() => setCurrentContract({ ...currentContract, paymentTerms: currentContract.paymentTerms.filter((_, i) => i !== idx) })} className="text-red-300 hover:text-red-500"><X size={14} /></button>
                                         </div>
                                     ))}
                                 </div>
@@ -433,7 +434,7 @@ export const ContractModule: React.FC = () => {
                                 <div className="text-center relative">
                                     <p className="font-bold text-sm mb-12">توقيع الطرف الأول</p>
                                     <div className="w-40 border-b-2 border-jilco-900 mx-auto"></div>
-                                    {config.stamp && <img src={config.stamp} className="absolute bottom-4 left-1/2 -translate-x-1/2 w-32 opacity-90 mix-blend-multiply" />}
+                                    {config.stamp && <img src={config.stamp} alt="Stamp" className="absolute bottom-4 left-1/2 -translate-x-1/2 w-32 opacity-90 mix-blend-multiply" />}
                                 </div>
                                 <div className="text-center">
                                     <p className="font-bold text-sm mb-12">توقيع الطرف الثاني (العميل)</p>

@@ -100,10 +100,11 @@ export const SpecsManagerModule: React.FC = () => {
             <p className="text-gray-500 text-sm mt-1">إدارة القوائم المنسدلة للمواصفات الفنية</p>
           </div>
           <div className="flex gap-2">
-            <button onClick={resetToDefaults} className="px-4 py-2 rounded text-gray-600 bg-white border border-gray-300 hover:bg-gray-50 text-xs font-bold flex items-center gap-2">
+            <button title="استعادة الإعدادات الافتراضية" onClick={resetToDefaults} className="px-4 py-2 rounded text-gray-600 bg-white border border-gray-300 hover:bg-gray-50 text-xs font-bold flex items-center gap-2">
               <RefreshCw size={14} /> استعادة الافتراضي
             </button>
             <button
+              title="حفظ التغييرات"
               onClick={handleSave}
               className={`px-6 py-2 rounded-lg font-bold flex items-center gap-2 shadow-md transition-all text-white ${showSaved ? 'bg-green-600' : 'bg-jilco-900 hover:bg-jilco-800'}`}
             >
@@ -123,6 +124,7 @@ export const SpecsManagerModule: React.FC = () => {
             <div>
               {(Object.keys(LABELS) as Array<keyof TechnicalSpecs>).map(key => (
                 <button
+                  title={`تحديد تصنيف ${LABELS[key]}`}
                   key={key}
                   onClick={() => setSelectedCategory(key)}
                   className={`w-full text-right px-4 py-3 text-sm font-medium border-b border-gray-50 transition-colors flex justify-between items-center ${selectedCategory === key ? 'bg-jilco-50 text-jilco-800 border-r-4 border-r-jilco-600' : 'text-gray-600 hover:bg-gray-50'}`}
@@ -146,6 +148,7 @@ export const SpecsManagerModule: React.FC = () => {
             <div className="p-6 border-b border-gray-100 bg-white">
               <div className="flex gap-2">
                 <input
+                  title={`إضافة خيار جديد لـ ${LABELS[selectedCategory]}`}
                   type="text"
                   value={newItem}
                   onChange={(e) => setNewItem(e.target.value)}
@@ -154,6 +157,7 @@ export const SpecsManagerModule: React.FC = () => {
                   className="flex-1 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-jilco-500 outline-none"
                 />
                 <button
+                  title="إضافة الخيار"
                   onClick={addItem}
                   disabled={!newItem.trim()}
                   className="bg-green-600 text-white px-6 rounded-lg font-bold hover:bg-green-700 disabled:opacity-50 flex items-center gap-2"
@@ -172,6 +176,7 @@ export const SpecsManagerModule: React.FC = () => {
                   <div key={index} className="flex justify-between items-center p-3 bg-white border border-gray-200 rounded shadow-sm group hover:border-jilco-300">
                     <span className="text-gray-800 font-medium">{item}</span>
                     <button
+                      title="حذف الخيار"
                       onClick={() => deleteItem(index)}
                       className="text-red-400 hover:bg-red-50 p-2 rounded transition-colors opacity-0 group-hover:opacity-100"
                     >

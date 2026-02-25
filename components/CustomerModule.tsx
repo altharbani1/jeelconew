@@ -170,7 +170,7 @@ export const CustomerModule: React.FC = () => {
                 <p className="text-[10px] font-bold text-gray-500">{config?.headerSubtitle || 'JILCO ELEVATORS'}</p>
               </div>
               <div className="w-1/3 flex justify-center">
-                {config?.logo && <img src={config.logo} className="h-28 w-auto object-contain" />}
+                {config?.logo && <img src={config.logo} alt="Logo" className="h-28 w-auto object-contain" />}
               </div>
               <div className="w-1/3 text-left">
                 <h2 className="text-xl font-black text-jilco-900 border-2 border-jilco-900 px-4 py-1 inline-block rounded-lg uppercase">كشف حساب عميل</h2>
@@ -281,7 +281,7 @@ export const CustomerModule: React.FC = () => {
                 <Search className="absolute right-3 top-2.5 text-gray-400" size={18} />
                 <input type="text" placeholder="بحث بالاسم أو رقم الهاتف..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pr-10 pl-4 py-2 border border-gray-400 rounded-lg text-sm outline-none bg-white text-black font-bold" />
               </div>
-              <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as any)} className="p-2 border border-gray-400 rounded-lg text-sm outline-none bg-white text-black font-bold w-48">
+              <select title="تصفية حسب الحالة" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as any)} className="p-2 border border-gray-400 rounded-lg text-sm outline-none bg-white text-black font-bold w-48">
                 <option value="all">جميع الحالات</option>
                 {Object.entries(STATUS_LABELS).map(([key, val]) => <option key={key} value={key}>{val.label}</option>)}
               </select>
@@ -312,8 +312,8 @@ export const CustomerModule: React.FC = () => {
                       <div className="flex justify-center gap-2">
                         <button onClick={() => handleViewDetails(customer)} className="p-2 text-jilco-600 hover:bg-jilco-50 rounded-full" title="عرض التفاصيل"><UserCheck size={16} /></button>
                         <button onClick={() => { setSelectedCustomer(customer); setViewMode('statement'); }} className="p-2 text-gold-600 hover:bg-gold-50 rounded-full" title="كشف الحساب"><PieChart size={16} /></button>
-                        <button onClick={() => handleEdit(customer)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-full"><Edit size={16} /></button>
-                        <button onClick={async () => { if (window.confirm('حذف العميل؟')) await deleteSalesRecord('jilco_customers', customer.id) }} className="p-2 text-red-500 hover:bg-red-50 rounded-full"><Trash2 size={16} /></button>
+                        <button title="تعديل" onClick={() => handleEdit(customer)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-full"><Edit size={16} /></button>
+                        <button title="حذف" onClick={async () => { if (window.confirm('حذف العميل؟')) await deleteSalesRecord('jilco_customers', customer.id) }} className="p-2 text-red-500 hover:bg-red-50 rounded-full"><Trash2 size={16} /></button>
                       </div>
                     </td>
                   </tr>
@@ -331,7 +331,7 @@ export const CustomerModule: React.FC = () => {
       <div className="flex-1 bg-gray-100 p-6 h-full flex flex-col animate-fade-in overflow-hidden">
         <div className="mb-6 flex justify-between items-center">
           <div className="flex items-center gap-3">
-            <button onClick={() => setViewMode('list')} className="p-2 bg-white rounded-full shadow-sm hover:bg-gray-50 text-gray-600"><ArrowLeft size={20} /></button>
+            <button title="رجوع" onClick={() => setViewMode('list')} className="p-2 bg-white rounded-full shadow-sm hover:bg-gray-50 text-gray-600"><ArrowLeft size={20} /></button>
             <div><h1 className="text-2xl font-bold text-jilco-900">{selectedCustomer.fullName}</h1><p className="text-sm text-gray-500">{selectedCustomer.phone}</p></div>
           </div>
           <button onClick={() => setViewMode('statement')} className="bg-jilco-900 text-white px-6 py-2 rounded-xl font-bold flex items-center gap-2 hover:bg-black shadow-lg"><PieChart size={20} /> عرض كشف الحساب المالي</button>
@@ -375,7 +375,7 @@ export const CustomerModule: React.FC = () => {
                     <span className={`px-2 py-0.5 rounded-full text-[8px] font-black uppercase ${note.type === 'call' ? 'bg-blue-100 text-blue-600' : 'bg-gray-200 text-gray-600'}`}>{note.type}</span>
                   </div>
                   <p className="text-sm text-gray-700 font-bold leading-relaxed">{note.content}</p>
-                  <button onClick={async () => {
+                  <button title="حذف الملاحظة" onClick={async () => {
                     if (window.confirm('حذف؟')) {
                       const updated = { ...selectedCustomer, notes: selectedCustomer.notes.filter(n => n.id !== note.id) };
                       await saveSalesRecord('jilco_customers', updated.id, updated);
@@ -398,7 +398,7 @@ export const CustomerModule: React.FC = () => {
         <div className="w-full max-w-2xl bg-white rounded-3xl shadow-xl border border-gray-200 overflow-hidden">
           <div className="p-6 bg-jilco-900 text-white flex justify-between items-center">
             <h2 className="text-xl font-bold flex items-center gap-2">{formData.id ? <Edit size={20} /> : <Plus size={20} />} {formData.id ? 'تحديث ملف العميل' : 'تسجيل عميل جديد'}</h2>
-            <button onClick={() => setViewMode('list')} className="text-white/70 hover:text-white"><X size={24} /></button>
+            <button title="إغلاق" onClick={() => setViewMode('list')} className="text-white/70 hover:text-white"><X size={24} /></button>
           </div>
           <div className="p-8 space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -418,9 +418,9 @@ export const CustomerModule: React.FC = () => {
                 <label className="block text-xs font-black text-gray-500 mb-2 uppercase">العنوان / الموقع</label>
                 <input type="text" value={formData.address} onChange={e => setFormData({ ...formData, address: e.target.value })} className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-jilco-500 outline-none font-bold text-black" placeholder="المدينة، الحي" />
               </div>
-              <div><label className="block text-xs font-black text-gray-500 mb-2 uppercase">رقم الهوية / السجل</label><input type="text" value={formData.nationalId || ''} onChange={e => setFormData({ ...formData, nationalId: e.target.value })} className="w-full p-3 border border-gray-300 rounded-xl font-bold text-black" /></div>
+              <div><label className="block text-xs font-black text-gray-500 mb-2 uppercase">رقم الهوية / السجل</label><input title="رقم الهوية" placeholder="رقم الهوية" type="text" value={formData.nationalId || ''} onChange={e => setFormData({ ...formData, nationalId: e.target.value })} className="w-full p-3 border border-gray-300 rounded-xl font-bold text-black" /></div>
               <div><label className="block text-xs font-black text-gray-500 mb-2 uppercase">الحالة</label>
-                <select value={formData.status} onChange={e => setFormData({ ...formData, status: e.target.value as any })} className="w-full p-3 border border-gray-300 rounded-xl font-bold text-black bg-white outline-none">
+                <select title="حالة العميل" value={formData.status} onChange={e => setFormData({ ...formData, status: e.target.value as any })} className="w-full p-3 border border-gray-300 rounded-xl font-bold text-black bg-white outline-none">
                   {Object.entries(STATUS_LABELS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
                 </select>
               </div>
