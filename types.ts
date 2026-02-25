@@ -287,6 +287,7 @@ export interface Project {
   notes: string;
   progress: number;
   clientName: string;
+  attachments?: Attachment[];
   files?: ProjectFile[];
 }
 
@@ -301,6 +302,8 @@ export interface ProjectPhase {
   expectedCost: number;
   actualCost: number;
   progressPercentage: number;
+  assignedTo?: string; // Employee ID
+  assignedToName?: string; // Employee Name
   notes: string;
 }
 

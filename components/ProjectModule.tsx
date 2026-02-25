@@ -10,14 +10,15 @@ import { useData } from '../contexts/DataContext.tsx';
 import { useSales } from '../contexts/SalesContext.tsx';
 import { useInventory } from '../contexts/InventoryContext.tsx';
 import { useProject } from '../contexts/ProjectContext.tsx';
+import { useHR } from '../contexts/HRContext.tsx';
 
 // --- Default Phases Generator ---
 const createDefaultPhases = (projectId: string): ProjectPhase[] => [
-    { id: `PH-${Date.now()}-1`, projectId, name: '1. التجهيزات المدنية وتجهيز البئر', phaseIndex: 0, status: 'not_started', startDate: '', endDate: '', expectedCost: 0, actualCost: 0, progressPercentage: 0, notes: '' },
-    { id: `PH-${Date.now()}-2`, projectId, name: '2. تركيب السكك والأبواب (الميكانيكا)', phaseIndex: 1, status: 'not_started', startDate: '', endDate: '', expectedCost: 0, actualCost: 0, progressPercentage: 0, notes: '' },
-    { id: `PH-${Date.now()}-3`, projectId, name: '3. تركيب الماكينة والمحرك', phaseIndex: 2, status: 'not_started', startDate: '', endDate: '', expectedCost: 0, actualCost: 0, progressPercentage: 0, notes: '' },
-    { id: `PH-${Date.now()}-4`, projectId, name: '4. الأعمال الكهربائية والكنترول', phaseIndex: 0, status: 'not_started', startDate: '', endDate: '', expectedCost: 0, actualCost: 0, progressPercentage: 0, notes: '' },
-    { id: `PH-${Date.now()}-5`, projectId, name: '5. التشغيل التجريبي والتسليم', phaseIndex: 0, status: 'not_started', startDate: '', endDate: '', expectedCost: 0, actualCost: 0, progressPercentage: 0, notes: '' }
+    { id: `PH-${Date.now()}-1`, projectId, name: '1. التجهيزات المدنية وتجهيز البئر', phaseIndex: 0, status: 'not_started', startDate: '', endDate: '', expectedCost: 0, actualCost: 0, progressPercentage: 0, assignedTo: '', assignedToName: '', notes: '' },
+    { id: `PH-${Date.now()}-2`, projectId, name: '2. تركيب السكك والأبواب (الميكانيكا)', phaseIndex: 1, status: 'not_started', startDate: '', endDate: '', expectedCost: 0, actualCost: 0, progressPercentage: 0, assignedTo: '', assignedToName: '', notes: '' },
+    { id: `PH-${Date.now()}-3`, projectId, name: '3. تركيب الماكينة والمحرك', phaseIndex: 2, status: 'not_started', startDate: '', endDate: '', expectedCost: 0, actualCost: 0, progressPercentage: 0, assignedTo: '', assignedToName: '', notes: '' },
+    { id: `PH-${Date.now()}-4`, projectId, name: '4. الأعمال الكهربائية والكنترول', phaseIndex: 0, status: 'not_started', startDate: '', endDate: '', expectedCost: 0, actualCost: 0, progressPercentage: 0, assignedTo: '', assignedToName: '', notes: '' },
+    { id: `PH-${Date.now()}-5`, projectId, name: '5. التشغيل التجريبي والتسليم', phaseIndex: 0, status: 'not_started', startDate: '', endDate: '', expectedCost: 0, actualCost: 0, progressPercentage: 0, assignedTo: '', assignedToName: '', notes: '' }
 ];
 
 const StatusBadge = ({ status }: { status: ProjectStatus | PhaseStatus }) => {
@@ -46,6 +47,7 @@ export const ProjectModule: React.FC = () => {
     } = useProject();
     const { invoices: allInvoices } = useSales();
     const { supplierProducts, inventoryTransactions, saveInventoryRecord } = useInventory();
+    const { employees } = useHR();
 
     const [viewMode, setViewMode] = useState<'dashboard' | 'list' | 'details' | 'statement'>('dashboard');
 
@@ -57,6 +59,9 @@ export const ProjectModule: React.FC = () => {
     const [issueProductId, setIssueProductId] = useState('');
     const [issueQuantity, setIssueQuantity] = useState<number>(1);
     const [issueNotes, setIssueNotes] = useState('');
+
+    // Attachments State (Mock)
+    const [showAttachmentModal, setShowAttachmentModal] = useState(false);
 
     // New Project Form State
     const [showNewProjectModal, setShowNewProjectModal] = useState(false);
@@ -134,6 +139,18 @@ export const ProjectModule: React.FC = () => {
         if (!phaseToUpdate) return;
 
         const updatedPhase = { ...phaseToUpdate, ...updates };
+
+        // Auto-calculate Late status
+        if (updatedPhase.endDate && updatedPhase.status !== 'completed' && updatedPhase.status !== 'stopped') {
+            const today = new Date().toISOString().split('T')[0];
+            if (today > updatedPhase.endDate) {
+                updatedPhase.status = 'late';
+            } else if (updatedPhase.status === 'late') {
+                // Remove late status if date is updated to future and it was previously late
+                updatedPhase.status = 'in_progress';
+            }
+        }
+
         await saveRecord('jilco_phases', phaseId, updatedPhase);
 
         // Auto Update Project Progress & Cost based on phases ONLY
@@ -374,10 +391,10 @@ export const ProjectModule: React.FC = () => {
 
                     {/* Actions (Hidden Print) */}
                     <div className="fixed bottom-8 left-1/2 -translate-x-1/2 flex gap-4 print:hidden">
-                        <button onClick={() => window.print()} className="bg-jilco-900 text-white px-6 py-3 rounded-full font-bold shadow-lg hover:bg-black flex items-center gap-2">
+                        <button onClick={() => window.print()} className="bg-jilco-900 text-white px-6 py-3 rounded-full font-bold shadow-lg hover:bg-black flex items-center gap-2" title="طباعة">
                             <Printer size={18} /> طباعة الكشف
                         </button>
-                        <button onClick={() => setViewMode('details')} className="bg-white text-gray-700 px-6 py-3 rounded-full font-bold shadow-lg hover:bg-gray-50 flex items-center gap-2 border border-gray-200">
+                        <button onClick={() => setViewMode('details')} className="bg-white text-gray-700 px-6 py-3 rounded-full font-bold shadow-lg hover:bg-gray-50 flex items-center gap-2 border border-gray-200" title="رجوع">
                             <ArrowLeft size={18} /> رجوع
                         </button>
                     </div>
@@ -385,6 +402,123 @@ export const ProjectModule: React.FC = () => {
             </div>
         );
     };
+
+    // --- Client Progress Report ---
+    const renderClientReport = () => {
+        if (!selectedProjectId) return null;
+        const project = projects.find(p => p.id === selectedProjectId);
+        const projPhases = phases.filter(p => p.projectId === selectedProjectId);
+        if (!project) return null;
+
+        return (
+            <div className="flex-1 bg-gray-200 p-8 overflow-auto flex justify-center items-start print:p-0 print:bg-white print:w-full print:h-full print:absolute print:top-0 print:left-0 print:z-[200]">
+                <div className="bg-white shadow-2xl w-[210mm] min-h-[297mm] p-0 relative flex flex-col print:shadow-none print:w-full">
+                    {/* Header */}
+                    <div className="px-10 py-8 border-b-2 border-jilco-900 flex justify-between items-center">
+                        <div className="w-1/3 text-right">
+                            <h1 className="text-xl font-black text-jilco-900">جيلكو للمصاعد</h1>
+                            <p className="text-xs font-bold text-gray-500">JILCO ELEVATORS</p>
+                        </div>
+                        <div className="w-1/3 text-center">
+                            <h2 className="text-2xl font-black text-jilco-900 tracking-wider">تقرير إنجاز مشروع</h2>
+                        </div>
+                        <div className="w-1/3 text-left">
+                            <p className="text-xs font-bold text-gray-500">تاريخ التقرير</p>
+                            <p className="font-mono text-sm">{new Date().toLocaleDateString('en-GB')}</p>
+                        </div>
+                    </div>
+
+                    {/* Project Info */}
+                    <div className="px-10 py-8 bg-gray-50 border-b border-gray-200">
+                        <div className="grid grid-cols-2 gap-8">
+                            <div>
+                                <p className="text-sm font-bold text-gray-500 mb-2">اسم المشروع</p>
+                                <h3 className="text-2xl font-black text-jilco-900">{project.name}</h3>
+                            </div>
+                            <div>
+                                <p className="text-sm font-bold text-gray-500 mb-2">اسم العميل</p>
+                                <h3 className="text-2xl font-black text-gray-800">{project.clientName}</h3>
+                            </div>
+                            <div>
+                                <p className="text-sm font-bold text-gray-500 mb-2">تاريخ بداية المشروع</p>
+                                <p className="font-mono font-bold text-lg text-black">{project.startDate || 'غير محدد'}</p>
+                            </div>
+                            <div>
+                                <p className="text-sm font-bold text-gray-500 mb-2">نسبة الإنجاز الكلية</p>
+                                <div className="flex items-center gap-4">
+                                    <div className="flex-1 bg-gray-300 rounded-full h-4">
+                                        <div className="bg-jilco-600 h-4 rounded-full" style={{ width: `${project.progress}%` }}></div>
+                                    </div>
+                                    <span className="font-black text-xl text-jilco-900">{project.progress}%</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Phases Timeline */}
+                    <div className="px-10 py-8 flex-1">
+                        <h4 className="font-black text-lg text-gray-800 mb-8 pb-4 border-b-2 border-gray-200 text-center relative">
+                            <span className="bg-white px-4 relative z-10">الجدول الزمني ومراحل الإنجاز</span>
+                            <div className="absolute top-full left-1/2 w-32 h-1 bg-gold-400 -translate-x-1/2 -mt-1"></div>
+                        </h4>
+
+                        <div className="space-y-6 relative before:absolute before:inset-0 before:mr-6 before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-1 before:bg-gradient-to-b before:from-transparent before:via-gray-300 before:to-transparent">
+                            {projPhases.map((phase, idx) => {
+                                const isCompleted = phase.status === 'completed';
+                                const isInProgress = phase.status === 'in_progress';
+
+                                return (
+                                    <div key={phase.id} className="relative flex items-center justify-between md:justify-normal md:odd:flex-row-reverse group is-active text-right">
+                                        {/* Status Dot */}
+                                        <div className={`flex items-center justify-center w-10 h-10 rounded-full border-4 border-white shrink-0 md:order-1 md:group-odd:-translate-x-1/2 md:group-even:translate-x-1/2 shadow-md relative z-10 ${isCompleted ? 'bg-green-500' : isInProgress ? 'bg-blue-500' : 'bg-gray-300'}`}>
+                                            {isCompleted ? <CheckCircle2 className="text-white" size={20} /> : <div className="w-3 h-3 bg-white rounded-full"></div>}
+                                        </div>
+
+                                        {/* Card */}
+                                        <div className="w-[calc(100%-4rem)] md:w-[calc(50%-3rem)] p-4 rounded-xl border border-gray-200 bg-white shadow-sm transition-shadow">
+                                            <div className="flex items-center justify-between space-x-2 space-x-reverse mb-2">
+                                                <div className="font-black text-jilco-900">{phase.name}</div>
+                                            </div>
+                                            <div className="text-sm text-gray-600 mb-3 grid grid-cols-2 gap-2">
+                                                <div>
+                                                    <span className="font-bold text-gray-400 text-xs">البداية:</span>
+                                                    <br />{phase.startDate || 'غير محدد'}
+                                                </div>
+                                                <div>
+                                                    <span className="font-bold text-gray-400 text-xs">النهاية (المتوقعة):</span>
+                                                    <br />{phase.endDate || 'غير محدد'}
+                                                </div>
+                                            </div>
+                                            <div className="w-full bg-gray-100 rounded-full h-2">
+                                                <div className={`h-2 rounded-full ${isCompleted ? 'bg-green-500' : 'bg-blue-500'}`} style={{ width: `${phase.progressPercentage || 0}%` }}></div>
+                                            </div>
+                                            <div className="mt-1 text-left text-xs font-bold text-gray-500">{phase.progressPercentage || 0}%</div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+
+                    {/* Footer */}
+                    <div className="mt-auto px-10 py-6 border-t-4 border-jilco-900 text-center">
+                        <p className="font-bold text-lg text-jilco-900">نلتزم بتقديم أعلى معايير الجودة والأمان.</p>
+                        <p className="text-sm text-gray-500 mt-2">شكراً لاختياركم جيلكو للمصاعد.</p>
+                    </div>
+
+                    {/* Actions (Hidden Print) */}
+                    <div className="fixed bottom-8 left-1/2 -translate-x-1/2 flex gap-4 print:hidden">
+                        <button onClick={() => window.print()} className="bg-jilco-900 text-white px-6 py-3 rounded-full font-bold shadow-lg hover:bg-black flex items-center gap-2" title="طباعة">
+                            <Printer size={18} /> طباعة التقرير للعميل
+                        </button>
+                        <button onClick={() => setViewMode('details')} className="bg-white text-gray-700 px-6 py-3 rounded-full font-bold shadow-lg hover:bg-gray-50 flex items-center gap-2 border border-gray-200" title="رجوع">
+                            <ArrowLeft size={18} /> رجوع
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     // --- List View ---
     if (viewMode === 'list' || viewMode === 'dashboard') {
@@ -478,6 +612,7 @@ export const ProjectModule: React.FC = () => {
 
     // --- Details View ---
     if (viewMode === 'statement') return renderProjectStatement();
+    if (viewMode === 'client_report') return renderClientReport();
 
     const currentProject = projects.find(p => p.id === selectedProjectId);
     const projectPhases = phases.filter(p => p.projectId === selectedProjectId);
@@ -504,12 +639,20 @@ export const ProjectModule: React.FC = () => {
                         <PackageMinus size={18} /> صرف مواد من المخزون
                     </button>
                     <button
+                        onClick={() => setViewMode('client_report')}
+                        className="bg-gray-800 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 hover:bg-black shadow-sm"
+                        title="تقرير العميل"
+                    >
+                        <FileText size={18} /> تقرير إنجاز العميل
+                    </button>
+                    <button
                         onClick={() => setViewMode('statement')}
                         className="bg-jilco-900 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 hover:bg-jilco-800 shadow-sm"
+                        title="كشف مالي"
                     >
                         <PieChart size={18} /> كشف حساب مالي
                     </button>
-                    <button onClick={() => setViewMode('list')} className="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg font-bold flex items-center gap-2 hover:bg-gray-50">
+                    <button onClick={() => setViewMode('list')} className="bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg font-bold flex items-center gap-2 hover:bg-gray-50" title="رجوع">
                         <ArrowLeft size={18} /> رجوع
                     </button>
                 </div>
@@ -549,28 +692,66 @@ export const ProjectModule: React.FC = () => {
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
                     {projectPhases.map((phase, idx) => (
-                        <div key={phase.id} className={`bg-white p-5 rounded-2xl border-t-4 shadow-sm border-gray-200 flex flex-col ${phase.status === 'completed' ? 'border-t-green-500' : phase.status === 'in_progress' ? 'border-t-blue-500' : 'border-t-gray-300'}`}>
+                        <div key={phase.id} className={`bg-white p-5 rounded-2xl border-t-4 shadow-sm border-gray-200 flex flex-col ${phase.status === 'completed' ? 'border-t-green-500' : phase.status === 'in_progress' ? 'border-t-blue-500' : phase.status === 'late' ? 'border-t-amber-500' : 'border-t-gray-300'}`}>
                             <div className="flex justify-between items-start mb-4">
                                 <h4 className="font-bold text-gray-800 text-base">{phase.name}</h4>
                                 <StatusBadge status={phase.status} />
                             </div>
 
                             <div className="space-y-4 flex-1">
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="text-[10px] font-bold text-gray-400 block mb-1">تاريخ البداية (المتوقع)</label>
+                                        <input
+                                            type="date"
+                                            value={phase.startDate || ''}
+                                            onChange={e => updatePhase(phase.id, { startDate: e.target.value })}
+                                            className="w-full p-2 border border-gray-400 rounded-lg text-xs font-bold bg-white text-black focus:ring-2 focus:ring-jilco-500 outline-none"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="text-[10px] font-bold text-gray-400 block mb-1">تاريخ النهاية (المستهدف)</label>
+                                        <input
+                                            type="date"
+                                            value={phase.endDate || ''}
+                                            onChange={e => updatePhase(phase.id, { endDate: e.target.value })}
+                                            className={`w-full p-2 border rounded-lg text-xs font-bold bg-white focus:ring-2 focus:ring-jilco-500 outline-none ${phase.status === 'late' ? 'border-red-500 text-red-600' : 'border-gray-400 text-black'}`}
+                                        />
+                                    </div>
+                                </div>
+
                                 <div>
-                                    <label className="text-[10px] font-bold text-gray-400 block mb-1">حالة المرحلة</label>
+                                    <label className="text-[10px] font-bold text-gray-400 block mb-1">إسناد إلى مهندس / فني</label>
                                     <select
-                                        value={phase.status}
-                                        onChange={e => updatePhase(phase.id, { status: e.target.value as any })}
+                                        value={phase.assignedTo || ''}
+                                        onChange={e => {
+                                            const emp = employees.find(emp => emp.id === e.target.value);
+                                            updatePhase(phase.id, { assignedTo: e.target.value, assignedToName: emp ? emp.name : '' });
+                                        }}
                                         className="w-full p-2 border border-gray-400 rounded-lg text-xs bg-white text-black font-bold focus:ring-2 focus:ring-jilco-500 outline-none"
                                     >
-                                        <option value="not_started">لم تبدأ</option>
-                                        <option value="in_progress">قيد التنفيذ</option>
-                                        <option value="completed">مكتملة</option>
-                                        <option value="stopped">متوقفة</option>
+                                        <option value="">-- غير مسند لأحد --</option>
+                                        {employees.filter(emp => emp.role === 'technician' || emp.role === 'manager').map(emp => (
+                                            <option key={emp.id} value={emp.id}>{emp.name} ({emp.role === 'technician' ? 'فني' : 'مهندس/مشرف'})</option>
+                                        ))}
                                     </select>
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="text-[10px] font-bold text-gray-400 block mb-1">حالة المرحلة</label>
+                                        <select
+                                            value={phase.status}
+                                            onChange={e => updatePhase(phase.id, { status: e.target.value as any })}
+                                            className={`w-full p-2 border rounded-lg text-xs font-bold focus:ring-2 focus:ring-jilco-500 outline-none ${phase.status === 'late' ? 'bg-amber-50 text-amber-700 border-amber-300' : 'bg-white text-black border-gray-400'}`}
+                                        >
+                                            <option value="not_started">لم تبدأ</option>
+                                            <option value="in_progress">قيد التنفيذ</option>
+                                            <option value="completed">مكتملة</option>
+                                            <option value="stopped">متوقفة</option>
+                                            <option value="late" disabled>متأخرة (تلقائي)</option>
+                                        </select>
+                                    </div>
                                     <div>
                                         <label className="text-[10px] font-bold text-gray-400 block mb-1">نسبة الإنجاز %</label>
                                         <input
@@ -580,13 +761,15 @@ export const ProjectModule: React.FC = () => {
                                             className="w-full p-2 border border-gray-400 rounded-lg text-xs text-center font-bold bg-white text-black"
                                         />
                                     </div>
+                                </div>
+                                <div className="grid grid-cols-1">
                                     <div>
-                                        <label className="text-[10px] font-bold text-gray-400 block mb-1">التكلفة التقديرية (للمرحلة)</label>
+                                        <label className="text-[10px] font-bold text-gray-400 block mb-1">التكلفة التقديرية للمرحلة (للميزانية فقط)</label>
                                         <input
                                             type="number"
                                             value={phase.expectedCost || 0}
                                             onChange={e => updatePhase(phase.id, { expectedCost: parseFloat(e.target.value) })}
-                                            className="w-full p-2 border border-gray-400 rounded-lg text-xs text-center font-bold bg-white text-black"
+                                            className="w-full p-2 border border-gray-400 rounded-lg text-xs font-bold bg-white text-black"
                                         />
                                     </div>
                                 </div>
@@ -596,13 +779,36 @@ export const ProjectModule: React.FC = () => {
                                     <textarea
                                         value={phase.notes || ''}
                                         onChange={e => updatePhase(phase.id, { notes: e.target.value })}
-                                        className="w-full p-2 border border-gray-400 rounded-lg text-xs h-20 bg-white text-black font-bold resize-none"
+                                        className="w-full p-2 border border-gray-400 rounded-lg text-xs h-16 bg-white text-black font-bold resize-none"
                                         placeholder="أضف ملاحظات..."
                                     />
                                 </div>
                             </div>
                         </div>
                     ))}
+                </div>
+
+                {/* Attachments UI Card representing Document upload (Visual Only based on prompt constraints) */}
+                <div className="mt-8 bg-white p-6 rounded-2xl border border-gray-200 shadow-sm relative overflow-hidden">
+                    <div className="flex justify-between items-center mb-6">
+                        <h3 className="text-xl font-bold flex items-center gap-2 text-jilco-900">
+                            <FileText className="text-jilco-600" /> مرفقات ووثائق المشروع
+                        </h3>
+                        <button className="bg-jilco-100 text-jilco-700 px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 hover:bg-jilco-200 transition-colors" title="إضافة ملف" onClick={() => setShowAttachmentModal(true)}>
+                            <Plus size={16} /> رفع ملف جديد
+                        </button>
+                    </div>
+                    {(!currentProject.attachments || currentProject.attachments.length === 0) ? (
+                        <div className="text-center p-8 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
+                            <FileText className="mx-auto text-gray-300 mb-2" size={32} />
+                            <p className="text-gray-500 font-bold">لا توجد ملفات مرفقة بهذا المشروع</p>
+                            <p className="text-xs text-gray-400 mt-1">يمكنك رفع المخططات الهندسية، العقد الموقع، أو صور الموقع هنا.</p>
+                        </div>
+                    ) : (
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            {/* The actual loop for documents would go here, currently empty */}
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -647,6 +853,6 @@ export const ProjectModule: React.FC = () => {
                     </div>
                 </div>
             )}
-        </div>
+        </div >
     );
 };
