@@ -47,7 +47,7 @@ export const ProjectModule: React.FC = () => {
     } = useProject();
     const { invoices: allInvoices } = useSales();
     const { supplierProducts, inventoryTransactions, saveInventoryRecord } = useInventory();
-    const { employees } = useHR();
+    const { hrEmployees: employees = [] } = useHR();
 
     const [viewMode, setViewMode] = useState<'dashboard' | 'list' | 'details' | 'statement'>('dashboard');
 
