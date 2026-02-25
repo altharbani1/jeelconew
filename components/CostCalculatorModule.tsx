@@ -11,6 +11,9 @@ interface BaseConfig {
     kitBasePrice: number; // For small minor brackets etc.
     profitMarginPercent: number;
     capacityMultipliers: Record<string, number>;
+    railMetersPerStop: number;
+    cableMetersPerStop: number;
+    carDoorMultiplier: number;
 }
 
 const DEFAULT_BASE_CONFIG: BaseConfig = {
@@ -18,6 +21,9 @@ const DEFAULT_BASE_CONFIG: BaseConfig = {
     installationPerStop: 800,
     kitBasePrice: 2500,
     profitMarginPercent: 25,
+    railMetersPerStop: 3.5,
+    cableMetersPerStop: 1.5,
+    carDoorMultiplier: 1.5,
     capacityMultipliers: {
         '4 Persons (320kg)': 1.0,
         '6 Persons (450kg)': 1.1,
@@ -41,11 +47,22 @@ export const CostCalculatorModule: React.FC = () => {
 
     // Selected Inventory Items IDs
     const [selectedMachineId, setSelectedMachineId] = useState<string>('');
+    const [machineQty, setMachineQty] = useState<number | ''>('');
+
     const [selectedControlId, setSelectedControlId] = useState<string>('');
+    const [controlQty, setControlQty] = useState<number | ''>('');
+
     const [selectedCabinId, setSelectedCabinId] = useState<string>('');
+    const [cabinQty, setCabinQty] = useState<number | ''>('');
+
     const [selectedDoorId, setSelectedDoorId] = useState<string>('');
+    const [doorQty, setDoorQty] = useState<number | ''>('');
+
     const [selectedRailId, setSelectedRailId] = useState<string>('');
+    const [railQty, setRailQty] = useState<number | ''>('');
+
     const [selectedCableId, setSelectedCableId] = useState<string>('');
+    const [cableQty, setCableQty] = useState<number | ''>('');
 
     useEffect(() => {
         // Auto-select first available items if empty to provide a baseline
@@ -126,7 +143,7 @@ export const CostCalculatorModule: React.FC = () => {
         });
 
         return list;
-    }, [elevatorCount, stops, capacity, selectedMachineId, selectedControlId, selectedCabinId, selectedDoorId, selectedRailId, selectedCableId, config, supplierProducts]);
+    }, [elevatorCount, stops, capacity, selectedMachineId, machineQty, selectedControlId, controlQty, selectedCabinId, cabinQty, selectedDoorId, doorQty, selectedRailId, railQty, selectedCableId, cableQty, config, supplierProducts]);
 
     const totalCost = breakdown.reduce((sum, item) => sum + item.total, 0);
     const profitAmount = totalCost * (config.profitMarginPercent / 100);
@@ -175,17 +192,29 @@ export const CostCalculatorModule: React.FC = () => {
         }
     };
 
-    const renderDropdown = (label: string, value: string, setValue: (s: string) => void, filterStr?: string) => {
+    const renderDropdown = (label: string, value: string, setValue: (s: string) => void, qtyValue: number | '', setQty: (n: number | '') => void, filterStr?: string) => {
         const filtered = filterStr ? supplierProducts.filter(p => p.name.toLowerCase().includes(filterStr.toLowerCase()) || p.partNumber?.toLowerCase().includes(filterStr.toLowerCase())) : supplierProducts;
         return (
-            <div>
-                <label className="text-xs font-bold text-gray-500 mb-1 block">{label}</label>
-                <div className="relative">
-                    <select title={label} value={value} onChange={e => setValue(e.target.value)} className="w-full p-3 border border-gray-200 rounded-xl text-sm font-bold bg-white outline-none focus:ring-2 focus:ring-jilco-500 appearance-none pr-10">
-                        <option value="">-- لم يتم الاختيار --</option>
-                        {filtered.map(p => <option key={p.id} value={p.id}>{p.name} - {p.purchasePrice} SR</option>)}
-                    </select>
-                    <ChevronDown className="absolute left-3 top-3.5 text-gray-400" size={16} />
+            <div className="flex flex-col gap-1">
+                <label className="text-xs font-bold text-gray-500 block">{label}</label>
+                <div className="flex gap-2">
+                    <div className="relative flex-1">
+                        <select title={label} value={value} onChange={e => setValue(e.target.value)} className="w-full p-2.5 border border-gray-200 rounded-xl text-sm font-bold bg-white outline-none focus:ring-2 focus:ring-jilco-500 appearance-none pr-10">
+                            <option value="">-- لم يتم الاختيار --</option>
+                            {filtered.map(p => <option key={p.id} value={p.id}>{p.name} - {p.purchasePrice} SR</option>)}
+                        </select>
+                        <ChevronDown className="absolute left-3 top-3 text-gray-400" size={16} />
+                    </div>
+                    <div className="w-20 shrink-0">
+                        <input
+                            type="number"
+                            placeholder="تلقائي"
+                            value={qtyValue}
+                            onChange={e => setQty(e.target.value === '' ? '' : parseFloat(e.target.value))}
+                            className="w-full p-2.5 border border-gray-200 rounded-xl text-sm font-bold bg-white outline-none focus:ring-2 focus:ring-jilco-500 text-center"
+                            title="تحديد الكمية يدوياً (اتركه فارغ للحساب التلقائي)"
+                        />
+                    </div>
                 </div>
             </div>
         );
@@ -209,30 +238,39 @@ export const CostCalculatorModule: React.FC = () => {
                     </button>
                 </div>
 
-                {/* Settings Panel Toggle */}
-                {showSettings && (
-                    <div className="bg-white p-6 rounded-2xl border border-jilco-200 shadow-sm animate-fade-in mb-6">
-                        <h3 className="font-black text-jilco-900 mb-4 border-b pb-2">ثوابت التسعير والعمالة</h3>
-                        <div className="grid grid-cols-4 gap-4">
-                            <div>
-                                <label className="text-xs font-bold text-gray-500 block mb-1">هامش الربح الإجمالي (%)</label>
-                                <input type="number" value={config.profitMarginPercent} onChange={e => setConfig({ ...config, profitMarginPercent: parseFloat(e.target.value) })} className="w-full p-2 border rounded-lg bg-gray-50 font-bold txt-center" />
-                            </div>
-                            <div>
-                                <label className="text-xs font-bold text-gray-500 block mb-1">أجور التركيب الأساسية</label>
-                                <input type="number" value={config.installationBase} onChange={e => setConfig({ ...config, installationBase: parseFloat(e.target.value) })} className="w-full p-2 border rounded-lg bg-gray-50 font-bold" />
-                            </div>
-                            <div>
-                                <label className="text-xs font-bold text-gray-500 block mb-1">إضافة عمالة لكل دور</label>
-                                <input type="number" value={config.installationPerStop} onChange={e => setConfig({ ...config, installationPerStop: parseFloat(e.target.value) })} className="w-full p-2 border rounded-lg bg-gray-50 font-bold" />
-                            </div>
-                            <div>
-                                <label className="text-xs font-bold text-gray-500 block mb-1">مقطوعية ملحقات أساسية</label>
-                                <input type="number" value={config.kitBasePrice} onChange={e => setConfig({ ...config, kitBasePrice: parseFloat(e.target.value) })} className="w-full p-2 border rounded-lg bg-gray-50 font-bold" />
-                            </div>
+                <div className="bg-white p-6 rounded-2xl border border-jilco-200 shadow-sm animate-fade-in mb-6">
+                    <h3 className="font-black text-jilco-900 mb-4 border-b pb-2">ثوابت التسعير والعمالة والمقاييس</h3>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div>
+                            <label className="text-xs font-bold text-gray-500 block mb-1">هامش الربح الإجمالي (%)</label>
+                            <input type="number" value={config.profitMarginPercent} onChange={e => setConfig({ ...config, profitMarginPercent: parseFloat(e.target.value) })} className="w-full p-2 border rounded-lg bg-gray-50 font-bold txt-center" />
+                        </div>
+                        <div>
+                            <label className="text-xs font-bold text-gray-500 block mb-1">أمتار السكك لكل دور</label>
+                            <input type="number" step="0.5" value={config.railMetersPerStop} onChange={e => setConfig({ ...config, railMetersPerStop: parseFloat(e.target.value) })} className="w-full p-2 border rounded-lg bg-gray-50 font-bold" />
+                        </div>
+                        <div>
+                            <label className="text-xs font-bold text-gray-500 block mb-1">أمتار الكابلات لكل دور</label>
+                            <input type="number" step="0.5" value={config.cableMetersPerStop} onChange={e => setConfig({ ...config, cableMetersPerStop: parseFloat(e.target.value) })} className="w-full p-2 border rounded-lg bg-gray-50 font-bold" />
+                        </div>
+                        <div>
+                            <label className="text-xs font-bold text-gray-500 block mb-1">مُعامل أبواب الكابينة الداخلية</label>
+                            <input type="number" step="0.5" value={config.carDoorMultiplier} onChange={e => setConfig({ ...config, carDoorMultiplier: parseFloat(e.target.value) })} className="w-full p-2 border rounded-lg bg-gray-50 font-bold" />
+                        </div>
+                        <div>
+                            <label className="text-xs font-bold text-gray-500 block mb-1">أجور التركيب الأساسية</label>
+                            <input type="number" value={config.installationBase} onChange={e => setConfig({ ...config, installationBase: parseFloat(e.target.value) })} className="w-full p-2 border rounded-lg bg-gray-50 font-bold" />
+                        </div>
+                        <div>
+                            <label className="text-xs font-bold text-gray-500 block mb-1">إضافة عمالة لكل دور</label>
+                            <input type="number" value={config.installationPerStop} onChange={e => setConfig({ ...config, installationPerStop: parseFloat(e.target.value) })} className="w-full p-2 border rounded-lg bg-gray-50 font-bold" />
+                        </div>
+                        <div>
+                            <label className="text-xs font-bold text-gray-500 block mb-1">مقطوعية ملحقات أساسية</label>
+                            <input type="number" value={config.kitBasePrice} onChange={e => setConfig({ ...config, kitBasePrice: parseFloat(e.target.value) })} className="w-full p-2 border rounded-lg bg-gray-50 font-bold" />
                         </div>
                     </div>
-                )}
+                </div>
 
                 {/* Main Grid */}
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
@@ -265,20 +303,22 @@ export const CostCalculatorModule: React.FC = () => {
                             </div>
                         </div>
 
-                        {/* Components Selection */}
                         <div className="bg-white p-6 rounded-3xl shadow-sm border border-gray-200">
-                            <h3 className="font-black text-sm text-gray-800 mb-4 flex items-center gap-2"><Cpu size={18} className="text-jilco-600" /> اختيار المكونات المادية (من المخزون)</h3>
-                            <div className="grid grid-cols-2 gap-4">
-                                {renderDropdown('ماكينة الجر (Machine)', selectedMachineId, setSelectedMachineId)}
-                                {renderDropdown('نظام التحكم (Control)', selectedControlId, setSelectedControlId)}
-                                {renderDropdown('نظام الأبواب (Doors)', selectedDoorId, setSelectedDoorId)}
-                                {renderDropdown('الكابينة (Cabin)', selectedCabinId, setSelectedCabinId)}
-                                {renderDropdown('السكك (Rails)', selectedRailId, setSelectedRailId)}
-                                {renderDropdown('الكابلات (Cables)', selectedCableId, setSelectedCableId)}
+                            <div className="flex justify-between items-center mb-4">
+                                <h3 className="font-black text-sm text-gray-800 flex items-center gap-2"><Cpu size={18} className="text-jilco-600" /> اختيار وحساب المكونات المادية</h3>
+                                <span className="text-[10px] bg-gray-100 text-gray-500 px-2 py-1 rounded font-bold">يمكنك تحديد الكمية يدوياً أو تركها فارغة للحساب الآلي</span>
+                            </div>
+                            <div className="grid grid-cols-2 gap-x-6 gap-y-4">
+                                {renderDropdown('ماكينة الجر (Machine)', selectedMachineId, setSelectedMachineId, machineQty, setMachineQty)}
+                                {renderDropdown('نظام التحكم (Control)', selectedControlId, setSelectedControlId, controlQty, setControlQty)}
+                                {renderDropdown('نظام الأبواب (Doors)', selectedDoorId, setSelectedDoorId, doorQty, setDoorQty)}
+                                {renderDropdown('الكابينة (Cabin)', selectedCabinId, setSelectedCabinId, cabinQty, setCabinQty)}
+                                {renderDropdown('السكك (Rails)', selectedRailId, setSelectedRailId, railQty, setRailQty)}
+                                {renderDropdown('الكابلات (Cables)', selectedCableId, setSelectedCableId, cableQty, setCableQty)}
                             </div>
                             <div className="mt-4 p-3 bg-blue-50 border border-blue-100 rounded-xl flex items-start gap-2 text-blue-800 text-xs font-bold">
                                 <Info size={16} className="shrink-0 mt-0.5" />
-                                <p>الأسعار المعروضة هنا هي تكلفة الشراء المباشرة من المخزون. سيتم ضربها حسب الوقفات، مضاعفات الحمولة، وعدد المصاعد المحددة أعلاه في الحسبة النهائية.</p>
+                                <p>يتم ضرب السعر الأساسي للقطعة في معاملات بناءً على عدد الأدوار والمصاعد والحمولة إن لم يتم تحديد كمية يدوية.</p>
                             </div>
                         </div>
 
@@ -324,11 +364,11 @@ export const CostCalculatorModule: React.FC = () => {
                                     <div key={idx} className="flex justify-between items-center bg-gray-50 p-3 rounded-xl border border-gray-100">
                                         <div className="flex-1">
                                             <p className="text-xs font-bold text-gray-900 truncate pr-2 w-48">{item.name}</p>
-                                            <p className="text-[10px] text-gray-500">{item.category === 'labor' ? 'أجور مقطوعة' : 'مواد'}</p>
+                                            <p className="text-[10px] text-gray-500 mt-1">الكمية المقدرة: <span className="font-mono bg-white px-1.5 py-0.5 border rounded text-jilco-600">{item.qty}</span> {item.category === 'labor' ? 'مقطوعية' : 'وحدة'}</p>
                                         </div>
                                         <div className="text-left font-mono">
                                             <p className="text-sm font-black text-jilco-700">{item.total.toLocaleString()}</p>
-                                            <p className="text-[9px] text-gray-400">الوحدة: {item.unitPrice.toLocaleString()}</p>
+                                            <p className="text-[9px] text-gray-400">سعر الوحدة: {item.unitPrice.toLocaleString()}</p>
                                         </div>
                                     </div>
                                 ))}
