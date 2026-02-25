@@ -148,6 +148,7 @@ export const WarrantyModule: React.FC = () => {
                             <div className="relative max-w-md">
                                 <Search className="absolute right-3 top-2.5 text-gray-400" size={18} />
                                 <input
+                                    title="Search Warranty Certificates"
                                     type="text"
                                     placeholder="بحث برقم الشهادة، العميل..."
                                     value={searchTerm}
@@ -182,9 +183,9 @@ export const WarrantyModule: React.FC = () => {
                                                 </span>
                                             </td>
                                             <td className="p-4 flex justify-center gap-2">
-                                                <button onClick={() => handleEdit(w)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-full"><Edit size={16} /></button>
-                                                <button onClick={() => { handleEdit(w); setTimeout(() => window.print(), 500); }} className="p-2 text-gray-600 hover:bg-gray-50 rounded-full"><Printer size={16} /></button>
-                                                <button onClick={() => handleDelete(w.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-full"><Trash2 size={16} /></button>
+                                                <button title="Edit" onClick={() => handleEdit(w)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-full"><Edit size={16} /></button>
+                                                <button title="Print" onClick={() => { handleEdit(w); setTimeout(() => window.print(), 500); }} className="p-2 text-gray-600 hover:bg-gray-50 rounded-full"><Printer size={16} /></button>
+                                                <button title="Delete" onClick={() => handleDelete(w.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-full"><Trash2 size={16} /></button>
                                             </td>
                                         </tr>
                                     );
@@ -208,7 +209,7 @@ export const WarrantyModule: React.FC = () => {
                     <h2 className="text-xl font-bold text-jilco-900 flex items-center gap-2">
                         <ShieldCheck className="text-gold-500" /> محرر الشهادة
                     </h2>
-                    <button onClick={() => setViewMode('list')} className="p-2 hover:bg-gray-100 rounded-full text-gray-600"><ArrowLeft size={20} /></button>
+                    <button title="Close Editor" onClick={() => setViewMode('list')} className="p-2 hover:bg-gray-100 rounded-full text-gray-600"><ArrowLeft size={20} /></button>
                 </div>
 
                 <div className="space-y-6">
@@ -226,6 +227,7 @@ export const WarrantyModule: React.FC = () => {
                         <h3 className="font-bold text-sm text-jilco-800 border-b pb-2 mb-2 flex items-center gap-2"><User size={14} /> بيانات العميل</h3>
 
                         <select
+                            title="Select Customer"
                             onChange={handleCustomerSelect}
                             className="w-full p-2 border rounded text-sm mb-2"
                             defaultValue=""
@@ -235,16 +237,19 @@ export const WarrantyModule: React.FC = () => {
                         </select>
 
                         <input
+                            title="Customer Name"
                             type="text" placeholder="اسم العميل" value={currentWarranty.customerName}
                             onChange={e => setCurrentWarranty({ ...currentWarranty, customerName: e.target.value })}
                             className="w-full p-2 border rounded text-sm"
                         />
                         <input
+                            title="Project Name"
                             type="text" placeholder="اسم المشروع / المبنى" value={currentWarranty.projectName}
                             onChange={e => setCurrentWarranty({ ...currentWarranty, projectName: e.target.value })}
                             className="w-full p-2 border rounded text-sm"
                         />
                         <input
+                            title="Location"
                             type="text" placeholder="الموقع" value={currentWarranty.location}
                             onChange={e => setCurrentWarranty({ ...currentWarranty, location: e.target.value })}
                             className="w-full p-2 border rounded text-sm"
@@ -255,10 +260,10 @@ export const WarrantyModule: React.FC = () => {
                         <h3 className="font-bold text-sm text-jilco-800 border-b pb-2 mb-2 flex items-center gap-2"><Award size={14} /> تفاصيل المصعد</h3>
 
                         <div className="grid grid-cols-2 gap-2">
-                            <input type="text" placeholder="نوع المصعد" value={currentWarranty.elevatorType} onChange={e => setCurrentWarranty({ ...currentWarranty, elevatorType: e.target.value })} className="w-full p-2 border rounded text-sm" />
-                            <input type="text" placeholder="رقم الماكينة / التسلسلي" value={currentWarranty.machineNumber} onChange={e => setCurrentWarranty({ ...currentWarranty, machineNumber: e.target.value })} className="w-full p-2 border rounded text-sm" />
-                            <input type="text" placeholder="الحمولة" value={currentWarranty.capacity} onChange={e => setCurrentWarranty({ ...currentWarranty, capacity: e.target.value })} className="w-full p-2 border rounded text-sm" />
-                            <input type="text" placeholder="عدد الوقفات" value={currentWarranty.stops} onChange={e => setCurrentWarranty({ ...currentWarranty, stops: e.target.value })} className="w-full p-2 border rounded text-sm" />
+                            <input title="Elevator Type" type="text" placeholder="نوع المصعد" value={currentWarranty.elevatorType} onChange={e => setCurrentWarranty({ ...currentWarranty, elevatorType: e.target.value })} className="w-full p-2 border rounded text-sm" />
+                            <input title="Machine Number" type="text" placeholder="رقم الماكينة / التسلسلي" value={currentWarranty.machineNumber} onChange={e => setCurrentWarranty({ ...currentWarranty, machineNumber: e.target.value })} className="w-full p-2 border rounded text-sm" />
+                            <input title="Capacity" type="text" placeholder="الحمولة" value={currentWarranty.capacity} onChange={e => setCurrentWarranty({ ...currentWarranty, capacity: e.target.value })} className="w-full p-2 border rounded text-sm" />
+                            <input title="Stops" type="text" placeholder="عدد الوقفات" value={currentWarranty.stops} onChange={e => setCurrentWarranty({ ...currentWarranty, stops: e.target.value })} className="w-full p-2 border rounded text-sm" />
                         </div>
                     </div>
 
@@ -268,24 +273,24 @@ export const WarrantyModule: React.FC = () => {
                         <div className="grid grid-cols-2 gap-2">
                             <div>
                                 <label className="text-xs text-gray-500">مدة الضمان (سنوات)</label>
-                                <select value={currentWarranty.periodYears} onChange={handlePeriodChange} className="w-full p-2 border rounded text-sm mt-1">
+                                <select title="Warranty Period" value={currentWarranty.periodYears} onChange={handlePeriodChange} className="w-full p-2 border rounded text-sm mt-1">
                                     {Array.from({ length: 10 }, (_, i) => i + 1).map(n => <option key={n} value={n}>{n} سنة</option>)}
                                 </select>
                             </div>
                             <div>
                                 <label className="text-xs text-gray-500">بداية الضمان</label>
-                                <input type="date" value={currentWarranty.warrantyStartDate} onChange={e => setCurrentWarranty({ ...currentWarranty, warrantyStartDate: e.target.value })} className="w-full p-2 border rounded text-sm mt-1" />
+                                <input title="Warranty Start Date" placeholder="بداية الضمان" type="date" value={currentWarranty.warrantyStartDate} onChange={e => setCurrentWarranty({ ...currentWarranty, warrantyStartDate: e.target.value })} className="w-full p-2 border rounded text-sm mt-1" />
                             </div>
                             <div className="col-span-2">
                                 <label className="text-xs text-gray-500">نهاية الضمان</label>
-                                <input type="date" value={currentWarranty.warrantyEndDate} onChange={e => setCurrentWarranty({ ...currentWarranty, warrantyEndDate: e.target.value })} className="w-full p-2 border rounded text-sm mt-1 bg-gray-100" />
+                                <input title="Warranty End Date" placeholder="نهاية الضمان" type="date" value={currentWarranty.warrantyEndDate} onChange={e => setCurrentWarranty({ ...currentWarranty, warrantyEndDate: e.target.value })} className="w-full p-2 border rounded text-sm mt-1 bg-gray-100" />
                             </div>
                         </div>
                     </div>
 
                     <div>
                         <label className="text-xs font-bold text-gray-700 block mb-1">الشروط والأحكام</label>
-                        <textarea value={currentWarranty.notes} onChange={e => setCurrentWarranty({ ...currentWarranty, notes: e.target.value })} className="w-full p-2 border rounded text-sm h-24 text-gray-600 text-xs leading-relaxed" />
+                        <textarea title="Terms and Conditions" placeholder="الشروط والأحكام" value={currentWarranty.notes} onChange={e => setCurrentWarranty({ ...currentWarranty, notes: e.target.value })} className="w-full p-2 border rounded text-sm h-24 text-gray-600 text-xs leading-relaxed" />
                     </div>
                 </div>
             </div>

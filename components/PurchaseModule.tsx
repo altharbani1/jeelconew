@@ -283,7 +283,7 @@ export const PurchaseModule: React.FC = () => {
                 <p className="text-xs font-bold text-gray-500">{config.headerSubtitle}</p>
               </div>
               <div>
-                {config.logo ? <img src={config.logo} className="h-20 object-contain" /> : null}
+                {config.logo ? <img src={config.logo} alt="Company Logo" title="Company Logo" className="h-20 object-contain" /> : null}
               </div>
               <div className="text-left">
                 <h2 className="text-xl font-black text-red-700 uppercase tracking-widest bg-red-50 px-4 py-1 rounded border border-red-100">Payment Voucher</h2>
@@ -291,8 +291,8 @@ export const PurchaseModule: React.FC = () => {
               </div>
             </div>
 
-            <button onClick={() => setPrintingPayment(null)} className="absolute top-4 right-4 bg-gray-200 hover:bg-gray-300 p-2 rounded-full print:hidden z-50"><X size={20} /></button>
-            <button onClick={() => window.print()} className="absolute top-4 right-16 bg-jilco-900 text-white px-4 py-2 rounded-lg font-bold print:hidden z-50 flex items-center gap-2"><Printer size={18} /> طباعة</button>
+            <button title="Close Payment Voucher" onClick={() => setPrintingPayment(null)} className="absolute top-4 right-4 bg-gray-200 hover:bg-gray-300 p-2 rounded-full print:hidden z-50"><X size={20} /></button>
+            <button title="Print Voucher" onClick={() => window.print()} className="absolute top-4 right-16 bg-jilco-900 text-white px-4 py-2 rounded-lg font-bold print:hidden z-50 flex items-center gap-2"><Printer size={18} /> طباعة</button>
 
             {/* Content */}
             <div className="flex-1 space-y-6 px-8 relative z-10">
@@ -350,7 +350,7 @@ export const PurchaseModule: React.FC = () => {
                 <div className="w-32 border-b-2 border-gray-300"></div>
               </div>
               <div className="text-center relative">
-                {config.stamp && <img src={config.stamp} className="absolute bottom-4 left-1/2 -translate-x-1/2 w-24 opacity-80 mix-blend-multiply" alt="stamp" />}
+                {config.stamp && <img src={config.stamp} title="Company Stamp" className="absolute bottom-4 left-1/2 -translate-x-1/2 w-24 opacity-80 mix-blend-multiply" alt="stamp" />}
                 <p className="text-xs font-bold text-gray-400 mb-6 uppercase tracking-wider">الاعتماد (المدير العام)</p>
                 <div className="w-32 border-b-2 border-gray-300"></div>
               </div>
@@ -380,8 +380,8 @@ export const PurchaseModule: React.FC = () => {
       <div className="fixed inset-0 bg-gray-200 z-[200] overflow-auto flex justify-center items-start print:static print:bg-white print:p-0 print:h-full">
         <div id="printable-area" className="bg-white shadow-2xl w-[210mm] min-h-[297mm] p-0 relative flex flex-col print:shadow-none print:w-full my-8 print:my-0">
           {/* Close Button */}
-          <button onClick={() => setPrintingInvoice(null)} className="absolute top-4 right-4 bg-gray-200 hover:bg-gray-300 p-2 rounded-full print:hidden z-50"><X size={20} /></button>
-          <button onClick={() => window.print()} className="absolute top-4 right-16 bg-jilco-900 text-white px-4 py-2 rounded-lg font-bold print:hidden z-50 flex items-center gap-2"><Printer size={18} /> طباعة</button>
+          <button title="Close Print Invoice" onClick={() => setPrintingInvoice(null)} className="absolute top-4 right-4 bg-gray-200 hover:bg-gray-300 p-2 rounded-full print:hidden z-50"><X size={20} /></button>
+          <button title="Print Invoice" onClick={() => window.print()} className="absolute top-4 right-16 bg-jilco-900 text-white px-4 py-2 rounded-lg font-bold print:hidden z-50 flex items-center gap-2"><Printer size={18} /> طباعة</button>
 
           {/* Header */}
           <div className="px-10 py-6 border-b-2 border-jilco-900 flex justify-between items-center">
@@ -394,7 +394,7 @@ export const PurchaseModule: React.FC = () => {
               <p className="text-xs font-bold text-gray-400 mt-1 uppercase">Purchase Invoice</p>
             </div>
             <div className="w-1/3 flex justify-end">
-              {config.logo ? <img src={config.logo} className="h-20 object-contain" /> : null}
+              {config.logo ? <img src={config.logo} alt="Company Logo" title="Company Logo" className="h-20 object-contain" /> : null}
             </div>
           </div>
 
@@ -493,6 +493,7 @@ export const PurchaseModule: React.FC = () => {
         <div className="relative flex-1 max-w-md">
           <Search className="absolute right-3 top-2.5 text-gray-400" size={18} />
           <input
+            title="Search Suppliers"
             type="text" placeholder="بحث عن مورد..."
             value={supplierSearch} onChange={e => setSupplierSearch(e.target.value)}
             className="w-full pr-10 pl-4 py-2 border border-gray-400 rounded-lg focus:ring-2 focus:ring-jilco-500 outline-none text-sm text-black bg-white font-bold"
@@ -520,8 +521,8 @@ export const PurchaseModule: React.FC = () => {
                 </div>
               </div>
               <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                <button onClick={() => { setCurrentSupplier(supplier); setShowSupplierModal(true); }} className="p-1 text-blue-600 hover:bg-blue-50 rounded"><Edit size={16} /></button>
-                <button onClick={() => handleDeleteSupplier(supplier.id)} className="p-1 text-red-500 hover:bg-red-50 rounded"><Trash2 size={16} /></button>
+                <button title="Edit Supplier" onClick={() => { setCurrentSupplier(supplier); setShowSupplierModal(true); }} className="p-1 text-blue-600 hover:bg-blue-50 rounded"><Edit size={16} /></button>
+                <button title="Delete Supplier" onClick={() => handleDeleteSupplier(supplier.id)} className="p-1 text-red-500 hover:bg-red-50 rounded"><Trash2 size={16} /></button>
               </div>
             </div>
             <div className="space-y-1 text-sm text-gray-600 mt-3 border-t pt-3 border-gray-50 font-bold">
@@ -595,6 +596,7 @@ export const PurchaseModule: React.FC = () => {
         <div className="relative flex-1 max-w-md">
           <Search className="absolute right-3 top-2.5 text-gray-400" size={18} />
           <input
+            title="Search Invoices"
             type="text" placeholder="بحث برقم الفاتورة..."
             value={invoiceSearch} onChange={e => setInvoiceSearch(e.target.value)}
             className="w-full pr-10 pl-4 py-2 border border-gray-400 rounded-lg focus:ring-2 focus:ring-jilco-500 outline-none text-sm text-black bg-white font-bold"
@@ -643,8 +645,8 @@ export const PurchaseModule: React.FC = () => {
                 </td>
                 <td className="p-4 text-center flex justify-center gap-2">
                   <button onClick={() => setPrintingInvoice(inv)} className="p-2 text-gray-500 hover:bg-gray-100 rounded-full" title="طباعة"><Printer size={16} /></button>
-                  <button onClick={() => { setCurrentInvoice(inv); setShowInvoiceEditor(true); }} className="p-2 text-blue-500 hover:bg-blue-50 rounded-full"><Edit size={16} /></button>
-                  <button onClick={async () => await deleteRecordLocallyAndCloud('jilco_purchase_invoices', inv.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-full"><Trash2 size={16} /></button>
+                  <button title="Edit Invoice" onClick={() => { setCurrentInvoice(inv); setShowInvoiceEditor(true); }} className="p-2 text-blue-500 hover:bg-blue-50 rounded-full"><Edit size={16} /></button>
+                  <button title="Delete Invoice" onClick={async () => await deleteRecordLocallyAndCloud('jilco_purchase_invoices', inv.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-full"><Trash2 size={16} /></button>
                 </td>
               </tr>
             ))}
@@ -688,7 +690,7 @@ export const PurchaseModule: React.FC = () => {
                   {pay.method === 'cash' ? 'نقد' : pay.method === 'check' ? 'شيك' : 'تحويل'}
                 </td>
                 <td className="p-4 text-center">
-                  <button onClick={() => setPrintingPayment(pay)} className="text-jilco-600 hover:bg-jilco-50 p-2 rounded-full transition-colors">
+                  <button title="Print Payment" onClick={() => setPrintingPayment(pay)} className="text-jilco-600 hover:bg-jilco-50 p-2 rounded-full transition-colors">
                     <Printer size={16} />
                   </button>
                 </td>
@@ -940,10 +942,10 @@ export const PurchaseModule: React.FC = () => {
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
             <h3 className="font-bold text-lg mb-4 text-jilco-900">بيانات المورد</h3>
             <div className="space-y-3">
-              <input type="text" className="w-full p-2 border rounded font-bold" placeholder="اسم المورد / الشركة" value={currentSupplier.name || ''} onChange={e => setCurrentSupplier({ ...currentSupplier, name: e.target.value })} />
-              <input type="text" className="w-full p-2 border rounded font-bold" placeholder="الشخص المسؤول" value={currentSupplier.contactPerson || ''} onChange={e => setCurrentSupplier({ ...currentSupplier, contactPerson: e.target.value })} />
-              <input type="text" className="w-full p-2 border rounded font-bold" placeholder="رقم الهاتف" value={currentSupplier.phone || ''} onChange={e => setCurrentSupplier({ ...currentSupplier, phone: e.target.value })} />
-              <input type="text" className="w-full p-2 border rounded font-bold" placeholder="الرقم الضريبي" value={currentSupplier.vatNumber || ''} onChange={e => setCurrentSupplier({ ...currentSupplier, vatNumber: e.target.value })} />
+              <input title="Supplier Name" type="text" className="w-full p-2 border rounded font-bold" placeholder="اسم المورد / الشركة" value={currentSupplier.name || ''} onChange={e => setCurrentSupplier({ ...currentSupplier, name: e.target.value })} />
+              <input title="Contact Person" type="text" className="w-full p-2 border rounded font-bold" placeholder="الشخص المسؤول" value={currentSupplier.contactPerson || ''} onChange={e => setCurrentSupplier({ ...currentSupplier, contactPerson: e.target.value })} />
+              <input title="Phone Number" type="text" className="w-full p-2 border rounded font-bold" placeholder="رقم الهاتف" value={currentSupplier.phone || ''} onChange={e => setCurrentSupplier({ ...currentSupplier, phone: e.target.value })} />
+              <input title="VAT Number" type="text" className="w-full p-2 border rounded font-bold" placeholder="الرقم الضريبي" value={currentSupplier.vatNumber || ''} onChange={e => setCurrentSupplier({ ...currentSupplier, vatNumber: e.target.value })} />
             </div>
             <div className="flex justify-end gap-2 mt-6">
               <button onClick={() => setShowSupplierModal(false)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded font-bold">إلغاء</button>
@@ -959,13 +961,13 @@ export const PurchaseModule: React.FC = () => {
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
             <h3 className="font-bold text-lg mb-4 text-jilco-900">بيانات المنتج</h3>
             <div className="space-y-3">
-              <select className="w-full p-2 border rounded font-bold" value={currentProduct.supplierId || ''} onChange={e => setCurrentProduct({ ...currentProduct, supplierId: e.target.value })}>
+              <select title="Supplier ID" className="w-full p-2 border rounded font-bold" value={currentProduct.supplierId || ''} onChange={e => setCurrentProduct({ ...currentProduct, supplierId: e.target.value })}>
                 <option value="">-- اختر المورد --</option>
                 {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
               </select>
-              <input type="text" className="w-full p-2 border rounded font-bold" placeholder="اسم المنتج / الصنف" value={currentProduct.name || ''} onChange={e => setCurrentProduct({ ...currentProduct, name: e.target.value })} />
-              <input type="number" className="w-full p-2 border rounded font-bold" placeholder="سعر الشراء" value={currentProduct.purchasePrice || ''} onChange={e => setCurrentProduct({ ...currentProduct, purchasePrice: parseFloat(e.target.value) })} />
-              <input type="text" className="w-full p-2 border rounded font-bold" placeholder="الوحدة (قطعة, متر...)" value={currentProduct.unit || ''} onChange={e => setCurrentProduct({ ...currentProduct, unit: e.target.value })} />
+              <input title="Product Name" type="text" className="w-full p-2 border rounded font-bold" placeholder="اسم المنتج / الصنف" value={currentProduct.name || ''} onChange={e => setCurrentProduct({ ...currentProduct, name: e.target.value })} />
+              <input title="Purchase Price" type="number" className="w-full p-2 border rounded font-bold" placeholder="سعر الشراء" value={currentProduct.purchasePrice || ''} onChange={e => setCurrentProduct({ ...currentProduct, purchasePrice: parseFloat(e.target.value) })} />
+              <input title="Unit" type="text" className="w-full p-2 border rounded font-bold" placeholder="الوحدة (قطعة, متر...)" value={currentProduct.unit || ''} onChange={e => setCurrentProduct({ ...currentProduct, unit: e.target.value })} />
             </div>
             <div className="flex justify-end gap-2 mt-6">
               <button onClick={() => setShowProductModal(false)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded font-bold">إلغاء</button>
@@ -981,28 +983,28 @@ export const PurchaseModule: React.FC = () => {
           <div className="bg-white rounded-xl shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col">
             <div className="p-4 border-b flex justify-between items-center bg-gray-50">
               <h3 className="font-bold text-lg text-jilco-900">تسجيل فاتورة شراء</h3>
-              <button onClick={() => setShowInvoiceEditor(false)}><X size={20} /></button>
+              <button title="Close Editor" onClick={() => setShowInvoiceEditor(false)}><X size={20} /></button>
             </div>
             <div className="p-6 overflow-y-auto flex-1 space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-gray-500 mb-1">المورد</label>
-                  <select className="w-full p-2 border rounded font-bold" value={currentInvoice.supplierId || ''} onChange={e => setCurrentInvoice({ ...currentInvoice, supplierId: e.target.value })}>
+                  <select title="Invoice Supplier" className="w-full p-2 border rounded font-bold" value={currentInvoice.supplierId || ''} onChange={e => setCurrentInvoice({ ...currentInvoice, supplierId: e.target.value })}>
                     <option value="">-- اختر المورد --</option>
                     {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
                   </select>
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-gray-500 mb-1">رقم الفاتورة</label>
-                  <input type="text" className="w-full p-2 border rounded font-bold" value={currentInvoice.number || ''} onChange={e => setCurrentInvoice({ ...currentInvoice, number: e.target.value })} />
+                  <input title="Invoice Number" placeholder="رقم الفاتورة" type="text" className="w-full p-2 border rounded font-bold" value={currentInvoice.number || ''} onChange={e => setCurrentInvoice({ ...currentInvoice, number: e.target.value })} />
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-gray-500 mb-1">التاريخ</label>
-                  <input type="date" className="w-full p-2 border rounded font-bold" value={currentInvoice.date || ''} onChange={e => setCurrentInvoice({ ...currentInvoice, date: e.target.value })} />
+                  <input title="Invoice Date" placeholder="التاريخ" type="date" className="w-full p-2 border rounded font-bold" value={currentInvoice.date || ''} onChange={e => setCurrentInvoice({ ...currentInvoice, date: e.target.value })} />
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-gray-500 mb-1">مشروع (اختياري)</label>
-                  <select className="w-full p-2 border rounded font-bold" value={currentInvoice.projectId || ''} onChange={e => setCurrentInvoice({ ...currentInvoice, projectId: e.target.value })}>
+                  <select title="Project ID" className="w-full p-2 border rounded font-bold" value={currentInvoice.projectId || ''} onChange={e => setCurrentInvoice({ ...currentInvoice, projectId: e.target.value })}>
                     <option value="">-- عام (مخزون) --</option>
                     {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
                   </select>
@@ -1015,19 +1017,19 @@ export const PurchaseModule: React.FC = () => {
                 <div className="space-y-2">
                   {currentInvoice.items?.map((item, idx) => (
                     <div key={idx} className="flex gap-2 items-center">
-                      <input type="text" className="flex-1 p-2 border rounded font-bold text-sm" value={item.description} readOnly />
-                      <input type="number" className="w-20 p-2 border rounded font-bold text-sm text-center" value={item.quantity} readOnly />
-                      <input type="number" className="w-24 p-2 border rounded font-bold text-sm text-center" value={item.unitPrice} readOnly />
-                      <button onClick={() => setCurrentInvoice({ ...currentInvoice, items: currentInvoice.items?.filter((_, i) => i !== idx) })} className="text-red-500"><X size={16} /></button>
+                      <input title="Item Description" placeholder="وصف الصنف" type="text" className="flex-1 p-2 border rounded font-bold text-sm" value={item.description} readOnly />
+                      <input title="Item Quantity" placeholder="الكمية" type="number" className="w-20 p-2 border rounded font-bold text-sm text-center" value={item.quantity} readOnly />
+                      <input title="Item Unit Price" placeholder="سعر الوحدة" type="number" className="w-24 p-2 border rounded font-bold text-sm text-center" value={item.unitPrice} readOnly />
+                      <button title="Remove Item" onClick={() => setCurrentInvoice({ ...currentInvoice, items: currentInvoice.items?.filter((_, i) => i !== idx) })} className="text-red-500"><X size={16} /></button>
                     </div>
                   ))}
 
                   {/* Quick Add Item Row */}
                   <div className="flex gap-2 items-center mt-2 pt-2 border-t border-gray-200">
-                    <input id="newItemDesc" type="text" className="flex-1 p-2 border rounded font-bold text-sm" placeholder="اسم الصنف" list="prodList" />
+                    <input title="New Item Description" id="newItemDesc" type="text" className="flex-1 p-2 border rounded font-bold text-sm" placeholder="اسم الصنف" list="prodList" />
                     <datalist id="prodList">{products.map(p => <option key={p.id} value={p.name} />)}</datalist>
-                    <input id="newItemQty" type="number" className="w-20 p-2 border rounded font-bold text-sm text-center" placeholder="العدد" />
-                    <input id="newItemPrice" type="number" className="w-24 p-2 border rounded font-bold text-sm text-center" placeholder="السعر" />
+                    <input title="New Item Quantity" id="newItemQty" type="number" className="w-20 p-2 border rounded font-bold text-sm text-center" placeholder="العدد" />
+                    <input title="New Item Unit Price" id="newItemPrice" type="number" className="w-24 p-2 border rounded font-bold text-sm text-center" placeholder="السعر" />
                     <button
                       onClick={() => {
                         const desc = (document.getElementById('newItemDesc') as HTMLInputElement).value;
@@ -1052,14 +1054,14 @@ export const PurchaseModule: React.FC = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-bold text-gray-500 mb-1">حالة الدفع</label>
-                  <select className="w-full p-2 border rounded font-bold" value={currentInvoice.status || 'pending'} onChange={e => setCurrentInvoice({ ...currentInvoice, status: e.target.value as any })}>
+                  <select title="Payment Status" className="w-full p-2 border rounded font-bold" value={currentInvoice.status || 'pending'} onChange={e => setCurrentInvoice({ ...currentInvoice, status: e.target.value as any })}>
                     <option value="pending">مستحقة (آجل)</option>
                     <option value="paid">مدفوعة (نقد/تحويل)</option>
                   </select>
                 </div>
                 <div>
                   <label className="block text-xs font-bold text-gray-500 mb-1">طريقة الدفع</label>
-                  <select className="w-full p-2 border rounded font-bold" value={currentInvoice.paymentType || 'credit'} onChange={e => setCurrentInvoice({ ...currentInvoice, paymentType: e.target.value as any })}>
+                  <select title="Payment Type" className="w-full p-2 border rounded font-bold" value={currentInvoice.paymentType || 'credit'} onChange={e => setCurrentInvoice({ ...currentInvoice, paymentType: e.target.value as any })}>
                     <option value="credit">آجل (Credit)</option>
                     <option value="cash">نقد</option>
                     <option value="transfer">تحويل</option>

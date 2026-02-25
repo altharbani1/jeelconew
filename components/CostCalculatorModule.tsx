@@ -150,7 +150,7 @@ export const CostCalculatorModule: React.FC = () => {
                         </div>
                         <div>
                             <label className="text-xs font-bold text-gray-500 mb-2 block">الوقفات</label>
-                            <input type="number" min="2" value={stops} onChange={e => setStops(parseInt(e.target.value) || 2)} className="w-full p-2.5 border border-gray-200 rounded-xl text-sm font-bold bg-white outline-none focus:ring-2 focus:ring-jilco-500 text-center text-lg" />
+                            <input type="number" title="Stops" placeholder="عدد الوقفات" min="2" value={stops} onChange={e => setStops(parseInt(e.target.value) || 2)} className="w-full p-2.5 border border-gray-200 rounded-xl text-sm font-bold bg-white outline-none focus:ring-2 focus:ring-jilco-500 text-center text-lg" />
                         </div>
                         <div>
                             <label className="text-xs font-bold text-gray-500 mb-2 block">الحمولة / عدد الأشخاص</label>
@@ -235,6 +235,8 @@ export const CostCalculatorModule: React.FC = () => {
                                                     <td className="p-2">
                                                         <input
                                                             type="number"
+                                                            title="Unit Price"
+                                                            placeholder="السعر"
                                                             value={item.unitPrice || ''}
                                                             onChange={e => updateItem(item.id, 'unitPrice', parseFloat(e.target.value) || 0)}
                                                             className="w-full p-2 bg-transparent border-b border-transparent focus:border-jilco-500 hover:bg-white text-sm font-mono font-bold text-center text-gray-900 outline-none transition-all"
@@ -243,6 +245,8 @@ export const CostCalculatorModule: React.FC = () => {
                                                     <td className="p-2">
                                                         <input
                                                             type="number"
+                                                            title="Quantity"
+                                                            placeholder="الكمية"
                                                             value={item.qty || ''}
                                                             onChange={e => updateItem(item.id, 'qty', parseFloat(e.target.value) || 0)}
                                                             className="w-full p-2 bg-transparent border-b border-transparent focus:border-jilco-500 hover:bg-white text-sm font-mono font-black text-center text-jilco-700 outline-none transition-all"
@@ -252,7 +256,7 @@ export const CostCalculatorModule: React.FC = () => {
                                                         {(item.unitPrice * item.qty).toLocaleString()}
                                                     </td>
                                                     <td className="p-2 text-center">
-                                                        <button onClick={() => removeItem(item.id)} className="p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-500 rounded-lg transition-colors">
+                                                        <button title="Remove Item" onClick={() => removeItem(item.id)} className="p-1.5 text-gray-400 hover:bg-red-50 hover:text-red-500 rounded-lg transition-colors">
                                                             <Trash2 size={16} />
                                                         </button>
                                                     </td>
@@ -285,7 +289,7 @@ export const CostCalculatorModule: React.FC = () => {
                                     <label className="text-xs font-bold text-gray-500 block">هامش الربح الإجمالي (%)</label>
                                     <span className="font-mono font-black bg-jilco-100 text-jilco-800 px-2 py-0.5 rounded text-sm">{profitMarginPercent}%</span>
                                 </div>
-                                <input type="range" min="0" max="100" value={profitMarginPercent} onChange={e => setProfitMarginPercent(parseInt(e.target.value))} className="w-full h-2.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-jilco-600" />
+                                <input title="Profit Margin" placeholder="هامش الربح" type="range" min="0" max="100" value={profitMarginPercent} onChange={e => setProfitMarginPercent(parseInt(e.target.value))} className="w-full h-2.5 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-jilco-600" />
                                 <p className="text-[10px] text-gray-400 mt-3 flex gap-1"><Info size={12} /> سيتم تطبيق هذا الهامش على إجمالي التكلفة الفعلية عند استخراج العرض النهائي.</p>
                             </div>
                         </div>

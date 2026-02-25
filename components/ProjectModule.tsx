@@ -238,30 +238,30 @@ export const ProjectModule: React.FC = () => {
             <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg p-6 animate-fade-in">
                 <div className="flex justify-between items-center mb-6 border-b border-gray-100 pb-4">
                     <h3 className="text-xl font-bold text-jilco-900">تسجيل مشروع جديد</h3>
-                    <button onClick={() => setShowNewProjectModal(false)} className="p-2 hover:bg-gray-100 rounded-full"><X size={20} /></button>
+                    <button title="Close" onClick={() => setShowNewProjectModal(false)} className="p-2 hover:bg-gray-100 rounded-full"><X size={20} /></button>
                 </div>
                 <div className="space-y-4">
                     <div>
                         <label className="block text-sm font-bold text-gray-700 mb-1">اسم المشروع</label>
-                        <input type="text" value={newProject.name} onChange={e => setNewProject({ ...newProject, name: e.target.value })} className="w-full p-3 border border-gray-400 rounded-lg text-black font-bold bg-white focus:ring-2 focus:ring-jilco-500 outline-none" placeholder="مثال: فيلا حي الملقا" />
+                        <input title="Project Name" type="text" value={newProject.name} onChange={e => setNewProject({ ...newProject, name: e.target.value })} className="w-full p-3 border border-gray-400 rounded-lg text-black font-bold bg-white focus:ring-2 focus:ring-jilco-500 outline-none" placeholder="مثال: فيلا حي الملقا" />
                     </div>
                     <div>
                         <label className="block text-sm font-bold text-gray-700 mb-1">اسم العميل</label>
-                        <input type="text" value={newProject.clientName} onChange={e => setNewProject({ ...newProject, clientName: e.target.value })} className="w-full p-3 border border-gray-400 rounded-lg text-black font-bold bg-white focus:ring-2 focus:ring-jilco-500 outline-none" />
+                        <input title="Client Name" placeholder="اسم العميل" type="text" value={newProject.clientName} onChange={e => setNewProject({ ...newProject, clientName: e.target.value })} className="w-full p-3 border border-gray-400 rounded-lg text-black font-bold bg-white focus:ring-2 focus:ring-jilco-500 outline-none" />
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                         <div>
                             <label className="block text-sm font-bold text-gray-700 mb-1">تاريخ البداية</label>
-                            <input type="date" value={newProject.startDate} onChange={e => setNewProject({ ...newProject, startDate: e.target.value })} className="w-full p-3 border border-gray-400 rounded-lg text-black font-bold bg-white focus:ring-2 focus:ring-jilco-500 outline-none" />
+                            <input title="Start Date" placeholder="تاريخ البداية" type="date" value={newProject.startDate} onChange={e => setNewProject({ ...newProject, startDate: e.target.value })} className="w-full p-3 border border-gray-400 rounded-lg text-black font-bold bg-white focus:ring-2 focus:ring-jilco-500 outline-none" />
                         </div>
                         <div>
                             <label className="block text-sm font-bold text-gray-700 mb-1">التكلفة التقديرية</label>
-                            <input type="number" value={newProject.totalExpectedCost} onChange={e => setNewProject({ ...newProject, totalExpectedCost: parseFloat(e.target.value) })} className="w-full p-3 border border-gray-400 rounded-lg text-black font-bold bg-white focus:ring-2 focus:ring-jilco-500 outline-none" />
+                            <input title="Expected Cost" placeholder="التكلفة التقديرية" type="number" value={newProject.totalExpectedCost} onChange={e => setNewProject({ ...newProject, totalExpectedCost: parseFloat(e.target.value) })} className="w-full p-3 border border-gray-400 rounded-lg text-black font-bold bg-white focus:ring-2 focus:ring-jilco-500 outline-none" />
                         </div>
                     </div>
                     <div>
                         <label className="block text-sm font-bold text-gray-700 mb-1">حالة المشروع</label>
-                        <select value={newProject.status} onChange={e => setNewProject({ ...newProject, status: e.target.value as any })} className="w-full p-3 border border-gray-400 rounded-lg text-black font-bold bg-white focus:ring-2 focus:ring-jilco-500 outline-none">
+                        <select title="Project Status" value={newProject.status} onChange={e => setNewProject({ ...newProject, status: e.target.value as any })} className="w-full p-3 border border-gray-400 rounded-lg text-black font-bold bg-white focus:ring-2 focus:ring-jilco-500 outline-none">
                             <option value="not_started">لم يبدأ</option>
                             <option value="in_progress">قيد التنفيذ</option>
                         </select>
@@ -447,7 +447,7 @@ export const ProjectModule: React.FC = () => {
                                 <p className="text-sm font-bold text-gray-500 mb-2">نسبة الإنجاز الكلية</p>
                                 <div className="flex items-center gap-4">
                                     <div className="flex-1 bg-gray-300 rounded-full h-4">
-                                        <div className="bg-jilco-600 h-4 rounded-full" style={{ width: `${project.progress}%` }}></div>
+                                        <div className={`bg-jilco-600 h-4 rounded-full w-[${project.progress}%]`}></div>
                                     </div>
                                     <span className="font-black text-xl text-jilco-900">{project.progress}%</span>
                                 </div>
@@ -490,7 +490,7 @@ export const ProjectModule: React.FC = () => {
                                                 </div>
                                             </div>
                                             <div className="w-full bg-gray-100 rounded-full h-2">
-                                                <div className={`h-2 rounded-full ${isCompleted ? 'bg-green-500' : 'bg-blue-500'}`} style={{ width: `${phase.progressPercentage || 0}%` }}></div>
+                                                <div className={`h-2 rounded-full w-[${phase.progressPercentage || 0}%] ${isCompleted ? 'bg-green-500' : 'bg-blue-500'}`}></div>
                                             </div>
                                             <div className="mt-1 text-left text-xs font-bold text-gray-500">{phase.progressPercentage || 0}%</div>
                                         </div>
@@ -564,6 +564,7 @@ export const ProjectModule: React.FC = () => {
                             <div className="relative max-w-md">
                                 <Search className="absolute right-3 top-2.5 text-gray-400" size={18} />
                                 <input
+                                    title="Search Projects"
                                     type="text" placeholder="بحث باسم المشروع أو العميل..."
                                     value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
                                     className="w-full pr-10 pl-4 py-2 border border-gray-400 rounded-lg text-sm bg-white text-black font-bold focus:ring-2 focus:ring-jilco-500 outline-none"
@@ -573,7 +574,10 @@ export const ProjectModule: React.FC = () => {
                         <table className="w-full text-sm text-right">
                             <thead className="bg-gray-50 text-gray-500 font-medium">
                                 <tr>
-                                    <th className="p-4">المشروع</th>
+                                    <th className="p-4">
+                                        المشروع
+                                        <label htmlFor="search-projects" className="sr-only">Search Projects</label>
+                                    </th>
                                     <th className="p-4">العميل</th>
                                     <th className="p-4">تاريخ البداية</th>
                                     <th className="p-4">نسبة الإنجاز</th>
@@ -588,15 +592,16 @@ export const ProjectModule: React.FC = () => {
                                         <td className="p-4 font-bold text-gray-700">{p.clientName}</td>
                                         <td className="p-4 font-mono text-xs text-gray-500">{p.startDate}</td>
                                         <td className="p-4">
-                                            <div className="w-full bg-gray-200 rounded-full h-2.5">
-                                                <div className="bg-jilco-600 h-2.5 rounded-full" style={{ width: `${p.progress}%` }}></div>
+                                            {/* eslint-disable react/style-prop-object */}
+                                            <div className="w-full bg-gray-200 rounded-full h-2.5" role="progressbar" aria-label="Project Progress" aria-valuenow={String(p.progress || 0)} aria-valuemin={"0"} aria-valuemax={"100"} title={`Progress: ${p.progress}%`}>
+                                                <div className={`bg-jilco-600 h-2.5 rounded-full`} style={{ width: `${p.progress || 0}%` }}></div>
                                             </div>
                                             <span className="text-[10px] font-bold text-gray-500 mt-1 block">{p.progress}%</span>
                                         </td>
                                         <td className="p-4"><StatusBadge status={p.status} /></td>
                                         <td className="p-4 flex justify-center gap-2" onClick={e => e.stopPropagation()}>
-                                            <button onClick={() => { setSelectedProjectId(p.id); setViewMode('details'); }} className="p-2 text-blue-600 hover:bg-blue-50 rounded-full"><Edit size={16} /></button>
-                                            <button onClick={() => handleDeleteProject(p.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-full"><Trash2 size={16} /></button>
+                                            <button title="Edit Project" onClick={() => { setSelectedProjectId(p.id); setViewMode('details'); }} className="p-2 text-blue-600 hover:bg-blue-50 rounded-full"><Edit size={16} /></button>
+                                            <button title="Delete Project" onClick={() => handleDeleteProject(p.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-full"><Trash2 size={16} /></button>
                                         </td>
                                     </tr>
                                 ))}
@@ -633,6 +638,7 @@ export const ProjectModule: React.FC = () => {
                 </div>
                 <div className="flex gap-2">
                     <button
+                        title="Issue Material"
                         onClick={() => setShowMaterialModal(true)}
                         className="bg-emerald-600 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 hover:bg-emerald-700 shadow-sm"
                     >
@@ -723,6 +729,7 @@ export const ProjectModule: React.FC = () => {
                                 <div>
                                     <label className="text-[10px] font-bold text-gray-400 block mb-1">إسناد إلى مهندس / فني</label>
                                     <select
+                                        title="Assigned To"
                                         value={phase.assignedTo || ''}
                                         onChange={e => {
                                             const emp = employees.find(emp => emp.id === e.target.value);
@@ -741,6 +748,7 @@ export const ProjectModule: React.FC = () => {
                                     <div>
                                         <label className="text-[10px] font-bold text-gray-400 block mb-1">حالة المرحلة</label>
                                         <select
+                                            title="Phase Status"
                                             value={phase.status}
                                             onChange={e => updatePhase(phase.id, { status: e.target.value as any })}
                                             className={`w-full p-2 border rounded-lg text-xs font-bold focus:ring-2 focus:ring-jilco-500 outline-none ${phase.status === 'late' ? 'bg-amber-50 text-amber-700 border-amber-300' : 'bg-white text-black border-gray-400'}`}
@@ -755,6 +763,8 @@ export const ProjectModule: React.FC = () => {
                                     <div>
                                         <label className="text-[10px] font-bold text-gray-400 block mb-1">نسبة الإنجاز %</label>
                                         <input
+                                            title="Completion Percentage"
+                                            placeholder="نسبة الإنجاز"
                                             type="number" min="0" max="100"
                                             value={phase.progressPercentage || 0}
                                             onChange={e => updatePhase(phase.id, { progressPercentage: parseInt(e.target.value) })}
@@ -766,6 +776,8 @@ export const ProjectModule: React.FC = () => {
                                     <div>
                                         <label className="text-[10px] font-bold text-gray-400 block mb-1">التكلفة التقديرية للمرحلة (للميزانية فقط)</label>
                                         <input
+                                            title="Expected Cost"
+                                            placeholder="التكلفة التقديرية"
                                             type="number"
                                             value={phase.expectedCost || 0}
                                             onChange={e => updatePhase(phase.id, { expectedCost: parseFloat(e.target.value) })}
@@ -819,12 +831,13 @@ export const ProjectModule: React.FC = () => {
                             <h2 className="text-xl font-black flex items-center gap-2">
                                 <PackageMinus size={24} /> صرف مواد للمشروع
                             </h2>
-                            <button onClick={() => setShowMaterialModal(false)}><X size={20} /></button>
+                            <button title="Close Modal" onClick={() => setShowMaterialModal(false)}><X size={20} /></button>
                         </div>
                         <div className="p-6 space-y-4">
                             <div>
                                 <label className="block text-sm font-bold text-gray-700 mb-2">اختر الصنف من المستودع</label>
                                 <select
+                                    title="Product"
                                     className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl font-bold"
                                     value={issueProductId}
                                     onChange={e => setIssueProductId(e.target.value)}
@@ -838,12 +851,12 @@ export const ProjectModule: React.FC = () => {
 
                             <div>
                                 <label className="block text-sm font-bold text-gray-700 mb-2">الكمية المسحوبة</label>
-                                <input type="number" min="1" value={issueQuantity || ''} onChange={e => setIssueQuantity(parseFloat(e.target.value) || 0)} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl font-black text-center focus:ring-2 focus:ring-jilco-500 outline-none" />
+                                <input title="Quantity" placeholder="الكمية" type="number" min="1" value={issueQuantity || ''} onChange={e => setIssueQuantity(parseFloat(e.target.value) || 0)} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl font-black text-center focus:ring-2 focus:ring-jilco-500 outline-none" />
                             </div>
 
                             <div>
                                 <label className="block text-sm font-bold text-gray-700 mb-2">ملاحظات / بيان المسحوب</label>
-                                <input type="text" placeholder="مثال: لتركيب الكابينة..." value={issueNotes} onChange={e => setIssueNotes(e.target.value)} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-jilco-500 outline-none" />
+                                <input title="Notes" type="text" placeholder="مثال: لتركيب الكابينة..." value={issueNotes} onChange={e => setIssueNotes(e.target.value)} className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-jilco-500 outline-none" />
                             </div>
 
                             <button onClick={handleIssueMaterial} className="w-full px-4 py-3 mt-4 text-white font-black rounded-xl bg-jilco-600 hover:bg-jilco-700 transition-colors shadow-lg">

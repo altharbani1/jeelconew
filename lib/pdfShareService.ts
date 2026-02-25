@@ -88,8 +88,34 @@ export async function shareDocument(options: ShareOptions): Promise<ShareResult>
     try {
         // 1. توليد PDF
         const blob = await generatePdfBlob(elementId, fileName);
+        const file = new File([blob], `${fileName}.pdf`, { type: 'application/pdf', lastModified: Date.now() });
 
-        // 2. تحميل الملف للمستخدم (ليتمكن من إرساله)
+        // 3. تجهيز رسالة الواتساب
+        const defaultMessage = `مرحباً،\n\nمرفق ${documentTitle || fileName}.\n\nيُرجى مراجعته والتواصل معنا لأي استفسار.\n\nجيلكو للمصاعد 🏢`;
+        const finalMessage = message ? message.trim() : defaultMessage;
+
+        // --- محاولة استخدام Web Share API (تدعم إرفاق ملفات في الموبايل) ---
+        if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            try {
+                await navigator.share({
+                    title: documentTitle || fileName,
+                    text: finalMessage,
+                    files: [file]
+                });
+                return { status: 'shared' };
+            } catch (error: any) {
+                // المستخدم ألغى المشاركة
+                if (error.name === 'AbortError') {
+                    return { status: 'error', message: 'تم الإلغاء' };
+                }
+                // في حالة فشل أخرى، نكمل للـ Fallback
+                console.error('Web Share API failed', error);
+            }
+        }
+
+        // --- Fallback للـ Desktop والمتصفحات غير الداعمة ---
+
+        // 2. تحميل الملف للمستخدم (ليتمكن من إرساله يدوياً)
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
@@ -97,9 +123,6 @@ export async function shareDocument(options: ShareOptions): Promise<ShareResult>
         a.click();
         URL.revokeObjectURL(url);
 
-        // 3. تجهيز رسالة الواتساب
-        const defaultMessage = `مرحباً،\n\nمرفق ${documentTitle || fileName}.\n\nيُرجى مراجعته والتواصل معنا لأي استفسار.\n\nجيلكو للمصاعد 🏢`;
-        const finalMessage = message ? message.trim() : defaultMessage;
         const encodedMessage = encodeURIComponent(finalMessage);
 
         // 4. تحديد الرابط بناءً على وجود رقم الهاتف ونوع الجهاز
