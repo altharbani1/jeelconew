@@ -15,6 +15,14 @@ export const useCloudSync = (modules: SyncModule[]) => {
     const modulesRef = useRef(modules);
     modulesRef.current = modules;
 
+    const sortNewestFirst = (arr: any[]) => {
+        return [...arr].sort((a, b) => {
+            const dateA = new Date(a.createdAt || a.date || a.timestamp || 0).getTime();
+            const dateB = new Date(b.createdAt || b.date || b.timestamp || 0).getTime();
+            return dateB - dateA;
+        });
+    };
+
     useEffect(() => {
         const mods = modulesRef.current;
         loadAllInternal(mods);
@@ -28,10 +36,10 @@ export const useCloudSync = (modules: SyncModule[]) => {
                     const updatedRecord = payload.new;
                     stateSetter((prev: any[]) => {
                         const exists = prev.find(q => (q.id || q.number) === updatedRecord.record_id);
-                        if (exists) {
-                            return prev.map(q => (q.id || q.number) === updatedRecord.record_id ? updatedRecord.data : q);
-                        }
-                        return [updatedRecord.data, ...prev];
+                        const newArr = exists
+                            ? prev.map(q => (q.id || q.number) === updatedRecord.record_id ? updatedRecord.data : q)
+                            : [updatedRecord.data, ...prev];
+                        return sortNewestFirst(newArr);
                     });
                 } else if (payload.eventType === 'DELETE') {
                     const deletedId = payload.old.record_id;
@@ -52,7 +60,7 @@ export const useCloudSync = (modules: SyncModule[]) => {
                 // 1. محلي أولاً للسرعة
                 const localData = localStorage.getItem(collection);
                 if (localData) {
-                    try { stateSetter(JSON.parse(localData)); } catch (e) { }
+                    try { stateSetter(sortNewestFirst(JSON.parse(localData))); } catch (e) { }
                 }
 
                 // 2. السحابة
@@ -69,7 +77,7 @@ export const useCloudSync = (modules: SyncModule[]) => {
                         }
                         return item;
                     });
-                    stateSetter(parsed);
+                    stateSetter(sortNewestFirst(parsed));
                     localStorage.setItem(collection, JSON.stringify(parsed));
                 } else {
                     stateSetter([]);
@@ -90,8 +98,8 @@ export const useCloudSync = (modules: SyncModule[]) => {
             if (mod) {
                 mod.stateSetter(prev => {
                     const exists = prev.find((q: any) => (q.id || q.number) === id);
-                    if (exists) return prev.map((q: any) => (q.id || q.number) === id ? data : q);
-                    return [data, ...prev];
+                    const newArr = exists ? prev.map((q: any) => (q.id || q.number) === id ? data : q) : [data, ...prev];
+                    return sortNewestFirst(newArr);
                 });
             }
 
