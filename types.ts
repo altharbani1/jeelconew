@@ -317,6 +317,8 @@ export interface Subcontractor {
   nationalId?: string; // أو رقم السجل التجاري
   vatNumber?: string;
   address?: string;
+  bankName?: string;
+  bankAccountNumber?: string;
   notes?: string;
   rating?: 1 | 2 | 3 | 4 | 5;
   createdAt: string;

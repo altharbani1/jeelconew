@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Users, FileText, CheckCircle2, DollarSign, Plus, Search, Edit, Trash2, Printer, ChevronDown, Wrench, Building2, UploadCloud, Paperclip } from 'lucide-react';
+import { Users, FileText, CheckCircle2, DollarSign, Plus, Search, Edit, Trash2, Printer, ChevronDown, Wrench, Building2, UploadCloud, Paperclip, X } from 'lucide-react';
 import { Subcontractor, Subcontract, SubcontractPayment, Project } from '../types';
 import { useSubcontract } from '../contexts/SubcontractContext';
 import { useProject } from '../contexts/ProjectContext';
@@ -17,9 +17,11 @@ export const SubcontractModule: React.FC = () => {
         uploadSubcontractAttachment
     } = useSubcontract();
 
-    const { projects } = useProject();
+    const { projects, saveProjectRecord, expenses } = useProject();
 
     const [activeTab, setActiveTab] = useState<'dashboard' | 'subcontractors' | 'contracts'>('dashboard');
+    const [statementSubcontractor, setStatementSubcontractor] = useState<Subcontractor | null>(null);
+    const [printingPayment, setPrintingPayment] = useState<{ contract: Subcontract, payment: SubcontractPayment } | null>(null);
 
     // --- SEARCH / FILTERS ---
     const [searchTerm, setSearchTerm] = useState('');
@@ -136,6 +138,8 @@ export const SubcontractModule: React.FC = () => {
     const updatePaymentStatus = async (contractId: string, paymentId: string, newStatus: SubcontractPayment['status']) => {
         const contract = subcontracts.find(c => c.id === contractId);
         if (!contract) return;
+        const payment = contract.payments?.find(p => p.id === paymentId);
+        if (!payment) return;
 
         const updatedPayments = (contract.payments || []).map(p => {
             if (p.id === paymentId) {
@@ -149,6 +153,28 @@ export const SubcontractModule: React.FC = () => {
         });
 
         await updateSubcontract(contractId, { payments: updatedPayments });
+
+        if (newStatus === 'paid' && payment.status !== 'paid') {
+            const expenseId = `SUB-${payment.id}`;
+            const subc = subcontractors.find(s => s.id === contract.subcontractorId);
+            const expenseRecord = {
+                id: expenseId,
+                number: `PV-${new Date().getFullYear()}-${String(expenses.length + 1).padStart(3, '0')}`,
+                date: new Date().toISOString().split('T')[0],
+                categoryId: 'subcontract_payment',
+                categoryName: 'عقود باطن',
+                paidTo: subc ? subc.name : contract.subcontractorName,
+                description: `دفعة مقاول باطن - ${contract.projectName} - ${payment.description}`,
+                amount: payment.amount,
+                paymentMethod: payment.paymentMethod || 'transfer',
+                bankName: subc?.bankName || '',
+                projectId: contract.projectId,
+                projectName: contract.projectName,
+                attachments: []
+            };
+            await saveProjectRecord('jilco_expenses_archive', expenseId, expenseRecord);
+            alert('تم تحويل الدفعة إلى منصرف وإضافتها إلى قسم المصروفات.');
+        }
     };
 
 
@@ -196,6 +222,22 @@ export const SubcontractModule: React.FC = () => {
                             <input title="الهاتف" type="text" className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold"
                                 value={currentSubcontractor.phone || ''}
                                 onChange={e => setCurrentSubcontractor({ ...currentSubcontractor, phone: e.target.value })}
+                            />
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-xs font-bold mb-1">اسم البنك</label>
+                            <input title="البنك" type="text" className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold"
+                                value={currentSubcontractor.bankName || ''}
+                                onChange={e => setCurrentSubcontractor({ ...currentSubcontractor, bankName: e.target.value })}
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-xs font-bold mb-1">رقم الحساب / الآيبان</label>
+                            <input title="الحساب" type="text" className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold"
+                                value={currentSubcontractor.bankAccountNumber || ''}
+                                onChange={e => setCurrentSubcontractor({ ...currentSubcontractor, bankAccountNumber: e.target.value })}
                             />
                         </div>
                     </div>
@@ -434,6 +476,58 @@ export const SubcontractModule: React.FC = () => {
                     <button onClick={() => setActiveTab('contracts')} className={`flex-1 py-3 text-sm font-bold flex justify-center items-center gap-2 transition-colors ${activeTab === 'contracts' ? 'bg-jilco-50 text-jilco-800 border-b-4 border-jilco-600' : 'text-gray-500 hover:bg-gray-50'}`}><Wrench size={18} /> سجل العقود</button>
                 </div>
 
+                {/* Dashboard Tab Content */}
+                {activeTab === 'dashboard' && (
+                    <div className="animate-fade-in grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        {/* Recent Contracts Content */}
+                        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                            <div className="bg-gray-50 p-4 border-b border-gray-200">
+                                <h3 className="font-bold text-jilco-900 flex items-center gap-2"><FileText size={18} /> أحدث العقود النشطة</h3>
+                            </div>
+                            <div className="p-4 space-y-3">
+                                {subcontracts.filter(c => c.status === 'active').slice(0, 5).map(contract => (
+                                    <div key={contract.id} className="flex justify-between items-center p-3 border border-gray-100 rounded-lg hover:bg-gray-50">
+                                        <div>
+                                            <p className="font-bold text-sm text-jilco-900">{contract.projectName}</p>
+                                            <p className="font-bold text-xs text-gray-500">{contract.subcontractorName}</p>
+                                        </div>
+                                        <div className="text-right">
+                                            <p className="font-mono text-sm font-bold text-red-600">{contract.totalAmount.toLocaleString()} ر.س</p>
+                                            <p className="font-mono text-xs font-bold text-blue-600">{contract.progressPercentage || 0}% إنجاز</p>
+                                        </div>
+                                    </div>
+                                ))}
+                                {subcontracts.filter(c => c.status === 'active').length === 0 && (
+                                    <p className="text-center text-sm font-bold text-gray-400 py-4">لا توجد عقود نشطة حالياً</p>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Recent Payments Content */}
+                        <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+                            <div className="bg-gray-50 p-4 border-b border-gray-200">
+                                <h3 className="font-bold text-jilco-900 flex items-center gap-2"><DollarSign size={18} /> آخر الدفعات</h3>
+                            </div>
+                            <div className="p-4 space-y-3">
+                                {subcontracts.flatMap(c => c.payments?.map(p => ({ ...p, subcontractorName: c.subcontractorName, projectName: c.projectName })) || []).sort((a, b) => new Date(b.dueDate).getTime() - new Date(a.dueDate).getTime()).slice(0, 5).map(payment => (
+                                    <div key={payment.id} className="flex justify-between items-center p-3 border border-gray-100 rounded-lg hover:bg-gray-50">
+                                        <div>
+                                            <p className="font-bold text-sm text-jilco-900">{payment.subcontractorName}</p>
+                                            <p className="font-bold text-xs text-gray-500">{payment.description}</p>
+                                        </div>
+                                        <div className="text-right">
+                                            <p className="font-mono text-sm font-bold text-green-600">{payment.amount.toLocaleString()} ر.س</p>
+                                            <span className={`px-2 py-0.5 rounded text-[10px] ${payment.status === 'paid' ? 'bg-green-100 text-green-700' : payment.status === 'approved' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'}`}>
+                                                {payment.status === 'paid' ? 'تم الصرف' : payment.status === 'approved' ? 'معتمد للصرف' : 'قيد الانتظار'}
+                                            </span>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 {/* Subcontractors Tab */}
                 {activeTab === 'subcontractors' && (
                     <div className="animate-fade-in bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
@@ -474,6 +568,7 @@ export const SubcontractModule: React.FC = () => {
                                         <td className="p-4 text-center">
                                             <div className="flex justify-center gap-2">
                                                 <button title="تعديل المقاول" onClick={() => { setCurrentSubcontractor(sub); setShowSubcontractorForm(true); }} className="text-blue-500 hover:text-blue-700 p-1 bg-blue-50 rounded"><Edit size={16} /></button>
+                                                <button title="كشف حساب" onClick={() => setStatementSubcontractor(sub)} className="text-purple-500 hover:text-purple-700 p-1 bg-purple-50 rounded"><FileText size={16} /></button>
                                                 <button title="حذف المقاول" onClick={() => deleteSubcontractor(sub.id)} className="text-red-500 hover:text-red-700 p-1 bg-red-50 rounded"><Trash2 size={16} /></button>
                                             </div>
                                         </td>
@@ -588,6 +683,7 @@ export const SubcontractModule: React.FC = () => {
                                                                 </span>
                                                             </td>
                                                             <td className="p-2 text-center flex justify-center gap-1">
+                                                                <button title="طباعة" onClick={() => { setPrintingPayment({ contract, payment }); setTimeout(() => window.print(), 300); }} className="bg-gray-50 text-gray-600 px-2 py-1 rounded hover:bg-gray-100 border border-gray-200"><Printer size={16} /></button>
                                                                 {payment.status === 'pending' && (
                                                                     <button onClick={() => updatePaymentStatus(contract.id, payment.id, 'approved')} className="bg-blue-50 text-blue-600 px-2 py-1 rounded hover:bg-blue-100 border border-blue-100">اعتماد</button>
                                                                 )}
@@ -617,6 +713,193 @@ export const SubcontractModule: React.FC = () => {
             {showSubcontractorForm && renderSubcontractorForm()}
             {showSubcontractForm && renderSubcontractForm()}
             {showPaymentForm && renderPaymentForm()}
+
+            {statementSubcontractor && (
+                <div className="fixed inset-0 bg-black/60 z-50 flex justify-center items-start p-4 overflow-y-auto print:absolute print:inset-0 print:bg-white print:z-[200]">
+                    <div className="bg-white rounded-xl shadow-xl w-full max-w-4xl p-8 mt-10 relative print:w-[210mm] print:shadow-none print:m-0 print:break-inside-avoid animate-fade-in">
+                        <div className="flex justify-between items-center mb-6 print:hidden border-b pb-4">
+                            <h2 className="text-xl font-bold flex items-center gap-2 text-jilco-900"><FileText /> كشف حساب مقاول باطن</h2>
+                            <div className="flex gap-2">
+                                <button onClick={() => window.print()} className="bg-jilco-900 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 hover:bg-black"><Printer size={18} /> طباعة</button>
+                                <button title="إغلاق" onClick={() => setStatementSubcontractor(null)} className="p-2 bg-gray-100 hover:bg-gray-200 rounded-full text-gray-700"><X size={20} /></button>
+                            </div>
+                        </div>
+
+                        <div className="hidden print:flex justify-between items-center border-b-2 border-jilco-900 pb-4 mb-6">
+                            <div className="text-right">
+                                <h1 className="text-2xl font-black text-jilco-900">جيلكو للمصاعد</h1>
+                                <p className="text-xs font-bold text-gray-500">كشف حساب مقاول</p>
+                            </div>
+                            <div className="text-left font-mono text-sm font-bold">
+                                تاريخ الطباعة: {new Date().toLocaleDateString('en-GB')}
+                            </div>
+                        </div>
+
+                        <div className="bg-gray-50 p-6 rounded-xl border border-gray-200 mb-6 print:border-gray-400 print:bg-transparent">
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-sm font-bold">
+                                <div>
+                                    <p className="text-gray-500 mb-1">اسم المقاول</p>
+                                    <p className="text-lg text-jilco-900">{statementSubcontractor.name}</p>
+                                </div>
+                                <div>
+                                    <p className="text-gray-500 mb-1">إجمالي التزامات العقود</p>
+                                    <p className="text-lg text-blue-700 font-mono">{subcontracts.filter(c => c.subcontractorId === statementSubcontractor.id).reduce((sum, c) => sum + c.totalAmount, 0).toLocaleString()} ر.س</p>
+                                </div>
+                                <div>
+                                    <p className="text-gray-500 mb-1">إجمالي المنصرف</p>
+                                    <p className="text-lg text-green-700 font-mono">{subcontracts.filter(c => c.subcontractorId === statementSubcontractor.id).flatMap(c => c.payments || []).filter(p => p.status === 'paid').reduce((sum, p) => sum + p.amount, 0).toLocaleString()} ر.س</p>
+                                </div>
+                                <div>
+                                    <p className="text-gray-500 mb-1">الرصيد المتبقي</p>
+                                    <p className="text-lg text-red-700 font-mono">{(subcontracts.filter(c => c.subcontractorId === statementSubcontractor.id).reduce((sum, c) => sum + c.totalAmount, 0) - subcontracts.filter(c => c.subcontractorId === statementSubcontractor.id).flatMap(c => c.payments || []).filter(p => p.status === 'paid').reduce((sum, p) => sum + p.amount, 0)).toLocaleString()} ر.س</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <h3 className="font-bold text-lg mb-3 border-b pb-2">تفاصيل العقود النشطة والمكتملة</h3>
+                        <table className="w-full text-sm mb-8">
+                            <thead className="bg-jilco-50 text-jilco-900 font-bold border-b-2 border-jilco-200">
+                                <tr>
+                                    <th className="p-3 text-right border whitespace-nowrap">رقم العقد</th>
+                                    <th className="p-3 text-right border w-full">المشروع</th>
+                                    <th className="p-3 text-center border whitespace-nowrap">القيمة الإجمالية</th>
+                                    <th className="p-3 text-center border whitespace-nowrap">المنصرف</th>
+                                    <th className="p-3 text-center border whitespace-nowrap">المتبقي</th>
+                                    <th className="p-3 text-center border whitespace-nowrap">الحالة</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-100 font-bold">
+                                {subcontracts.filter(c => c.subcontractorId === statementSubcontractor.id).map(c => {
+                                    const cPaid = (c.payments || []).filter(p => p.status === 'paid').reduce((s, p) => s + p.amount, 0);
+                                    return (
+                                        <tr key={c.id}>
+                                            <td className="p-3 font-mono border">{c.number}</td>
+                                            <td className="p-3 border text-jilco-800">{c.projectName}</td>
+                                            <td className="p-3 text-center font-mono border">{c.totalAmount.toLocaleString()}</td>
+                                            <td className="p-3 text-center text-green-600 font-mono border">{cPaid.toLocaleString()}</td>
+                                            <td className="p-3 text-center text-red-600 font-mono border">{(c.totalAmount - cPaid).toLocaleString()}</td>
+                                            <td className="p-3 text-center border">
+                                                <span className={`px-2 py-1 rounded text-xs ${c.status === 'active' ? 'bg-blue-100 text-blue-700' : c.status === 'completed' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>
+                                                    {c.status === 'active' ? 'نشط' : c.status === 'completed' ? 'مكتمل' : c.status}
+                                                </span>
+                                            </td>
+                                        </tr>
+                                    )
+                                })}
+                            </tbody>
+                        </table>
+
+                        <h3 className="font-bold text-lg mb-3 border-b pb-2">سجل الدفعات والمطالبات</h3>
+                        <table className="w-full text-sm">
+                            <thead className="bg-gray-100 text-gray-700 font-bold border-b-2 border-gray-300">
+                                <tr>
+                                    <th className="p-3 text-right border whitespace-nowrap">التاريخ</th>
+                                    <th className="p-3 text-right border whitespace-nowrap">العقد</th>
+                                    <th className="p-3 text-right border w-full">البيان</th>
+                                    <th className="p-3 text-center border whitespace-nowrap">المبلغ</th>
+                                    <th className="p-3 text-center border whitespace-nowrap">الحالة</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-100 font-bold">
+                                {subcontracts.filter(c => c.subcontractorId === statementSubcontractor.id).flatMap(c => (c.payments || []).map(p => ({ ...p, contractNumber: c.number }))).sort((a, b) => new Date(b.dueDate).getTime() - new Date(a.dueDate).getTime()).map((p: any) => (
+                                    <tr key={p.id}>
+                                        <td className="p-3 font-mono border text-gray-600">{p.paymentDate || p.dueDate}</td>
+                                        <td className="p-3 border font-mono">{p.contractNumber}</td>
+                                        <td className="p-3 text-gray-800 border">{p.description}</td>
+                                        <td className="p-3 text-center font-mono text-jilco-900 bg-gray-50 border">{p.amount.toLocaleString()}</td>
+                                        <td className="p-3 text-center border">
+                                            <span className={`px-2 py-1 rounded text-xs ${p.status === 'paid' ? 'bg-green-100 text-green-700' : p.status === 'approved' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'}`}>{p.status === 'paid' ? 'منصرف' : p.status === 'approved' ? 'معتمد' : 'معلق'}</span>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            )}
+
+            {printingPayment && (
+                <div className="fixed inset-0 bg-black/60 z-[100] flex justify-center items-start overflow-y-auto print:absolute print:inset-0 print:bg-white print:z-[200]">
+                    <div className="bg-white mx-auto mt-10 p-10 w-[210mm] min-h-[148mm] relative shadow-2xl print:shadow-none print:m-0 print:p-0 animate-fade-in">
+                        <div className="absolute top-4 right-4 print:hidden z-50">
+                            <button title="إغلاق" onClick={() => setPrintingPayment(null)} className="p-2 bg-gray-100 hover:bg-red-100 hover:text-red-600 rounded-full text-gray-700 transition-colors"><X size={20} /></button>
+                        </div>
+
+                        {/* Decorative Borders */}
+                        <div className="absolute inset-3 border-[6px] border-jilco-900 pointer-events-none z-0"></div>
+                        <div className="absolute inset-[18px] border border-gold-500 pointer-events-none z-0"></div>
+                        <div className="absolute inset-[24px] border border-gray-100 pointer-events-none z-0"></div>
+
+                        <div className="relative z-10 flex flex-col flex-1 m-[28px] bg-white h-full">
+                            {/* Header */}
+                            <div className="flex justify-between items-center mb-8 border-b-2 border-jilco-100 pb-4 px-8 pt-6">
+                                <div className="text-right">
+                                    <h1 className="text-2xl font-black text-jilco-900">جيلكو للمصاعد</h1>
+                                    <p className="text-xs font-bold text-gray-500">قسم عقود الباطن</p>
+                                </div>
+                                <div className="text-left flex flex-col items-center">
+                                    <h2 className="text-xl font-black text-red-700 uppercase tracking-widest bg-red-50 px-4 py-1 rounded border border-red-100">Payment Certificate</h2>
+                                    <p className="text-sm font-bold text-gray-600 mt-1 text-center">شهادة دفع / مستخلص مقاول</p>
+                                </div>
+                            </div>
+
+                            {/* Content */}
+                            <div className="flex-1 space-y-6 px-8 relative z-10">
+                                <div className="flex justify-between items-center">
+                                    <div className="flex items-center gap-2 bg-gray-50 px-4 py-2 rounded-lg border border-gray-200">
+                                        <span className="font-bold text-gray-500 text-sm">رقم العقد:</span>
+                                        <span className="font-mono font-black text-lg text-red-600">{printingPayment.contract.number}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <span className="font-bold text-gray-500 text-sm">التاريخ:</span>
+                                        <span className="font-mono font-bold text-black border-b border-gray-300 px-4">
+                                            {printingPayment.payment.paymentDate || new Date().toISOString().split('T')[0]}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <div className="flex items-center gap-4 bg-red-50 p-6 rounded-xl border border-red-200 shadow-inner">
+                                    <span className="font-bold text-red-900 text-sm w-24">المبلغ:</span>
+                                    <div className="flex-1 flex justify-between items-center bg-white p-3 rounded border border-red-100">
+                                        <span className="font-mono font-black text-3xl text-red-700">{printingPayment.payment.amount.toLocaleString()}</span>
+                                        <span className="text-xs font-bold bg-gray-100 px-2 py-1 rounded text-red-800 border border-gray-200">ريال سعودي SAR</span>
+                                    </div>
+                                </div>
+
+                                <div className="space-y-6 text-sm bg-gray-50 p-6 rounded-xl border border-gray-200">
+                                    <div className="flex items-end gap-2">
+                                        <span className="font-bold text-gray-600 w-28 shrink-0">يصرف إلى السادة:</span>
+                                        <span className="flex-1 border-b-2 border-dotted border-gray-400 pb-1 font-black text-jilco-900 px-2 text-lg">{printingPayment.contract.subcontractorName}</span>
+                                    </div>
+                                    <div className="flex items-end gap-2">
+                                        <span className="font-bold text-gray-600 w-28 shrink-0">وذلك مقابل:</span>
+                                        <span className="flex-1 border-b-2 border-dotted border-gray-400 pb-1 font-bold text-gray-800 px-2 leading-loose">
+                                            مقاولات باطن لمشروع ({printingPayment.contract.projectName}) - {printingPayment.payment.description}
+                                            {printingPayment.payment.progressPercentage ? ` بنسبة إنجاز (${printingPayment.payment.progressPercentage}%)` : ''}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Signatures */}
+                            <div className="mt-auto flex justify-between items-end px-8 pb-8 pt-12 text-center">
+                                <div>
+                                    <p className="text-xs font-bold text-gray-500 mb-8 uppercase tracking-wider">مهندس المشروع / الاعتماد</p>
+                                    <div className="w-40 border-b-2 border-gray-900 mx-auto"></div>
+                                </div>
+                                <div className="relative">
+                                    <p className="text-xs font-bold text-gray-500 mb-8 uppercase tracking-wider">المالية / الصندوق</p>
+                                    <div className="w-40 border-b-2 border-gray-900 mx-auto"></div>
+                                </div>
+                                <div>
+                                    <p className="text-xs font-bold text-gray-500 mb-8 uppercase tracking-wider">توقيع المستلم (المقاول)</p>
+                                    <div className="w-40 border-b-2 border-gray-900 mx-auto"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
