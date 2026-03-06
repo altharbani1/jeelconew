@@ -103,14 +103,14 @@ export const useCloudSync = (modules: SyncModule[]) => {
                 });
             }
 
-            const success = await cloudService.saveRecord(collection, id, data);
-
             const localArr = JSON.parse(localStorage.getItem(collection) || '[]');
             const exists = localArr.find((q: any) => (q.id || q.number) === id);
             const updated = exists
                 ? localArr.map((q: any) => (q.id || q.number) === id ? data : q)
                 : [data, ...localArr];
             localStorage.setItem(collection, JSON.stringify(updated));
+
+            const success = await cloudService.saveRecord(collection, id, data);
 
             setSyncStatus(success ? 'synced' : 'error');
             return success;
