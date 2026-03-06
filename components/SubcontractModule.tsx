@@ -46,6 +46,10 @@ export const SubcontractModule: React.FC = () => {
         dueDate: new Date().toISOString().split('T')[0]
     });
 
+    // UI Mod: Add state for the specific payment currently being paid (converted to expense)
+    const [payingPayment, setPayingPayment] = useState<{ contractId: string, paymentId: string, amount: number, paymentMethod: 'cash' | 'transfer' | 'check', referenceNumber: string, paymentDate: string } | null>(null);
+
+
     // --- STATS ---
     const stats = useMemo(() => {
         const activeContracts = subcontracts.filter(c => c.status === 'active').length;
@@ -135,18 +139,22 @@ export const SubcontractModule: React.FC = () => {
         setSelectedContractId('');
     };
 
-    const updatePaymentStatus = async (contractId: string, paymentId: string, newStatus: SubcontractPayment['status']) => {
+    const updatePaymentStatus = async (contractId: string, paymentId: string, newStatus: SubcontractPayment['status'], extraData?: { paymentMethod?: 'cash' | 'transfer' | 'check', referenceNumber?: string, paymentDate?: string }) => {
         const contract = subcontracts.find(c => c.id === contractId);
         if (!contract) return;
         const payment = contract.payments?.find(p => p.id === paymentId);
         if (!payment) return;
+
+        const finalPaymentDate = extraData?.paymentDate || (newStatus === 'paid' ? new Date().toISOString().split('T')[0] : payment.paymentDate);
 
         const updatedPayments = (contract.payments || []).map(p => {
             if (p.id === paymentId) {
                 return {
                     ...p,
                     status: newStatus,
-                    paymentDate: newStatus === 'paid' ? new Date().toISOString().split('T')[0] : p.paymentDate
+                    paymentDate: finalPaymentDate,
+                    paymentMethod: extraData?.paymentMethod || p.paymentMethod,
+                    referenceNumber: extraData?.referenceNumber || p.referenceNumber
                 };
             }
             return p;
@@ -160,14 +168,15 @@ export const SubcontractModule: React.FC = () => {
             const expenseRecord = {
                 id: expenseId,
                 number: `PV-${new Date().getFullYear()}-${String(expenses.length + 1).padStart(3, '0')}`,
-                date: new Date().toISOString().split('T')[0],
+                date: finalPaymentDate,
                 categoryId: 'subcontract_payment',
                 categoryName: 'عقود باطن',
                 paidTo: subc ? subc.name : contract.subcontractorName,
-                description: `دفعة مقاول باطن - ${contract.projectName} - ${payment.description}`,
+                description: `دفعة مقاول باطن - ${contract.projectName} - ${payment.description} ${extraData?.referenceNumber ? `(مرجع: ${extraData.referenceNumber})` : ''}`,
                 amount: payment.amount,
-                paymentMethod: payment.paymentMethod || 'transfer',
+                paymentMethod: extraData?.paymentMethod || 'transfer',
                 bankName: subc?.bankName || '',
+                referenceNumber: extraData?.referenceNumber || '',
                 projectId: contract.projectId,
                 projectName: contract.projectName,
                 attachments: []
@@ -176,6 +185,8 @@ export const SubcontractModule: React.FC = () => {
             alert('تم تحويل الدفعة إلى منصرف وإضافتها إلى قسم المصروفات.');
         }
     };
+
+
 
 
     // --- RENDER MODALS ---
@@ -422,6 +433,72 @@ export const SubcontractModule: React.FC = () => {
             </div>
         </div>
     );
+
+    const renderPayPaymentForm = () => {
+        if (!payingPayment) return null;
+        return (
+            <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6 animate-fade-in border-t-4 border-green-500">
+                    <h3 className="font-bold text-lg mb-4 text-green-700 flex items-center gap-2">
+                        <CheckCircle2 size={20} /> تحويل كمنصرف وإصدار سند
+                    </h3>
+                    <p className="text-xs text-gray-500 mb-4 font-bold border-b pb-2">
+                        سيتم إنشاء سند صرف آلياً في قسم المصروفات وإدراجها ضمن تكاليف المشروع.
+                    </p>
+                    <div className="space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-xs font-bold mb-1">المبلغ</label>
+                                <input title="المبلغ" type="number" disabled className="w-full p-2 border border-green-200 rounded text-green-800 bg-green-50 font-bold font-mono"
+                                    value={payingPayment.amount} />
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold mb-1">تاريخ الصرف</label>
+                                <input title="تاريخ الصرف" type="date" className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold"
+                                    value={payingPayment.paymentDate}
+                                    onChange={e => setPayingPayment({ ...payingPayment, paymentDate: e.target.value })}
+                                />
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-xs font-bold mb-1">طريقة الدفع</label>
+                                <select title="طريقة الدفع" className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold"
+                                    value={payingPayment.paymentMethod}
+                                    onChange={e => setPayingPayment({ ...payingPayment, paymentMethod: e.target.value as any })}
+                                >
+                                    <option value="transfer">حوالة بنكية</option>
+                                    <option value="cash">نقدي</option>
+                                    <option value="check">شيك</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-xs font-bold mb-1">رقم المرجع (اختياري)</label>
+                                <input title="رقم المرجع" type="text" className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold"
+                                    placeholder="رقم الحوالة أو الشيك"
+                                    value={payingPayment.referenceNumber}
+                                    onChange={e => setPayingPayment({ ...payingPayment, referenceNumber: e.target.value })}
+                                />
+                            </div>
+                        </div>
+                    </div>
+                    <div className="flex justify-end gap-2 mt-6 pt-4 border-t border-gray-100">
+                        <button onClick={() => setPayingPayment(null)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded font-bold text-sm">إلغاء</button>
+                        <button onClick={async () => {
+                            await updatePaymentStatus(payingPayment.contractId, payingPayment.paymentId, 'paid', {
+                                paymentMethod: payingPayment.paymentMethod,
+                                referenceNumber: payingPayment.referenceNumber,
+                                paymentDate: payingPayment.paymentDate
+                            });
+                            setPayingPayment(null);
+                        }} className="px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700 font-bold text-sm shadow-md">
+                            تأكيد الدفع وإصدار السند
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    };
 
     return (
         <div className="flex-1 bg-gray-100 p-8 overflow-auto h-full animate-fade-in text-right print:block print:bg-white print:p-0 print:overflow-visible print:absolute print:inset-0 print:z-50 print:h-auto" dir="rtl">
@@ -689,7 +766,14 @@ export const SubcontractModule: React.FC = () => {
                                                                     <button onClick={() => updatePaymentStatus(contract.id, payment.id, 'approved')} className="bg-blue-50 text-blue-600 px-2 py-1 rounded hover:bg-blue-100 border border-blue-100">اعتماد</button>
                                                                 )}
                                                                 {payment.status === 'approved' && (
-                                                                    <button onClick={() => updatePaymentStatus(contract.id, payment.id, 'paid')} className="bg-green-50 text-green-600 px-2 py-1 rounded hover:bg-green-100 border border-green-100">تحويل كمنصرف</button>
+                                                                    <button onClick={() => setPayingPayment({
+                                                                        contractId: contract.id,
+                                                                        paymentId: payment.id,
+                                                                        amount: payment.amount,
+                                                                        paymentMethod: 'transfer',
+                                                                        referenceNumber: '',
+                                                                        paymentDate: new Date().toISOString().split('T')[0]
+                                                                    })} className="bg-green-50 text-green-600 px-2 py-1 rounded hover:bg-green-100 border border-green-100">تحويل كمنصرف</button>
                                                                 )}
                                                             </td>
                                                         </tr>
@@ -714,6 +798,7 @@ export const SubcontractModule: React.FC = () => {
             {showSubcontractorForm && renderSubcontractorForm()}
             {showSubcontractForm && renderSubcontractForm()}
             {showPaymentForm && renderPaymentForm()}
+            {payingPayment && renderPayPaymentForm()}
 
             {statementSubcontractor && (
                 <div className="fixed inset-0 bg-white z-[9999] flex justify-center items-start p-4 overflow-y-auto print:!absolute print:!inset-0 print:!block print:!bg-white print:!z-[99999] print:!h-auto print:!overflow-visible">
