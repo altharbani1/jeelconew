@@ -33,6 +33,7 @@ import { InventoryModule } from './components/InventoryModule.tsx';
 import { LoginScreen } from './components/LoginScreen.tsx';
 import { FinancialReportModule } from './components/FinancialReportModule.tsx';
 import { MaintenanceModule } from './components/MaintenanceModule.tsx';
+import { SubcontractModule } from './components/SubcontractModule.tsx';
 
 import { SystemView } from './types.ts';
 
@@ -45,11 +46,12 @@ const MainApp: React.FC = () => {
   const { syncStatus: invSync } = useInventory();
   const { syncStatus: purchSync } = usePurchase();
   const { syncStatus: maintSync } = useMaintenance();
+  const { syncStatus: subcSync } = useSubcontract();
 
   const [currentView, setCurrentView] = useState<SystemView>('dashboard');
 
-  const globalSyncStatus = [dataSync, salesSync, hrSync, projSync, invSync, purchSync, maintSync].includes('syncing') ? 'syncing' :
-    [dataSync, salesSync, hrSync, projSync, invSync, purchSync, maintSync].includes('error') ? 'error' : 'synced';
+  const globalSyncStatus = [dataSync, salesSync, hrSync, projSync, invSync, purchSync, maintSync, subcSync].includes('syncing') ? 'syncing' :
+    [dataSync, salesSync, hrSync, projSync, invSync, purchSync, maintSync, subcSync].includes('error') ? 'error' : 'synced';
 
   if (!currentUser) {
     return <LoginScreen />;
@@ -82,6 +84,7 @@ const MainApp: React.FC = () => {
         {currentView === 'documents' && <DocumentsModule />}
         {currentView === 'financial_report' && <FinancialReportModule />}
         {currentView === 'maintenance' && <MaintenanceModule />}
+        {currentView === 'subcontracts' && <SubcontractModule />}
       </main>
     </div>
   );
@@ -94,6 +97,7 @@ import { HRProvider } from './contexts/HRContext.tsx';
 import { PurchaseProvider } from './contexts/PurchaseContext.tsx';
 import { ElevatorProvider } from './contexts/ElevatorContext.tsx';
 import { MaintenanceProvider } from './contexts/MaintenanceContext.tsx';
+import { SubcontractProvider } from './contexts/SubcontractContext.tsx';
 
 const App: React.FC = () => {
   return (
@@ -106,9 +110,11 @@ const App: React.FC = () => {
                 <PurchaseProvider>
                   <ElevatorProvider>
                     <MaintenanceProvider>
-                      <LanguageProvider>
-                        <MainApp />
-                      </LanguageProvider>
+                      <SubcontractProvider>
+                        <LanguageProvider>
+                          <MainApp />
+                        </LanguageProvider>
+                      </SubcontractProvider>
                     </MaintenanceProvider>
                   </ElevatorProvider>
                 </PurchaseProvider>

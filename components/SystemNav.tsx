@@ -53,15 +53,16 @@ export const SystemNav: React.FC<SystemNavProps> = ({ currentView, setView, sync
     { id: 'company_profile', label: t('company_profile'), icon: Building, permission: 'view_company_profile' },
     { id: 'specs_manager', label: t('specs_manager'), icon: Database, permission: 'view_specs_manager' },
     { id: 'activity_log', label: 'السجلات', icon: Activity, permission: 'view_activity_log' },
+    { id: 'subcontracts', label: 'عقود الباطن', icon: Building, permission: 'view_subcontracts' },
   ];
 
   // الدور مُستمد من AuthContext مباشرةً (نظام المصادقة الرئيسي)
   const allowedModules: Record<string, string[]> = {
     admin: [
-      'dashboard', 'customers', 'quotes', 'contracts', 'projects', 'invoices', 'receipts', 'expenses', 'purchases', 'inventory', 'claims', 'hr', 'documents', 'forms', 'users', 'warranties', 'smart_elevator', 'calculator', 'company_profile', 'specs_manager', 'activity_log'
+      'dashboard', 'customers', 'quotes', 'contracts', 'projects', 'invoices', 'receipts', 'expenses', 'purchases', 'inventory', 'claims', 'hr', 'documents', 'forms', 'users', 'warranties', 'smart_elevator', 'calculator', 'company_profile', 'specs_manager', 'activity_log', 'subcontracts'
     ],
     manager: [
-      'dashboard', 'customers', 'quotes', 'contracts', 'projects', 'invoices', 'receipts', 'expenses', 'purchases', 'inventory', 'claims', 'hr', 'documents', 'forms', 'warranties', 'smart_elevator', 'calculator', 'company_profile', 'specs_manager', 'activity_log'
+      'dashboard', 'customers', 'quotes', 'contracts', 'projects', 'invoices', 'receipts', 'expenses', 'purchases', 'inventory', 'claims', 'hr', 'documents', 'forms', 'warranties', 'smart_elevator', 'calculator', 'company_profile', 'specs_manager', 'activity_log', 'subcontracts'
     ],
     staff: [
       'dashboard', 'customers', 'quotes', 'contracts', 'projects', 'invoices', 'receipts', 'expenses', 'purchases', 'inventory', 'claims', 'hr', 'documents', 'forms', 'warranties', 'smart_elevator', 'calculator', 'company_profile', 'specs_manager', 'activity_log'

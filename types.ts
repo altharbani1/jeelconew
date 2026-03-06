@@ -304,7 +304,59 @@ export interface ProjectPhase {
   progressPercentage: number;
   assignedTo?: string; // Employee ID
   assignedToName?: string; // Employee Name
-  notes: string;
+}
+
+// --- SUBCONTRACTING SYSTEM TYPES ---
+export interface Subcontractor {
+  id: string;
+  name: string;
+  contactPerson: string;
+  phone: string;
+  email?: string;
+  specialty: string; // e.g., 'تركيب', 'صيانة', 'أعمال مدنية'
+  nationalId?: string; // أو رقم السجل التجاري
+  vatNumber?: string;
+  address?: string;
+  notes?: string;
+  rating?: 1 | 2 | 3 | 4 | 5;
+  createdAt: string;
+  status: 'active' | 'inactive';
+}
+
+export type SubcontractStatus = 'draft' | 'active' | 'completed' | 'cancelled';
+export type SubcontractPaymentStatus = 'pending' | 'approved' | 'paid';
+
+export interface SubcontractPayment {
+  id: string;
+  subcontractId: string;
+  amount: number;
+  description: string; // e.g., 'الدفعة الأولى', 'إنجاز 50%'
+  dueDate: string;
+  status: SubcontractPaymentStatus;
+  paymentMethod?: 'cash' | 'transfer' | 'check';
+  paymentDate?: string;
+  referenceNumber?: string;
+  progressPercentage?: number; // لربط الدفعة بنسبة الإنجاز
+  notes?: string;
+}
+
+export interface Subcontract {
+  id: string;
+  number: string; // e.g., SUB-2024-001
+  subcontractorId: string;
+  subcontractorName: string; // Cached
+  projectId: string; // ربط بالمشروع الأساسي
+  projectName?: string; // Cached
+  date: string;
+  totalAmount: number;
+  scopeOfWork: string;
+  startDate: string;
+  endDate: string;
+  status: SubcontractStatus;
+  payments: SubcontractPayment[];
+  attachments?: Attachment[];
+  notes?: string;
+  progressPercentage: number; // نسبة الإنجاز الكلية للمقاول
 }
 
 // --- CUSTOMER MANAGEMENT TYPES ---
@@ -439,6 +491,7 @@ export type Permission =
   | 'view_activity_log' // New permission
   | 'view_inventory'
   | 'view_maintenance' // New view for maintenance module
+  | 'view_subcontracts' // New view for subcontracting
   // Actions
   | 'manage_users' // Create/Delete Users
   | 'delete_records' // General delete permission
@@ -461,7 +514,7 @@ export enum AIRequestType {
   IMPROVE_TEXT = 'IMPROVE_TEXT'
 }
 
-export type SystemView = 'dashboard' | 'quotes' | 'invoices' | 'receipts' | 'contracts' | 'projects' | 'company_profile' | 'specs_manager' | 'customers' | 'purchases' | 'warranties' | 'calculator' | 'claims' | 'expenses' | 'hr' | 'smart_elevator' | 'users' | 'forms' | 'documents' | 'activity_log' | 'inventory' | 'financial_report' | 'maintenance';
+export type SystemView = 'dashboard' | 'quotes' | 'invoices' | 'receipts' | 'contracts' | 'projects' | 'company_profile' | 'specs_manager' | 'customers' | 'purchases' | 'warranties' | 'calculator' | 'claims' | 'expenses' | 'hr' | 'smart_elevator' | 'users' | 'forms' | 'documents' | 'activity_log' | 'inventory' | 'financial_report' | 'maintenance' | 'subcontracts';
 
 // --- PERMISSIONS CONFIGURATION ---
 export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
@@ -473,7 +526,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'view_reports', 'view_warranties', 'view_calculator', 'view_specs_manager',
     'view_documents', 'view_forms', 'view_company_profile', 'view_activity_log',
     'approve_payments', 'delete_records', 'edit_company_settings', 'view_inventory',
-    'view_maintenance'
+    'view_maintenance', 'view_subcontracts'
   ],
   sales: [
     'view_dashboard', 'view_customers', 'view_quotes', 'view_contracts',
@@ -481,7 +534,8 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
   ],
   accountant: [
     'view_dashboard', 'view_invoices', 'view_receipts', 'view_expenses',
-    'view_purchases', 'view_claims', 'view_hr', 'view_contracts', 'view_documents', 'view_inventory'
+    'view_purchases', 'view_claims', 'view_hr', 'view_contracts', 'view_documents', 'view_inventory',
+    'view_subcontracts'
   ],
   technician: [
     'view_dashboard', 'view_projects', 'view_smart_elevator', 'view_specs_manager',
@@ -513,6 +567,7 @@ export const ALL_PERMISSIONS: { id: Permission, label: string, type: 'view' | 'a
   { id: 'view_users', label: 'إدارة المستخدمين', type: 'view' },
   { id: 'view_activity_log', label: 'سجل النشاطات', type: 'view' },
   { id: 'view_maintenance', label: 'الصيانة والتذاكر', type: 'view' },
+  { id: 'view_subcontracts', label: 'عقود مقاولي الباطن', type: 'view' },
 
   { id: 'manage_users', label: 'إضافة/حذف مستخدمين', type: 'action' },
   { id: 'delete_records', label: 'حذف السجلات (فواتير/عقود)', type: 'action' },
