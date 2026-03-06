@@ -717,7 +717,7 @@ export const SubcontractModule: React.FC = () => {
 
             {statementSubcontractor && (
                 <div className="fixed inset-0 bg-white z-[9999] flex justify-center items-start p-4 overflow-y-auto print:!absolute print:!inset-0 print:!block print:!bg-white print:!z-[99999] print:!h-auto print:!overflow-visible">
-                    <div className="bg-white mx-auto w-full max-w-4xl p-8 mt-10 relative print:!w-[210mm] print:!shadow-none print:!m-0 print:!p-0 print:!break-inside-avoid print:!opacity-100 print:!visible animate-fade-in">
+                    <div className="bg-white mx-auto w-full max-w-4xl p-8 mt-10 relative print:!w-[210mm] print:!shadow-none print:!m-0 print:!p-10 print:!break-inside-avoid print:!opacity-100 print:!visible animate-fade-in print:min-h-[297mm]">
                         <div className="flex justify-between items-center mb-6 print:hidden border-b pb-4">
                             <h2 className="text-xl font-bold flex items-center gap-2 text-jilco-900"><FileText /> كشف حساب مقاول باطن</h2>
                             <div className="flex gap-2">
@@ -726,95 +726,101 @@ export const SubcontractModule: React.FC = () => {
                             </div>
                         </div>
 
-                        <div className="hidden print:flex justify-between items-center border-b-2 border-jilco-900 pb-4 mb-6">
-                            <div className="text-right">
-                                <h1 className="text-2xl font-black text-jilco-900">جيلكو للمصاعد</h1>
-                                <p className="text-xs font-bold text-gray-500">كشف حساب مقاول</p>
-                            </div>
-                            <div className="text-left font-mono text-sm font-bold">
-                                تاريخ الطباعة: {new Date().toLocaleDateString('en-GB')}
-                            </div>
-                        </div>
+                        {/* Decorative print borders */}
+                        <div className="hidden print:block absolute inset-3 border-[4px] border-jilco-900 pointer-events-none z-0"></div>
+                        <div className="hidden print:block absolute inset-[16px] border border-gray-300 pointer-events-none z-0"></div>
 
-                        <div className="bg-gray-50 p-6 rounded-xl border border-gray-200 mb-6 print:border-gray-400 print:bg-transparent">
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-sm font-bold">
-                                <div>
-                                    <p className="text-gray-500 mb-1">اسم المقاول</p>
-                                    <p className="text-lg text-jilco-900">{statementSubcontractor.name}</p>
+                        <div className="relative z-10 print:mt-4 print:mx-4">
+                            <div className="hidden print:flex justify-between items-center border-b-2 border-jilco-900 pb-4 mb-6">
+                                <div className="text-right">
+                                    <h1 className="text-2xl font-black text-jilco-900">جيلكو للمصاعد</h1>
+                                    <p className="text-xs font-bold text-gray-500">كشف حساب مقاول</p>
                                 </div>
-                                <div>
-                                    <p className="text-gray-500 mb-1">إجمالي التزامات العقود</p>
-                                    <p className="text-lg text-blue-700 font-mono">{subcontracts.filter(c => c.subcontractorId === statementSubcontractor.id).reduce((sum, c) => sum + c.totalAmount, 0).toLocaleString()} ر.س</p>
-                                </div>
-                                <div>
-                                    <p className="text-gray-500 mb-1">إجمالي المنصرف</p>
-                                    <p className="text-lg text-green-700 font-mono">{subcontracts.filter(c => c.subcontractorId === statementSubcontractor.id).flatMap(c => c.payments || []).filter(p => p.status === 'paid').reduce((sum, p) => sum + p.amount, 0).toLocaleString()} ر.س</p>
-                                </div>
-                                <div>
-                                    <p className="text-gray-500 mb-1">الرصيد المتبقي</p>
-                                    <p className="text-lg text-red-700 font-mono">{(subcontracts.filter(c => c.subcontractorId === statementSubcontractor.id).reduce((sum, c) => sum + c.totalAmount, 0) - subcontracts.filter(c => c.subcontractorId === statementSubcontractor.id).flatMap(c => c.payments || []).filter(p => p.status === 'paid').reduce((sum, p) => sum + p.amount, 0)).toLocaleString()} ر.س</p>
+                                <div className="text-left font-mono text-sm font-bold">
+                                    تاريخ الطباعة: {new Date().toLocaleDateString('en-GB')}
                                 </div>
                             </div>
-                        </div>
 
-                        <h3 className="font-bold text-lg mb-3 border-b pb-2">تفاصيل العقود النشطة والمكتملة</h3>
-                        <table className="w-full text-sm mb-8">
-                            <thead className="bg-jilco-50 text-jilco-900 font-bold border-b-2 border-jilco-200">
-                                <tr>
-                                    <th className="p-3 text-right border whitespace-nowrap">رقم العقد</th>
-                                    <th className="p-3 text-right border w-full">المشروع</th>
-                                    <th className="p-3 text-center border whitespace-nowrap">القيمة الإجمالية</th>
-                                    <th className="p-3 text-center border whitespace-nowrap">المنصرف</th>
-                                    <th className="p-3 text-center border whitespace-nowrap">المتبقي</th>
-                                    <th className="p-3 text-center border whitespace-nowrap">الحالة</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-100 font-bold">
-                                {subcontracts.filter(c => c.subcontractorId === statementSubcontractor.id).map(c => {
-                                    const cPaid = (c.payments || []).filter(p => p.status === 'paid').reduce((s, p) => s + p.amount, 0);
-                                    return (
-                                        <tr key={c.id}>
-                                            <td className="p-3 font-mono border">{c.number}</td>
-                                            <td className="p-3 border text-jilco-800">{c.projectName}</td>
-                                            <td className="p-3 text-center font-mono border">{c.totalAmount.toLocaleString()}</td>
-                                            <td className="p-3 text-center text-green-600 font-mono border">{cPaid.toLocaleString()}</td>
-                                            <td className="p-3 text-center text-red-600 font-mono border">{(c.totalAmount - cPaid).toLocaleString()}</td>
+                            <div className="bg-gray-50 p-6 rounded-xl border border-gray-200 mb-6 print:border-gray-400 print:bg-transparent">
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-6 text-sm font-bold">
+                                    <div>
+                                        <p className="text-gray-500 mb-1">اسم المقاول</p>
+                                        <p className="text-lg text-jilco-900">{statementSubcontractor.name}</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-gray-500 mb-1">إجمالي التزامات العقود</p>
+                                        <p className="text-lg text-blue-700 font-mono">{subcontracts.filter(c => c.subcontractorId === statementSubcontractor.id).reduce((sum, c) => sum + c.totalAmount, 0).toLocaleString()} ر.س</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-gray-500 mb-1">إجمالي المنصرف</p>
+                                        <p className="text-lg text-green-700 font-mono">{subcontracts.filter(c => c.subcontractorId === statementSubcontractor.id).flatMap(c => c.payments || []).filter(p => p.status === 'paid').reduce((sum, p) => sum + p.amount, 0).toLocaleString()} ر.س</p>
+                                    </div>
+                                    <div>
+                                        <p className="text-gray-500 mb-1">الرصيد المتبقي</p>
+                                        <p className="text-lg text-red-700 font-mono">{(subcontracts.filter(c => c.subcontractorId === statementSubcontractor.id).reduce((sum, c) => sum + c.totalAmount, 0) - subcontracts.filter(c => c.subcontractorId === statementSubcontractor.id).flatMap(c => c.payments || []).filter(p => p.status === 'paid').reduce((sum, p) => sum + p.amount, 0)).toLocaleString()} ر.س</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <h3 className="font-bold text-lg mb-3 border-b pb-2">تفاصيل العقود النشطة والمكتملة</h3>
+                            <table className="w-full text-sm mb-8">
+                                <thead className="bg-jilco-50 text-jilco-900 font-bold border-b-2 border-jilco-200">
+                                    <tr>
+                                        <th className="p-3 text-right border whitespace-nowrap">رقم العقد</th>
+                                        <th className="p-3 text-right border w-full">المشروع</th>
+                                        <th className="p-3 text-center border whitespace-nowrap">القيمة الإجمالية</th>
+                                        <th className="p-3 text-center border whitespace-nowrap">المنصرف</th>
+                                        <th className="p-3 text-center border whitespace-nowrap">المتبقي</th>
+                                        <th className="p-3 text-center border whitespace-nowrap">الحالة</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-100 font-bold">
+                                    {subcontracts.filter(c => c.subcontractorId === statementSubcontractor.id).map(c => {
+                                        const cPaid = (c.payments || []).filter(p => p.status === 'paid').reduce((s, p) => s + p.amount, 0);
+                                        return (
+                                            <tr key={c.id}>
+                                                <td className="p-3 font-mono border">{c.number}</td>
+                                                <td className="p-3 border text-jilco-800">{c.projectName}</td>
+                                                <td className="p-3 text-center font-mono border">{c.totalAmount.toLocaleString()}</td>
+                                                <td className="p-3 text-center text-green-600 font-mono border">{cPaid.toLocaleString()}</td>
+                                                <td className="p-3 text-center text-red-600 font-mono border">{(c.totalAmount - cPaid).toLocaleString()}</td>
+                                                <td className="p-3 text-center border">
+                                                    <span className={`px-2 py-1 rounded text-xs ${c.status === 'active' ? 'bg-blue-100 text-blue-700' : c.status === 'completed' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>
+                                                        {c.status === 'active' ? 'نشط' : c.status === 'completed' ? 'مكتمل' : c.status}
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        )
+                                    })}
+                                </tbody>
+                            </table>
+
+                            <h3 className="font-bold text-lg mb-3 border-b pb-2">سجل الدفعات والمطالبات</h3>
+                            <table className="w-full text-sm">
+                                <thead className="bg-gray-100 text-gray-700 font-bold border-b-2 border-gray-300">
+                                    <tr>
+                                        <th className="p-3 text-right border whitespace-nowrap">التاريخ</th>
+                                        <th className="p-3 text-right border whitespace-nowrap">العقد</th>
+                                        <th className="p-3 text-right border w-full">البيان</th>
+                                        <th className="p-3 text-center border whitespace-nowrap">المبلغ</th>
+                                        <th className="p-3 text-center border whitespace-nowrap">الحالة</th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-100 font-bold">
+                                    {subcontracts.filter(c => c.subcontractorId === statementSubcontractor.id).flatMap(c => (c.payments || []).map(p => ({ ...p, contractNumber: c.number }))).sort((a, b) => new Date(b.dueDate).getTime() - new Date(a.dueDate).getTime()).map((p: any) => (
+                                        <tr key={p.id}>
+                                            <td className="p-3 font-mono border text-gray-600">{p.paymentDate || p.dueDate}</td>
+                                            <td className="p-3 border font-mono">{p.contractNumber}</td>
+                                            <td className="p-3 text-gray-800 border">{p.description}</td>
+                                            <td className="p-3 text-center font-mono text-jilco-900 bg-gray-50 border">{p.amount.toLocaleString()}</td>
                                             <td className="p-3 text-center border">
-                                                <span className={`px-2 py-1 rounded text-xs ${c.status === 'active' ? 'bg-blue-100 text-blue-700' : c.status === 'completed' ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'}`}>
-                                                    {c.status === 'active' ? 'نشط' : c.status === 'completed' ? 'مكتمل' : c.status}
-                                                </span>
+                                                <span className={`px-2 py-1 rounded text-xs ${p.status === 'paid' ? 'bg-green-100 text-green-700' : p.status === 'approved' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'}`}>{p.status === 'paid' ? 'منصرف' : p.status === 'approved' ? 'معتمد' : 'معلق'}</span>
                                             </td>
                                         </tr>
-                                    )
-                                })}
-                            </tbody>
-                        </table>
-
-                        <h3 className="font-bold text-lg mb-3 border-b pb-2">سجل الدفعات والمطالبات</h3>
-                        <table className="w-full text-sm">
-                            <thead className="bg-gray-100 text-gray-700 font-bold border-b-2 border-gray-300">
-                                <tr>
-                                    <th className="p-3 text-right border whitespace-nowrap">التاريخ</th>
-                                    <th className="p-3 text-right border whitespace-nowrap">العقد</th>
-                                    <th className="p-3 text-right border w-full">البيان</th>
-                                    <th className="p-3 text-center border whitespace-nowrap">المبلغ</th>
-                                    <th className="p-3 text-center border whitespace-nowrap">الحالة</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-100 font-bold">
-                                {subcontracts.filter(c => c.subcontractorId === statementSubcontractor.id).flatMap(c => (c.payments || []).map(p => ({ ...p, contractNumber: c.number }))).sort((a, b) => new Date(b.dueDate).getTime() - new Date(a.dueDate).getTime()).map((p: any) => (
-                                    <tr key={p.id}>
-                                        <td className="p-3 font-mono border text-gray-600">{p.paymentDate || p.dueDate}</td>
-                                        <td className="p-3 border font-mono">{p.contractNumber}</td>
-                                        <td className="p-3 text-gray-800 border">{p.description}</td>
-                                        <td className="p-3 text-center font-mono text-jilco-900 bg-gray-50 border">{p.amount.toLocaleString()}</td>
-                                        <td className="p-3 text-center border">
-                                            <span className={`px-2 py-1 rounded text-xs ${p.status === 'paid' ? 'bg-green-100 text-green-700' : p.status === 'approved' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'}`}>{p.status === 'paid' ? 'منصرف' : p.status === 'approved' ? 'معتمد' : 'معلق'}</span>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             )}
