@@ -17,7 +17,7 @@ export const SubcontractModule: React.FC = () => {
         uploadSubcontractAttachment
     } = useSubcontract();
 
-    const { projects, saveProjectRecord, expenses } = useProject();
+    const { projects, saveProjectRecord, deleteProjectRecord, expenses } = useProject();
 
     const [activeTab, setActiveTab] = useState<'dashboard' | 'subcontractors' | 'contracts'>('dashboard');
     const [statementSubcontractor, setStatementSubcontractor] = useState<Subcontractor | null>(null);
@@ -137,6 +137,27 @@ export const SubcontractModule: React.FC = () => {
         setShowPaymentForm(false);
         setCurrentPayment({ status: 'pending', dueDate: new Date().toISOString().split('T')[0] });
         setSelectedContractId('');
+    };
+
+    const handleDeletePayment = async (contractId: string, paymentId: string) => {
+        if (!window.confirm('هل أنت متأكد من حذف هذه الدفعة نهائياً؟')) return;
+
+        const contract = subcontracts.find(c => c.id === contractId);
+        if (!contract) return;
+
+        const payment = contract.payments?.find(p => p.id === paymentId);
+        if (!payment) return;
+
+        const updatedPayments = (contract.payments || []).filter(p => p.id !== paymentId);
+        await updateSubcontract(contractId, { payments: updatedPayments });
+
+        // If it was already converted to an expense, prompt or automatically delete from expenses
+        if (payment.status === 'paid') {
+            const confirmedExpenseDelete = window.confirm('هذه الدفعة مرتبطة بسند صرف. هل تريد حذف السند من قسم المصروفات أيضاً؟');
+            if (confirmedExpenseDelete) {
+                await deleteProjectRecord('jilco_expenses_archive', `SUB-${payment.id}`);
+            }
+        }
     };
 
     const updatePaymentStatus = async (contractId: string, paymentId: string, newStatus: SubcontractPayment['status'], extraData?: { paymentMethod?: 'cash' | 'transfer' | 'check', referenceNumber?: string, paymentDate?: string }) => {
@@ -763,10 +784,10 @@ export const SubcontractModule: React.FC = () => {
                                                             <td className="p-2 text-center flex justify-center gap-1">
                                                                 <button title="طباعة" onClick={() => { setPrintingPayment({ contract, payment }); setTimeout(() => window.print(), 300); }} className="bg-gray-50 text-gray-600 px-2 py-1 rounded hover:bg-gray-100 border border-gray-200"><Printer size={16} /></button>
                                                                 {payment.status === 'pending' && (
-                                                                    <button onClick={() => updatePaymentStatus(contract.id, payment.id, 'approved')} className="bg-blue-50 text-blue-600 px-2 py-1 rounded hover:bg-blue-100 border border-blue-100">اعتماد</button>
+                                                                    <button title="اعتماد" onClick={() => updatePaymentStatus(contract.id, payment.id, 'approved')} className="bg-blue-50 text-blue-600 px-2 py-1 rounded hover:bg-blue-100 border border-blue-100">اعتماد</button>
                                                                 )}
                                                                 {payment.status === 'approved' && (
-                                                                    <button onClick={() => setPayingPayment({
+                                                                    <button title="تحويل كمنصرف" onClick={() => setPayingPayment({
                                                                         contractId: contract.id,
                                                                         paymentId: payment.id,
                                                                         amount: payment.amount,
@@ -775,6 +796,7 @@ export const SubcontractModule: React.FC = () => {
                                                                         paymentDate: new Date().toISOString().split('T')[0]
                                                                     })} className="bg-green-50 text-green-600 px-2 py-1 rounded hover:bg-green-100 border border-green-100">تحويل كمنصرف</button>
                                                                 )}
+                                                                <button title="حذف الدفعة" onClick={() => handleDeletePayment(contract.id, payment.id)} className="bg-red-50 text-red-600 px-2 py-1 rounded hover:bg-red-100 border border-red-100"><Trash2 size={16} /></button>
                                                             </td>
                                                         </tr>
                                                     ))}
