@@ -250,8 +250,10 @@ export const ExpenseModule: React.FC = () => {
     // --- Filtered Data for Report ---
     const filteredExpenses = useMemo(() => {
         return expenses.filter(e => {
-            const matchesSearch = e.number.includes(searchTerm) || e.paidTo.includes(searchTerm) || e.description.includes(searchTerm);
-            const matchesDate = e.date >= startDate && e.date <= endDate;
+            const matchesSearch = (e.number || '').includes(searchTerm) ||
+                (e.paidTo || '').includes(searchTerm) ||
+                (e.description || '').includes(searchTerm);
+            const matchesDate = (e.date || '') >= startDate && (e.date || '') <= endDate;
             const matchesCategory = categoryFilter === 'all' || e.categoryId === categoryFilter;
             return matchesSearch && matchesDate && matchesCategory;
         });
