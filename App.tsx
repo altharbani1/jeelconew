@@ -8,6 +8,7 @@ import { useProject } from './contexts/ProjectContext.tsx';
 import { useInventory } from './contexts/InventoryContext.tsx';
 import { usePurchase } from './contexts/PurchaseContext.tsx';
 import { useMaintenance } from './contexts/MaintenanceContext.tsx';
+import { useSubcontract } from './contexts/SubcontractContext.tsx';
 import { SystemNav } from './components/SystemNav.tsx';
 import { QuoteModule } from './components/QuoteModule.tsx';
 import { Dashboard } from './components/Dashboard.tsx';
