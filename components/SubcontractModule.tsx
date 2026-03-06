@@ -424,7 +424,7 @@ export const SubcontractModule: React.FC = () => {
     );
 
     return (
-        <div className="flex-1 bg-gray-100 p-8 overflow-auto h-full animate-fade-in text-right print:bg-white print:p-0 print:overflow-visible" dir="rtl">
+        <div className="flex-1 bg-gray-100 p-8 overflow-auto h-full animate-fade-in text-right print:bg-white print:p-0 print:overflow-visible print:absolute print:inset-0 print:z-50" dir="rtl">
             <div className={`max-w-6xl mx-auto transition-opacity ${statementSubcontractor || printingPayment ? 'print:hidden' : ''}`}>
 
                 {/* Header */}
@@ -716,8 +716,8 @@ export const SubcontractModule: React.FC = () => {
             {showPaymentForm && renderPaymentForm()}
 
             {statementSubcontractor && (
-                <div className="fixed inset-0 bg-black/60 z-50 flex justify-center items-start p-4 overflow-y-auto print:absolute print:inset-0 print:bg-white print:z-[200]">
-                    <div className="bg-white rounded-xl shadow-xl w-full max-w-4xl p-8 mt-10 relative print:w-[210mm] print:shadow-none print:m-0 print:break-inside-avoid animate-fade-in">
+                <div className="fixed inset-0 bg-white z-[9999] flex justify-center items-start p-4 overflow-y-auto print:absolute print:inset-0 print:block print:bg-white print:z-[99999]">
+                    <div className="bg-white mx-auto w-full max-w-4xl p-8 mt-10 relative print:w-[210mm] print:shadow-none print:m-0 print:p-0 print:break-inside-avoid animate-fade-in">
                         <div className="flex justify-between items-center mb-6 print:hidden border-b pb-4">
                             <h2 className="text-xl font-bold flex items-center gap-2 text-jilco-900"><FileText /> كشف حساب مقاول باطن</h2>
                             <div className="flex gap-2">
@@ -820,8 +820,8 @@ export const SubcontractModule: React.FC = () => {
             )}
 
             {printingPayment && (
-                <div className="fixed inset-0 bg-black/60 z-[100] flex justify-center items-start overflow-y-auto print:absolute print:inset-0 print:bg-white print:z-[200]">
-                    <div className="bg-white mx-auto mt-10 p-10 w-[210mm] min-h-[148mm] relative shadow-2xl print:shadow-none print:m-0 print:p-0 animate-fade-in">
+                <div className="fixed inset-0 bg-white z-[9999] flex justify-center items-start overflow-y-auto print:absolute print:inset-0 print:block print:bg-white print:z-[99999]">
+                    <div className="bg-white mx-auto mt-10 p-10 w-[210mm] min-h-[148mm] relative print:shadow-none print:m-0 print:p-0 animate-fade-in">
                         <div className="absolute top-4 right-4 print:hidden z-50">
                             <button title="إغلاق" onClick={() => setPrintingPayment(null)} className="p-2 bg-gray-100 hover:bg-red-100 hover:text-red-600 rounded-full text-gray-700 transition-colors"><X size={20} /></button>
                         </div>
