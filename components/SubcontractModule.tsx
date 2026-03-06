@@ -424,8 +424,8 @@ export const SubcontractModule: React.FC = () => {
     );
 
     return (
-        <div className="flex-1 bg-gray-100 p-8 overflow-auto h-full animate-fade-in text-right" dir="rtl">
-            <div className="max-w-6xl mx-auto">
+        <div className="flex-1 bg-gray-100 p-8 overflow-auto h-full animate-fade-in text-right print:bg-white print:p-0 print:overflow-visible" dir="rtl">
+            <div className={`max-w-6xl mx-auto transition-opacity ${statementSubcontractor || printingPayment ? 'print:hidden' : ''}`}>
 
                 {/* Header */}
                 <div className="flex justify-between items-center mb-6">
@@ -599,6 +599,7 @@ export const SubcontractModule: React.FC = () => {
                                     </div>
                                     <div className="flex gap-2">
                                         <button onClick={() => { setCurrentSubcontract(contract); setShowSubcontractForm(true); }} className="text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1 hover:bg-blue-100"><Edit size={14} /> تعديل</button>
+                                        <button onClick={() => { if (window.confirm('هل أنت متأكد من حذف هذا العقد؟')) deleteSubcontract(contract.id); }} className="text-red-600 bg-red-50 px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1 hover:bg-red-100"><Trash2 size={14} /> حذف</button>
                                     </div>
                                 </div>
 
