@@ -117,7 +117,7 @@ export const ContractModule: React.FC = () => {
     });
 
     const [currentSpecs, setCurrentSpecs] = useState<TechnicalSpecs>({
-        elevatorType: '', capacity: '', speed: '', stops: '', driveType: '', controlSystem: '', powerSupply: '', cabin: '', doors: '', machineRoom: '', rails: '', ropes: '', safety: '', emergency: ''
+        elevatorType: '', capacity: '', speed: '', stops: '', driveType: '', controlSystem: '', powerSupply: '', cabin: '', doors: '', externalDoors: '', machineRoom: '', rails: '', ropes: '', safety: '', emergency: ''
     });
 
     // Load Config
@@ -144,7 +144,7 @@ export const ContractModule: React.FC = () => {
             ]
         });
         setCurrentSpecs({
-            elevatorType: '', capacity: '', speed: '', stops: '', driveType: '', controlSystem: '', powerSupply: '', cabin: '', doors: '', machineRoom: '', rails: '', ropes: '', safety: '', emergency: ''
+            elevatorType: '', capacity: '', speed: '', stops: '', driveType: '', controlSystem: '', powerSupply: '', cabin: '', doors: '', externalDoors: '', machineRoom: '', rails: '', ropes: '', safety: '', emergency: ''
         });
         setViewMode('editor');
     };
@@ -413,7 +413,8 @@ export const ContractModule: React.FC = () => {
                                             <div className="flex justify-between border-b border-gray-100 pb-1"><span className="text-gray-500">نوع الماكينة:</span> <span className="font-bold">{currentSpecs.driveType || '...'}</span></div>
                                             <div className="flex justify-between border-b border-gray-100 pb-1"><span className="text-gray-500">الحمولة:</span> <span className="font-bold">{currentSpecs.capacity || '...'}</span></div>
                                             <div className="flex justify-between border-b border-gray-100 pb-1"><span className="text-gray-500">عدد الوقفات:</span> <span className="font-bold">{currentSpecs.stops || '...'}</span></div>
-                                            <div className="flex justify-between border-b border-gray-100 pb-1"><span className="text-gray-500">نظام الأبواب:</span> <span className="font-bold">{currentSpecs.doors || '...'}</span></div>
+                                            <div className="flex justify-between border-b border-gray-100 pb-1"><span className="text-gray-500">الأبواب الداخلية:</span> <span className="font-bold">{currentSpecs.doors || '...'}</span></div>
+                                            <div className="flex justify-between border-b border-gray-100 pb-1"><span className="text-gray-500">الأبواب الخارجية:</span> <span className="font-bold">{currentSpecs.externalDoors || '...'}</span></div>
                                         </div>
 
                                         <p className="font-bold border-r-4 border-gold-500 pr-3 bg-gray-50 p-2 mt-6">جدول الدفعات:</p>
@@ -475,7 +476,8 @@ export const ContractModule: React.FC = () => {
                                         { label: 'لوحة التحكم (Control System)', value: currentSpecs.controlSystem },
                                         { label: 'مصدر الكهرباء (Power Supply)', value: currentSpecs.powerSupply },
                                         { label: 'تشطيب الكابينة (Cabin Finish)', value: currentSpecs.cabin },
-                                        { label: 'نظام الأبواب (Door System)', value: currentSpecs.doors },
+                                        { label: 'نظام الأبواب الداخلية (Internal Door System)', value: currentSpecs.doors },
+                                        { label: 'نظام الأبواب الخارجية (External Door System)', value: currentSpecs.externalDoors },
                                         { label: 'غرفة الماكينة (Machine Room)', value: currentSpecs.machineRoom },
                                         { label: 'السكك والمسارات (Rails)', value: currentSpecs.rails },
                                         { label: 'الحبال والأسلاك (Ropes)', value: currentSpecs.ropes },

@@ -49,7 +49,8 @@ export interface TechnicalSpecs {
   controlSystem: string;
   powerSupply: string;
   cabin: string;
-  doors: string;
+  doors: string; // Internal Doors
+  externalDoors: string; // New field for External Doors
   machineRoom: string;
   rails: string;
   ropes: string;

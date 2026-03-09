@@ -106,7 +106,7 @@ export const QuoteModule: React.FC = () => {
         worksDuration: DEFAULT_DURATION
     });
     const [techSpecs, setTechSpecs] = useState<TechnicalSpecs>({
-        elevatorType: '', capacity: '', speed: '', stops: '', driveType: '', controlSystem: '', powerSupply: '', cabin: '', doors: '', machineRoom: '', rails: '', ropes: '', safety: '', emergency: ''
+        elevatorType: '', capacity: '', speed: '', stops: '', driveType: '', controlSystem: '', powerSupply: '', cabin: '', doors: '', externalDoors: '', machineRoom: '', rails: '', ropes: '', safety: '', emergency: ''
     });
     const [config, setConfig] = useState<CompanyConfig>({
         logo: null, stamp: null, headerTitle: 'جيلكو للمصاعد', headerSubtitle: 'JILCO ELEVATORS', footerText: '', contactPhone: '', contactEmail: '', bankAccounts: []

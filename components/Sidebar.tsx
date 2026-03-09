@@ -17,6 +17,7 @@ const DEFAULT_SPECS_DB: SpecsDatabase = {
     powerSupply: ['3 Phase, 380V, 60Hz', '3 Phase, 220V, 60Hz', 'Single Phase, 220V, 60Hz'],
     cabin: ['ستانلس ستيل مع ديكورات ليزر ومرايا', 'ستانلس ستيل ذهبي (Ti-Gold)', 'بانوراما زجاجي كامل'],
     doors: ['أوتوماتيكية بالكامل (Center Opening)', 'أوتوماتيكية بالكامل (Telescopic)', 'نصف أوتوماتيك (Semi-Auto)'],
+    externalDoors: ['أوتوماتيكية بالكامل (Center Opening)', 'أوتوماتيكية بالكامل (Telescopic)', 'نصف أوتوماتيك (Semi-Auto)'],
     machineRoom: ['غرفة ماكينة علوية (MR)', 'بدون غرفة ماكينة (MRL)', 'غرفة ماكينة جانبية'],
     rails: ['سكك مسحوبة على البارد (Marazzi Italy)', 'سكك مشغولة (Machined)'],
     ropes: ['حبال صلب (Drako German)', 'حبال صلب (Italian)'],
@@ -356,7 +357,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             {renderSpecSelect('نظام التحكم', 'controlSystem')}
                             {renderSpecSelect('الكهرباء', 'powerSupply')}
                             {renderSpecSelect('الكابينة', 'cabin')}
-                            {renderSpecSelect('الأبواب', 'doors')}
+                            {renderSpecSelect('الأبواب الداخلية', 'doors')}
+                            {renderSpecSelect('الأبواب الخارجية', 'externalDoors')}
                             {renderSpecSelect('غرفة الماكينة', 'machineRoom')}
                             {renderSpecSelect('السكك', 'rails')}
                             {renderSpecSelect('الحبال', 'ropes')}

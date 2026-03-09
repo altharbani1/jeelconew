@@ -106,7 +106,7 @@ export const CostCalculatorModule: React.FC = () => {
                 ],
             },
             items: quoteItems,
-            techSpecs: { elevatorType: 'مصعد ركاب (Passenger)', capacity, stops: stops.toString(), driveType: '', controlSystem: '', powerSupply: '3 Phase, 380V', cabin: '', doors: '', machineRoom: '', rails: '', ropes: '', safety: '', emergency: '' }
+            techSpecs: { elevatorType: 'مصعد ركاب (Passenger)', capacity, stops: stops.toString(), driveType: '', controlSystem: '', powerSupply: '3 Phase, 380V', cabin: '', doors: '', externalDoors: '', machineRoom: '', rails: '', ropes: '', safety: '', emergency: '' }
         };
 
         const success = await saveQuote(quoteId, newQuote);
