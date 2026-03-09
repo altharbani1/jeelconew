@@ -10,6 +10,7 @@ interface DataContextType {
     deleteRecordLocallyAndCloud: (collection: string, id: string) => Promise<boolean>;
     migrateAllLocalData: () => Promise<boolean>;
     syncStatus: 'idle' | 'syncing' | 'synced' | 'error';
+    specsDb: any;
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined);
@@ -18,9 +19,12 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const [config, setConfig] = useState<any>(null);
     const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'synced' | 'error'>('idle');
 
+    const [specsDb, setSpecsDb] = useState<any>({});
+
     useEffect(() => {
         // Config only — module data is handled by specialized contexts (SalesContext, ProjectContext, etc.)
         loadConfig();
+        loadSpecsDb();
     }, []);
 
     const loadConfig = async () => {
@@ -37,6 +41,26 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             }
         } catch (e) {
             console.error('Failed to load config from cloud:', e);
+        }
+    };
+
+    const loadSpecsDb = async () => {
+        const localSpecs = localStorage.getItem('jilco_specs_db');
+        if (localSpecs) {
+            try {
+                const parsed = JSON.parse(localSpecs);
+                const singleton = parsed.find((p: any) => p.id === 'singleton_specs');
+                if (singleton) setSpecsDb(singleton);
+            } catch (e) { }
+        }
+
+        try {
+            const cloudData = await cloudService.loadCollection('jilco_specs_db');
+            if (cloudData && cloudData.length > 0 && cloudData[0].data) {
+                setSpecsDb(cloudData[0].data);
+            }
+        } catch (e) {
+            console.error('Failed to load specs from cloud:', e);
         }
     };
 
@@ -87,6 +111,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     };
 
     const saveSpecsDb = async (specsData: any): Promise<boolean> => {
+        setSpecsDb(specsData);
         return await saveRecord('jilco_specs_db', 'singleton_specs', specsData);
     };
 
@@ -131,6 +156,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     return (
         <DataContext.Provider value={{
             config, setConfig,
+            specsDb,
             saveRecord, deleteRecordLocallyAndCloud,
             saveConfig, saveSpecsDb,
             migrateAllLocalData, syncStatus
