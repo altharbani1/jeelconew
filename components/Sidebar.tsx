@@ -6,6 +6,7 @@ import { QuoteItem, QuoteDetails, CompanyConfig, TechnicalSpecs, SpecsDatabase, 
 import { generateTechnicalDescription } from '../services/geminiService.ts';
 import { ShareButton } from './ShareButton.tsx';
 import { useSales } from '../contexts/SalesContext.tsx';
+import { useData } from '../contexts/DataContext.tsx';
 
 const DEFAULT_SPECS_DB: SpecsDatabase = {
     elevatorType: ['مصعد ركاب (Passenger)', 'مصعد بضائع (Freight)', 'مصعد طعام (Dumbwaiter)', 'مصعد بانوراما (Panoramic)', 'مصعد منزلي (Home Lift)'],
@@ -59,6 +60,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     };
     // استخدم allowedModules[role] لتصفية الموديولات
     const { customers } = useSales();
+    const { specsDb: globalSpecsDb } = useData();
     const [specsDb, setSpecsDb] = useState<SpecsDatabase>(DEFAULT_SPECS_DB);
     const [productsDb, setProductsDb] = useState<SupplierProduct[]>([]);
 
@@ -70,16 +72,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
     const [isGenerating, setIsGenerating] = useState(false);
 
     useEffect(() => {
-        const savedDb = localStorage.getItem('jilco_specs_db');
-        if (savedDb) {
-            try {
-                const parsed = JSON.parse(savedDb);
-                setSpecsDb(prev => ({ ...DEFAULT_SPECS_DB, ...parsed }));
-            } catch (e) {
-                setSpecsDb(DEFAULT_SPECS_DB);
-            }
-        } else {
-            setSpecsDb(DEFAULT_SPECS_DB);
+        if (globalSpecsDb && Object.keys(globalSpecsDb).length > 0) {
+            setSpecsDb(prev => ({ ...DEFAULT_SPECS_DB, ...globalSpecsDb }));
         }
 
         const savedProducts = localStorage.getItem('jilco_supplier_products');

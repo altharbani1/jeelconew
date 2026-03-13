@@ -6,6 +6,7 @@ import { QuoteItem, QuoteDetails, CompanyConfig, TechnicalSpecs } from '../types
 import { ArrowLeft, Plus, Search, Trash2, Edit, Copy, Calculator, Printer, Save, Download } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext.tsx';
 import { useSales } from '../contexts/SalesContext.tsx';
+import { useData } from '../contexts/DataContext.tsx';
 import { loggerService } from '../services/loggerService.ts';
 
 interface SavedQuote {
@@ -91,6 +92,7 @@ const DEFAULT_DURATION = `60 يوماً`;
 export const QuoteModule: React.FC = () => {
     const { currentUser } = useAuth();
     const { quotes, saveQuote, deleteQuote } = useSales();
+    const { config: globalConfig } = useData();
     const [viewMode, setViewMode] = useState<'list' | 'editor'>('list');
     const [searchTerm, setSearchTerm] = useState('');
     const [currentQuoteId, setCurrentQuoteId] = useState<string | null>(null);
@@ -113,14 +115,10 @@ export const QuoteModule: React.FC = () => {
     });
 
     useEffect(() => {
-        const savedGlobal = localStorage.getItem('jilco_quote_data');
-        if (savedGlobal) {
-            try {
-                const parsed = JSON.parse(savedGlobal);
-                if (parsed.config) setConfig(parsed.config);
-            } catch (e) { }
+        if (globalConfig && Object.keys(globalConfig).length > 0) {
+            setConfig(globalConfig);
         }
-    }, []);
+    }, [globalConfig]);
 
     const handleCreateNew = () => {
         setItems([]);
