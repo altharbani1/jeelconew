@@ -107,7 +107,7 @@ export const ContractModule: React.FC = () => {
 
     const [currentContract, setCurrentContract] = useState<ContractData>({
         number: '', date: new Date().toISOString().split('T')[0], firstPartyName: 'شركة جيلكو للمصاعد',
-        secondPartyName: '', secondPartyId: '', location: '', totalValue: 0, elevatorType: '', stops: 2, durationMonths: 2, elevatorCount: 1,
+        secondPartyName: '', secondPartyId: '', location: '', totalValue: 0, elevatorType: '', stops: 2, durationMonths: 2, elevatorCount: 1, internalDoorsCount: 1, externalDoorsCount: 1,
         paymentTerms: [
             { name: 'الدفعة الأولى (توقيع العقد)', percentage: 40 },
             { name: 'الدفعة الثانية (عند توريد السكك)', percentage: 30 },
@@ -131,11 +131,12 @@ export const ContractModule: React.FC = () => {
 
     // Actions
     const handleCreateNew = () => {
+        const faCount = contracts.filter(c => c.data?.number?.startsWith('FA-')).length;
         setCurrentContract({
-            number: `CN-${new Date().getFullYear()}-${String(contracts.length + 1).padStart(3, '0')}`,
+            number: `FA-${450 + faCount + 1}`,
             date: new Date().toISOString().split('T')[0],
             firstPartyName: config.headerTitle || 'شركة جيلكو للمصاعد',
-            secondPartyName: '', secondPartyId: '', location: '', totalValue: 0, elevatorType: '', stops: 2, durationMonths: 2, elevatorCount: 1,
+            secondPartyName: '', secondPartyId: '', location: '', totalValue: 0, elevatorType: '', stops: 2, durationMonths: 2, elevatorCount: 1, internalDoorsCount: 1, externalDoorsCount: 1,
             paymentTerms: [
                 { name: 'الدفعة الأولى (توقيع العقد)', percentage: 40 },
                 { name: 'الدفعة الثانية (عند توريد السكك)', percentage: 30 },
@@ -176,7 +177,7 @@ export const ContractModule: React.FC = () => {
         if (!currentContract.secondPartyName) return alert('يرجى تحديد الطرف الثاني');
 
         // Ensure the ID exists (creating one based on contract number if necessary)
-        const recordId = currentContract.number || `CN-${Date.now()}`;
+        const recordId = currentContract.number || `FA-${Date.now()}`;
         const contractObj = {
             id: recordId, // Adding ID for the new data handling structure
             data: { ...currentContract, number: recordId },
@@ -337,15 +338,41 @@ export const ContractModule: React.FC = () => {
                         <div className="space-y-4 animate-fade-in bg-white p-4 rounded-xl border border-gray-200">
                             {Object.entries(specsDb).map(([key, opts]) => (
                                 <div key={key}>
-                                    <label className="block text-[10px] font-black text-gray-400 mb-1 uppercase">{key}</label>
-                                    <select title={key}
-                                        value={currentSpecs[key as keyof TechnicalSpecs] || ''}
-                                        onChange={e => setCurrentSpecs({ ...currentSpecs, [key]: e.target.value })}
-                                        className="w-full p-2.5 border border-gray-400 rounded-lg text-xs bg-white text-black font-bold"
-                                    >
-                                        <option value="">-- اختر --</option>
-                                        {(opts as string[]).map((opt, i) => <option key={i} value={opt}>{opt}</option>)}
-                                    </select>
+                                    <label className="block text-[10px] font-black text-gray-400 mb-1 uppercase">
+                                        {key === 'doors' ? 'الأبواب الداخلية (Internal Doors)' : key === 'externalDoors' ? 'الأبواب الخارجية (External Doors)' : key}
+                                    </label>
+                                    <div className="flex gap-2 items-center">
+                                        <select title={key}
+                                            value={currentSpecs[key as keyof TechnicalSpecs] || ''}
+                                            onChange={e => setCurrentSpecs({ ...currentSpecs, [key]: e.target.value })}
+                                            className="flex-1 p-2.5 border border-gray-400 rounded-lg text-xs bg-white text-black font-bold"
+                                        >
+                                            <option value="">-- اختر --</option>
+                                            {(opts as string[]).map((opt, i) => <option key={i} value={opt}>{opt}</option>)}
+                                        </select>
+                                        {key === 'doors' && (
+                                            <div className="flex flex-col items-center gap-0.5 shrink-0">
+                                                <span className="text-[8px] font-black text-gray-400">العدد</span>
+                                                <input
+                                                    title="عدد الأبواب الداخلية" type="number" min="1"
+                                                    value={currentContract.internalDoorsCount || 1}
+                                                    onChange={e => setCurrentContract({ ...currentContract, internalDoorsCount: parseInt(e.target.value) || 1 })}
+                                                    className="w-14 p-2 border border-gray-400 rounded-lg text-xs bg-white text-black font-bold text-center"
+                                                />
+                                            </div>
+                                        )}
+                                        {key === 'externalDoors' && (
+                                            <div className="flex flex-col items-center gap-0.5 shrink-0">
+                                                <span className="text-[8px] font-black text-gray-400">العدد</span>
+                                                <input
+                                                    title="عدد الأبواب الخارجية" type="number" min="1"
+                                                    value={currentContract.externalDoorsCount || 1}
+                                                    onChange={e => setCurrentContract({ ...currentContract, externalDoorsCount: parseInt(e.target.value) || 1 })}
+                                                    className="w-14 p-2 border border-gray-400 rounded-lg text-xs bg-white text-black font-bold text-center"
+                                                />
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                             ))}
                         </div>
@@ -397,6 +424,14 @@ export const ContractModule: React.FC = () => {
                         <div className="relative z-10 flex flex-col flex-1 m-[28px] bg-white">
                             <QuoteHeader config={config} />
 
+                            {/* Contract Number Badge - يسار أسفل الترويسة */}
+                            <div className="px-10 py-1.5 bg-gray-50/60 border-b border-gray-100 flex justify-start shrink-0">
+                                <div className="flex items-center gap-2">
+                                    <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Contract No.</span>
+                                    <span className="font-mono font-black text-jilco-900 text-[11px] bg-white border border-jilco-200 px-2.5 py-0.5 rounded-md tracking-wide">{currentContract.number || '---'}</span>
+                                </div>
+                            </div>
+
                             {/* Body */}
                             <div className="px-12 py-6 flex-1 text-xs leading-loose relative overflow-hidden">
                                 <div className="absolute inset-0 flex items-center justify-center opacity-[0.03] pointer-events-none z-0"><h1 className="text-[140px] font-bold rotate-[-15deg]">CONTRACT</h1></div>
@@ -413,8 +448,8 @@ export const ContractModule: React.FC = () => {
                                             <div className="flex justify-between border-b border-gray-100 pb-1"><span className="text-gray-500">نوع الماكينة:</span> <span className="font-bold">{currentSpecs.driveType || '...'}</span></div>
                                             <div className="flex justify-between border-b border-gray-100 pb-1"><span className="text-gray-500">الحمولة:</span> <span className="font-bold">{currentSpecs.capacity || '...'}</span></div>
                                             <div className="flex justify-between border-b border-gray-100 pb-1"><span className="text-gray-500">عدد الوقفات:</span> <span className="font-bold">{currentSpecs.stops || '...'}</span></div>
-                                            <div className="flex justify-between border-b border-gray-100 pb-1"><span className="text-gray-500">الأبواب الداخلية:</span> <span className="font-bold">{currentSpecs.doors || '...'}</span></div>
-                                            <div className="flex justify-between border-b border-gray-100 pb-1"><span className="text-gray-500">الأبواب الخارجية:</span> <span className="font-bold">{currentSpecs.externalDoors || '...'}</span></div>
+                                            <div className="flex justify-between border-b border-gray-100 pb-1"><span className="text-gray-500">الأبواب الداخلية:</span> <span className="font-bold">{currentSpecs.doors ? `${currentSpecs.doors} (عدد: ${currentContract.internalDoorsCount || 1} باب)` : '...'}</span></div>
+                                            <div className="flex justify-between border-b border-gray-100 pb-1"><span className="text-gray-500">الأبواب الخارجية:</span> <span className="font-bold">{currentSpecs.externalDoors ? `${currentSpecs.externalDoors} (عدد: ${currentContract.externalDoorsCount || 1} باب)` : '...'}</span></div>
                                         </div>
 
                                         <p className="font-bold border-r-4 border-gold-500 pr-3 bg-gray-50 p-2 mt-6">جدول الدفعات:</p>
@@ -476,8 +511,8 @@ export const ContractModule: React.FC = () => {
                                         { label: 'لوحة التحكم (Control System)', value: currentSpecs.controlSystem },
                                         { label: 'مصدر الكهرباء (Power Supply)', value: currentSpecs.powerSupply },
                                         { label: 'تشطيب الكابينة (Cabin Finish)', value: currentSpecs.cabin },
-                                        { label: 'نظام الأبواب الداخلية (Internal Door System)', value: currentSpecs.doors },
-                                        { label: 'نظام الأبواب الخارجية (External Door System)', value: currentSpecs.externalDoors },
+                                        { label: 'نظام الأبواب الداخلية (Internal Door System)', value: currentSpecs.doors ? `${currentSpecs.doors} — عدد: ${currentContract.internalDoorsCount || 1} باب` : '' },
+                                        { label: 'نظام الأبواب الخارجية (External Door System)', value: currentSpecs.externalDoors ? `${currentSpecs.externalDoors} — عدد: ${currentContract.externalDoorsCount || 1} باب` : '' },
                                         { label: 'غرفة الماكينة (Machine Room)', value: currentSpecs.machineRoom },
                                         { label: 'السكك والمسارات (Rails)', value: currentSpecs.rails },
                                         { label: 'الحبال والأسلاك (Ropes)', value: currentSpecs.ropes },

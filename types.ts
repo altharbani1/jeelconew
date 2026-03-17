@@ -112,6 +112,8 @@ export interface ContractData {
   elevatorType: string;
   stops: number;
   elevatorCount: number; // Added field for elevator quantity
+  internalDoorsCount?: number; // عدد الأبواب الداخلية
+  externalDoorsCount?: number; // عدد الأبواب الخارجية
   durationMonths: number;
   paymentTerms: PaymentTerm[];
 }
