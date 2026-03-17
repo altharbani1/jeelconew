@@ -114,6 +114,7 @@ export interface ContractData {
   elevatorCount: number; // Added field for elevator quantity
   internalDoorsCount?: number; // عدد الأبواب الداخلية
   externalDoorsCount?: number; // عدد الأبواب الخارجية
+  accessControl?: string; // نظام التحكم بالوصول (اختياري)
   durationMonths: number;
   paymentTerms: PaymentTerm[];
 }

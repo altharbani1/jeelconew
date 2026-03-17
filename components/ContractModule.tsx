@@ -37,6 +37,16 @@ const INITIAL_CONFIG: CompanyConfig = {
     logo: null, stamp: null, headerTitle: 'جيلكو للمصاعد', headerSubtitle: 'JILCO ELEVATORS', footerText: 'الرياض - المملكة العربية السعودية', contactPhone: '', contactEmail: '', bankAccounts: []
 };
 
+const ACCESS_CONTROL_OPTIONS = [
+    'بطاقة ذكية (Smart Card)',
+    'بصمة إصبع (Fingerprint)',
+    'رمز سري (PIN Code)',
+    'التعرف على الوجه (Face Recognition)',
+    'مفتاح تشغيل (Key Switch)',
+    'تطبيق موبايل (Mobile App)',
+    'بطاقة ذكية + رمز سري (Card + PIN)',
+];
+
 // --- Helper Components for Preview ---
 const QuoteHeader: React.FC<{ config: CompanyConfig }> = ({ config }) => (
     <header className="px-10 py-6 border-b-2 border-jilco-100 flex justify-between items-center h-[160px] shrink-0">
@@ -107,7 +117,7 @@ export const ContractModule: React.FC = () => {
 
     const [currentContract, setCurrentContract] = useState<ContractData>({
         number: '', date: new Date().toISOString().split('T')[0], firstPartyName: 'شركة جيلكو للمصاعد',
-        secondPartyName: '', secondPartyId: '', location: '', totalValue: 0, elevatorType: '', stops: 2, durationMonths: 2, elevatorCount: 1, internalDoorsCount: 1, externalDoorsCount: 1,
+        secondPartyName: '', secondPartyId: '', location: '', totalValue: 0, elevatorType: '', stops: 2, durationMonths: 2, elevatorCount: 1, internalDoorsCount: 1, externalDoorsCount: 1, accessControl: '',
         paymentTerms: [
             { name: 'الدفعة الأولى (توقيع العقد)', percentage: 40 },
             { name: 'الدفعة الثانية (عند توريد السكك)', percentage: 30 },
@@ -136,7 +146,7 @@ export const ContractModule: React.FC = () => {
             number: `FA-${450 + faCount + 1}`,
             date: new Date().toISOString().split('T')[0],
             firstPartyName: config.headerTitle || 'شركة جيلكو للمصاعد',
-            secondPartyName: '', secondPartyId: '', location: '', totalValue: 0, elevatorType: '', stops: 2, durationMonths: 2, elevatorCount: 1, internalDoorsCount: 1, externalDoorsCount: 1,
+            secondPartyName: '', secondPartyId: '', location: '', totalValue: 0, elevatorType: '', stops: 2, durationMonths: 2, elevatorCount: 1, internalDoorsCount: 1, externalDoorsCount: 1, accessControl: '',
             paymentTerms: [
                 { name: 'الدفعة الأولى (توقيع العقد)', percentage: 40 },
                 { name: 'الدفعة الثانية (عند توريد السكك)', percentage: 30 },
@@ -375,6 +385,32 @@ export const ContractModule: React.FC = () => {
                                     </div>
                                 </div>
                             ))}
+
+                            {/* Access Control - اختياري */}
+                            <div className="pt-3 border-t border-dashed border-purple-200 mt-1">
+                                <div className="flex items-center gap-3 mb-2">
+                                    <input
+                                        type="checkbox"
+                                        id="accessControlToggle"
+                                        checked={!!currentContract.accessControl}
+                                        onChange={e => setCurrentContract({ ...currentContract, accessControl: e.target.checked ? ACCESS_CONTROL_OPTIONS[0] : '' })}
+                                        className="w-4 h-4 accent-purple-600 cursor-pointer"
+                                    />
+                                    <label htmlFor="accessControlToggle" className="text-[10px] font-black text-purple-700 cursor-pointer flex items-center gap-1 uppercase">
+                                        🔐 أكسس كنترول (Access Control) — اختياري
+                                    </label>
+                                </div>
+                                {!!currentContract.accessControl && (
+                                    <select
+                                        title="نوع الأكسس كنترول"
+                                        value={currentContract.accessControl}
+                                        onChange={e => setCurrentContract({ ...currentContract, accessControl: e.target.value })}
+                                        className="w-full p-2.5 border border-purple-300 rounded-lg text-xs bg-white text-black font-bold"
+                                    >
+                                        {ACCESS_CONTROL_OPTIONS.map((opt, i) => <option key={i} value={opt}>{opt}</option>)}
+                                    </select>
+                                )}
+                            </div>
                         </div>
                     )}
 
@@ -427,8 +463,8 @@ export const ContractModule: React.FC = () => {
                             {/* Contract Number Badge - يسار أسفل الترويسة */}
                             <div className="px-10 py-1.5 bg-gray-50/60 border-b border-gray-100 flex justify-start shrink-0">
                                 <div className="flex items-center gap-2">
-                                    <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest">Contract No.</span>
-                                    <span className="font-mono font-black text-jilco-900 text-[11px] bg-white border border-jilco-200 px-2.5 py-0.5 rounded-md tracking-wide">{currentContract.number || '---'}</span>
+                                    <span className="text-[8px] font-black text-jilco-600 uppercase tracking-widest">Contract No.</span>
+                                    <span className="font-mono font-black text-gold-600 text-[11px] bg-white border border-gold-300 px-2.5 py-0.5 rounded-md tracking-wide">{currentContract.number || '---'}</span>
                                 </div>
                             </div>
 
@@ -450,6 +486,9 @@ export const ContractModule: React.FC = () => {
                                             <div className="flex justify-between border-b border-gray-100 pb-1"><span className="text-gray-500">عدد الوقفات:</span> <span className="font-bold">{currentSpecs.stops || '...'}</span></div>
                                             <div className="flex justify-between border-b border-gray-100 pb-1"><span className="text-gray-500">الأبواب الداخلية:</span> <span className="font-bold">{currentSpecs.doors ? `${currentSpecs.doors} (عدد: ${currentContract.internalDoorsCount || 1} باب)` : '...'}</span></div>
                                             <div className="flex justify-between border-b border-gray-100 pb-1"><span className="text-gray-500">الأبواب الخارجية:</span> <span className="font-bold">{currentSpecs.externalDoors ? `${currentSpecs.externalDoors} (عدد: ${currentContract.externalDoorsCount || 1} باب)` : '...'}</span></div>
+                                            {currentContract.accessControl && (
+                                                <div className="flex justify-between border-b border-gray-100 pb-1"><span className="text-gray-500">أكسس كنترول:</span> <span className="font-bold text-purple-700">{currentContract.accessControl}</span></div>
+                                            )}
                                         </div>
 
                                         <p className="font-bold border-r-4 border-gold-500 pr-3 bg-gray-50 p-2 mt-6">جدول الدفعات:</p>
@@ -518,6 +557,7 @@ export const ContractModule: React.FC = () => {
                                         { label: 'الحبال والأسلاك (Ropes)', value: currentSpecs.ropes },
                                         { label: 'أنظمة الأمان (Safety)', value: currentSpecs.safety },
                                         { label: 'جهاز الطوارئ (Emergency)', value: currentSpecs.emergency },
+                                        ...(currentContract.accessControl ? [{ label: 'نظام التحكم بالوصول (Access Control)', value: currentContract.accessControl }] : []),
                                     ].map((row, i) => (
                                         <div key={i} className={`flex border-b border-gray-100 last:border-0 ${i % 2 === 0 ? 'bg-gray-50/50' : 'bg-white'}`}>
                                             <div className="w-1/3 p-2.5 font-black text-[10px] text-jilco-700 bg-gray-100/30 border-l border-gray-100 uppercase tracking-tighter flex items-center">{row.label}</div>
