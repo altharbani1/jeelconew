@@ -403,8 +403,13 @@ export interface Employee {
   phone: string;
   email?: string;
   nationalId?: string; // New: IQAMA or ID
+  nationalIdType?: 'saudi' | 'non_saudi'; // Important for GOSI
   status: EmployeeStatus; // New: Status
   basicSalary: number;
+  housingAllowance?: number;
+  transportAllowance?: number;
+  otherAllowances?: number;
+  annualLeaveBalance?: number; // Days per year
   joinDate: string;
   custodyItems: string[];
 }
@@ -431,11 +436,48 @@ export interface PayrollRecord {
   employeeName: string;
   month: string; // Format: YYYY-MM
   basicSalary: number;
-  commissions: number;
-  deductions: number;
-  bonuses: number;
+  housingAllowance: number;
+  transportAllowance: number;
+  otherAllowances: number;
+  commissions: number; // approved commissions for this month
+  bonuses: number;     // manual bonuses
+  gosiDeduction: number;
+  loanDeduction: number;
+  absenceDeduction: number;
+  otherDeductions: number; // manual deductions
   netSalary: number;
   status: 'pending' | 'approved' | 'paid';
+  notes?: string;
+}
+
+export interface EmployeeLoan {
+  id: string;
+  employeeId: string;
+  amount: number;
+  installmentsCount: number;
+  monthlyInstallment: number;
+  remainingAmount: number;
+  startDate: string; // YYYY-MM
+  status: 'active' | 'paid';
+  notes?: string;
+}
+
+export interface AttendanceRecord {
+  id: string;
+  employeeId: string;
+  month: string; // YYYY-MM
+  absenceDays: number;
+  delayHours: number;
+  notes?: string;
+}
+
+export interface LeaveRequest {
+  id: string;
+  employeeId: string;
+  startDate: string;
+  endDate: string;
+  type: 'annual' | 'sick' | 'unpaid';
+  status: 'pending' | 'approved' | 'rejected';
   notes?: string;
 }
 
