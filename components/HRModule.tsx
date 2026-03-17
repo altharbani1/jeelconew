@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
-import { Users, Briefcase, DollarSign, Wrench, Plus, Search, Edit, Trash2, Save, UserPlus, CheckCircle2, XCircle, Printer, Filter, Calendar, Award, FileText, ChevronDown } from 'lucide-react';
-import { Employee, Commission, EmployeeRole, EmployeeStatus, ContractData } from '../types';
+import { Users, Briefcase, DollarSign, Wrench, Plus, Search, Edit, Trash2, Save, UserPlus, CheckCircle2, XCircle, Printer, Filter, Calendar, Award, FileText, ChevronDown, Check, FileSpreadsheet, Eye } from 'lucide-react';
+import { Employee, Commission, EmployeeRole, EmployeeStatus, ContractData, PayrollRecord, EmployeePayment } from '../types';
 import { useData } from '../contexts/DataContext.tsx';
 import { useHR } from '../contexts/HRContext.tsx';
 import { useProject } from '../contexts/ProjectContext.tsx';
@@ -38,10 +38,13 @@ export const HRModule: React.FC = () => {
     const {
         hrEmployees: employees,
         hrCommissions: commissions,
+        hrPayrolls: payrolls,
+        hrEmployeePayments: employeePayments,
+        setHrPayrolls,
         saveHRRecord, deleteHRRecord
     } = useHR();
 
-    const [activeTab, setActiveTab] = useState<'employees' | 'commissions'>('employees');
+    const [activeTab, setActiveTab] = useState<'employees' | 'commissions' | 'payrolls'>('employees');
 
     // Search & Filter
     const [searchTerm, setSearchTerm] = useState('');
@@ -53,6 +56,13 @@ export const HRModule: React.FC = () => {
 
     const [showCommissionForm, setShowCommissionForm] = useState(false);
     const [currentCommission, setCurrentCommission] = useState<Partial<Commission>>({ status: 'pending', date: new Date().toISOString().split('T')[0] });
+
+    // Payroll State
+    const [payrollMonth, setPayrollMonth] = useState(new Date().toISOString().slice(0, 7)); // YYYY-MM
+    const [generatedPayrolls, setGeneratedPayrolls] = useState<PayrollRecord[]>([]);
+
+    // Employee Statement Modals
+    const [viewStatementEmployeeId, setViewStatementEmployeeId] = useState<string | null>(null);
 
     // No local storage loading needed; data provided by context.
 
@@ -131,6 +141,81 @@ export const HRModule: React.FC = () => {
                 commissionPercentage: 1 // Default percentage suggestion
             });
         }
+    };
+
+    // --- PAYROLL ACTIONS ---
+    const handleGeneratePayroll = () => {
+        // Find active employees and generate their payroll for the selected month
+        const activeEmployees = employees.filter(e => e.status === 'active');
+        const newPayrolls: PayrollRecord[] = activeEmployees.map(emp => {
+            // Find existing if already generated but not paid
+            const existing = payrolls.find(p => p.employeeId === emp.id && p.month === payrollMonth);
+            if (existing) return existing;
+
+            // Calculate unpaid commissions for this month (simplified logic: get pending commissions)
+            // In a real app, you might want to only include 'approved' commissions
+            const empCommissions = commissions
+                .filter(c => c.employeeId === emp.id && c.status === 'approved' && c.approvalDate?.startsWith(payrollMonth))
+                .reduce((sum, c) => sum + c.commissionAmount, 0);
+
+            return {
+                id: `PR-${Date.now()}-${emp.id}`,
+                employeeId: emp.id,
+                employeeName: emp.name,
+                month: payrollMonth,
+                basicSalary: emp.basicSalary || 0,
+                commissions: empCommissions,
+                deductions: 0,
+                bonuses: 0,
+                netSalary: (emp.basicSalary || 0) + empCommissions,
+                status: 'pending'
+            };
+        });
+        setGeneratedPayrolls(newPayrolls);
+    };
+
+    const updateGeneratedPayroll = (index: number, field: keyof PayrollRecord, value: number) => {
+        const updated = [...generatedPayrolls];
+        const record = updated[index];
+        (record as any)[field] = value;
+        // Recalculate net
+        record.netSalary = record.basicSalary + record.commissions + record.bonuses - record.deductions;
+        setGeneratedPayrolls(updated);
+    };
+
+    const handleApprovePayroll = async () => {
+        if (generatedPayrolls.length === 0) return alert('No payroll to approve.');
+        if (!window.confirm(`هل أنت متأكد من اعتماد رواتب شهر ${payrollMonth} وإصدار سندات الصرف تلقائياً؟`)) return;
+
+        for (const record of generatedPayrolls) {
+            if (record.status === 'pending') {
+                const finalRecord = { ...record, status: 'paid' as const };
+                // 1. Save Payroll Record
+                await saveHRRecord('jilco_hr_payrolls', finalRecord.id, finalRecord);
+
+                // 2. Create Employee Payment (This will be read by ExpenseModule)
+                const payment: EmployeePayment = {
+                    id: `EP-${Date.now()}-${record.employeeId}`,
+                    employeeId: record.employeeId,
+                    employeeName: record.employeeName,
+                    date: new Date().toISOString().split('T')[0],
+                    amount: finalRecord.netSalary,
+                    paymentMethod: 'transfer', // default
+                    description: `راتب شهر ${record.month}` + (record.bonuses > 0 ? ' مكافأة' : '') + (record.deductions > 0 ? ' استقطاع' : ''),
+                    payrollId: finalRecord.id,
+                    status: 'completed'
+                };
+                await saveHRRecord('jilco_hr_payments', payment.id, payment);
+                
+                // 3. Mark approved commissions as paid
+                const empCommissions = commissions.filter(c => c.employeeId === record.employeeId && c.status === 'approved' && c.approvalDate?.startsWith(payrollMonth));
+                for(const c of empCommissions) {
+                  await updateCommissionStatus(c.id, 'paid');
+                }
+            }
+        }
+        alert('تم اعتماد الرواتب وإنشاء سندات الصرف بنجاح.');
+        setGeneratedPayrolls([]);
     };
 
     // --- RENDERERS ---
@@ -270,6 +355,108 @@ export const HRModule: React.FC = () => {
         </div>
     );
 
+    const renderEmployeeStatement = () => {
+        if (!viewStatementEmployeeId) return null;
+        const employee = employees.find(e => e.id === viewStatementEmployeeId);
+        if (!employee) return null;
+
+        const employeePayrolls = payrolls.filter(p => p.employeeId === employee.id && p.status === 'paid');
+        const payments = employeePayments.filter(p => p.employeeId === employee.id);
+        const empCommissions = commissions.filter(c => c.employeeId === employee.id && c.status === 'paid');
+
+        // calculate totals
+        const totalBasicSalaries = employeePayrolls.reduce((sum, p) => sum + p.basicSalary, 0);
+        const totalBonuses = employeePayrolls.reduce((sum, p) => sum + p.bonuses, 0);
+        const totalCommissions = employeePayrolls.reduce((sum, p) => sum + p.commissions, 0); // included in payroll
+        const standaloneCommissions = empCommissions.filter(c => !employeePayrolls.some(p => p.month === c.approvalDate?.substring(0,7))).reduce((sum, c) => sum + c.commissionAmount, 0);
+        const totalDeductions = employeePayrolls.reduce((sum, p) => sum + p.deductions, 0);
+
+        const totalEntitlements = totalBasicSalaries + totalBonuses + totalCommissions + standaloneCommissions - totalDeductions;
+        const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0);
+
+        return (
+            <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                <div className="bg-white rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden">
+                    <div className="p-4 border-b flex justify-between items-center bg-gray-50">
+                        <h3 className="font-bold text-gray-800 flex items-center gap-2"><FileSpreadsheet size={18} /> كشف حساب موظف: {employee.name}</h3>
+                        <div className="flex gap-2">
+                             <button onClick={() => window.print()} className="p-2 text-gray-600 hover:bg-gray-200 rounded-full print:hidden"><Printer size={18} /></button>
+                             <button title="إغلاق" onClick={() => setViewStatementEmployeeId(null)} className="p-2 text-gray-600 hover:bg-gray-200 rounded-full print:hidden"><XCircle size={20} /></button>
+                        </div>
+                    </div>
+                    <div className="flex-1 overflow-y-auto p-6 bg-white print:p-0">
+                         {/* Statement Header */}
+                         <div className="mb-6 flex justify-between items-end border-b pb-4">
+                              <div>
+                                  <h2 className="text-xl font-bold text-jilco-900">{employee.name}</h2>
+                                  <p className="text-sm text-gray-500">{ROLES[employee.role as EmployeeRole]}</p>
+                              </div>
+                              <div className="text-left">
+                                  <p className="text-xs text-gray-500 font-bold">رقم الهوية/الإقامة: {employee.nationalId}</p>
+                                  <p className="text-xs text-gray-500 font-bold">تاريخ المباشرة: {employee.joinDate}</p>
+                              </div>
+                         </div>
+                         
+                         {/* Statement Summary */}
+                         <div className="grid grid-cols-3 gap-4 mb-6 print:grid-cols-3">
+                             <div className="bg-green-50 p-4 rounded-xl border border-green-200 text-center">
+                                 <p className="text-xs font-bold text-green-800 mb-1">إجمالي المستحقات</p>
+                                 <p className="text-xl font-black text-green-700 font-mono">{totalEntitlements.toLocaleString()}</p>
+                             </div>
+                             <div className="bg-blue-50 p-4 rounded-xl border border-blue-200 text-center">
+                                 <p className="text-xs font-bold text-blue-800 mb-1">إجمالي المنصرف</p>
+                                 <p className="text-xl font-black text-blue-700 font-mono">{totalPaid.toLocaleString()}</p>
+                             </div>
+                             <div className={`p-4 rounded-xl border text-center ${totalEntitlements - totalPaid > 0 ? 'bg-red-50 border-red-200' : 'bg-gray-50 border-gray-200'}`}>
+                                 <p className={`text-xs font-bold mb-1 ${totalEntitlements - totalPaid > 0 ? 'text-red-800' : 'text-gray-800'}`}>الرصيد المتبقي</p>
+                                 <p className={`text-xl font-black font-mono ${totalEntitlements - totalPaid > 0 ? 'text-red-700' : 'text-gray-700'}`}>{(totalEntitlements - totalPaid).toLocaleString()}</p>
+                             </div>
+                         </div>
+
+                         {/* Ledger Table */}
+                         <h4 className="font-bold text-gray-800 mb-3 border-b pb-2">تفاصيل الحركات (Payrolls & Payments)</h4>
+                         <table className="w-full text-sm text-right border-collapse">
+                             <thead className="bg-gray-100 text-gray-600">
+                                 <tr>
+                                     <th className="p-2 border border-gray-200">التاريخ/الشهر</th>
+                                     <th className="p-2 border border-gray-200">البيان</th>
+                                     <th className="p-2 border border-gray-200 text-center text-green-700">دائن (مستحقات)</th>
+                                     <th className="p-2 border border-gray-200 text-center text-red-700">مدين (مدفوعات)</th>
+                                 </tr>
+                             </thead>
+                             <tbody>
+                                  {/* Render Payrolls (Credits) */}
+                                  {employeePayrolls.map(pr => (
+                                      <tr key={pr.id} className="hover:bg-gray-50">
+                                          <td className="p-2 border border-gray-200 font-mono text-xs">{pr.month}</td>
+                                          <td className="p-2 border border-gray-200">
+                                              رواتب شهر {pr.month} 
+                                              {pr.commissions > 0 && <span className="text-xs text-blue-600 mr-2">(شامل عمولات: {pr.commissions})</span>}
+                                          </td>
+                                          <td className="p-2 border border-gray-200 text-center font-bold text-green-700 font-mono">{pr.netSalary.toLocaleString()}</td>
+                                          <td className="p-2 border border-gray-200 text-center">-</td>
+                                      </tr>
+                                  ))}
+                                  {/* Render Payments (Debits) */}
+                                  {payments.map(pm => (
+                                      <tr key={pm.id} className="hover:bg-gray-50 bg-red-50/20">
+                                          <td className="p-2 border border-gray-200 font-mono text-xs">{pm.date}</td>
+                                          <td className="p-2 border border-gray-200 font-bold">{pm.description} (سند صرف)</td>
+                                          <td className="p-2 border border-gray-200 text-center">-</td>
+                                          <td className="p-2 border border-gray-200 text-center font-bold text-red-700 font-mono">{pm.amount.toLocaleString()}</td>
+                                      </tr>
+                                  ))}
+                                  {employeePayrolls.length === 0 && payments.length === 0 && (
+                                      <tr><td colSpan={4} className="p-4 text-center text-gray-500">لا توجد حركات مالية مسجلة.</td></tr>
+                                  )}
+                             </tbody>
+                         </table>
+                    </div>
+                </div>
+            </div>
+        )
+    };
+
     return (
         <div className="flex-1 bg-gray-100 p-8 overflow-auto h-full animate-fade-in">
             <div className="max-w-6xl mx-auto">
@@ -287,11 +474,11 @@ export const HRModule: React.FC = () => {
                                 <button onClick={() => { setCurrentEmployee({ role: 'technician', custodyItems: [], status: 'active' }); setShowEmployeeForm(true); }} className="bg-jilco-900 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 hover:bg-jilco-800 shadow-md text-sm">
                                     <UserPlus size={18} /> موظف جديد
                                 </button>
-                            ) : (
+                            ) : activeTab === 'commissions' ? (
                                 <button onClick={() => { setCurrentCommission({ status: 'pending', date: new Date().toISOString().split('T')[0] }); setShowCommissionForm(true); }} className="bg-green-600 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 hover:bg-green-700 shadow-md text-sm">
                                     <Plus size={18} /> تسجيل عمولة
                                 </button>
-                            )}
+                            ) : null}
                         </div>
                     </div>
 
@@ -316,9 +503,10 @@ export const HRModule: React.FC = () => {
                 </div>
 
                 {/* Navigation Tabs */}
-                <div className="flex bg-white rounded-xl shadow-sm border border-gray-200 mb-6 overflow-hidden w-full max-w-md">
+                <div className="flex bg-white rounded-xl shadow-sm border border-gray-200 mb-6 overflow-hidden w-full max-w-2xl">
                     <button onClick={() => setActiveTab('employees')} className={`flex-1 py-3 text-sm font-bold flex justify-center items-center gap-2 transition-colors ${activeTab === 'employees' ? 'bg-jilco-50 text-jilco-800 border-b-4 border-jilco-600' : 'text-gray-500 hover:bg-gray-50'}`}><Briefcase size={18} /> سجل الموظفين</button>
                     <button onClick={() => setActiveTab('commissions')} className={`flex-1 py-3 text-sm font-bold flex justify-center items-center gap-2 transition-colors ${activeTab === 'commissions' ? 'bg-jilco-50 text-jilco-800 border-b-4 border-jilco-600' : 'text-gray-500 hover:bg-gray-50'}`}><DollarSign size={18} /> العمولات والحوافز</button>
+                    <button onClick={() => setActiveTab('payrolls')} className={`flex-1 py-3 text-sm font-bold flex justify-center items-center gap-2 transition-colors ${activeTab === 'payrolls' ? 'bg-jilco-50 text-jilco-800 border-b-4 border-jilco-600' : 'text-gray-500 hover:bg-gray-50'}`}><FileSpreadsheet size={18} /> مسيرات الرواتب</button>
                 </div>
 
                 {/* Employees View */}
@@ -474,11 +662,114 @@ export const HRModule: React.FC = () => {
                         </table>
                     </div>
                 )}
+
+                {/* Payrolls View */}
+                {activeTab === 'payrolls' && (
+                    <div className="animate-fade-in space-y-6">
+                        <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm flex flex-col md:flex-row gap-4 items-end justify-between">
+                            <div>
+                                <h3 className="font-bold text-gray-800 mb-1">إصدار مسير رواتب موظفين</h3>
+                                <p className="text-sm text-gray-500">اختر الشهر واضغط توليد لاحتساب الرواتب والعمولات والخصومات</p>
+                            </div>
+                            <div className="flex items-center gap-3">
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-600 mb-1">حدد الشهر (YYYY-MM)</label>
+                                    <input 
+                                        type="month" 
+                                        value={payrollMonth} 
+                                        onChange={e => setPayrollMonth(e.target.value)}
+                                        className="p-2 border border-gray-400 rounded-lg text-sm bg-white text-black font-bold outline-none h-[42px]" 
+                                    />
+                                </div>
+                                <button 
+                                    onClick={handleGeneratePayroll}
+                                    className="h-[42px] px-6 bg-jilco-600 text-white rounded-lg font-bold shadow hover:bg-jilco-700 flex items-center justify-center gap-2"
+                                >
+                                    <Calendar size={18} /> توليد المسير
+                                </button>
+                            </div>
+                        </div>
+
+                        {generatedPayrolls.length > 0 && (
+                            <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                                <div className="p-4 bg-gray-50 border-b border-gray-200 flex justify-between items-center">
+                                     <h3 className="font-bold text-jilco-900 flex items-center gap-2"><CheckCircle2 size={18} className="text-green-600"/> مسير شهر {payrollMonth} ({generatedPayrolls.length} موظف)</h3>
+                                     <button 
+                                        onClick={handleApprovePayroll}
+                                        className="bg-green-600 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-green-700 shadow flex items-center gap-2"
+                                     >
+                                         <Save size={16} /> اعتماد وصرف الرواتب آلياً
+                                     </button>
+                                </div>
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-sm text-right">
+                                        <thead className="bg-gray-100 text-gray-600 font-medium">
+                                            <tr>
+                                                <th className="p-3">الموظف</th>
+                                                <th className="p-3">الأساسي</th>
+                                                <th className="p-3">عمولات معتمدة</th>
+                                                <th className="p-3">مكافآت (إضافة)</th>
+                                                <th className="p-3">خصومات (طرح)</th>
+                                                <th className="p-3 text-center">الصافي للدفع</th>
+                                                <th className="p-3 text-center">الحالة</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody className="divide-y divide-gray-100">
+                                            {generatedPayrolls.map((pr, idx) => (
+                                                <tr key={pr.id} className="hover:bg-gray-50">
+                                                    <td className="p-3 font-bold text-gray-800">{pr.employeeName}</td>
+                                                    <td className="p-3 font-mono text-gray-600">{pr.basicSalary.toLocaleString()}</td>
+                                                    <td className="p-3 font-mono text-blue-600 font-bold">{pr.commissions.toLocaleString()}</td>
+                                                    <td className="p-3">
+                                                        <input 
+                                                            type="number" 
+                                                            value={pr.bonuses || ''} 
+                                                            onChange={e => updateGeneratedPayroll(idx, 'bonuses', parseFloat(e.target.value) || 0)}
+                                                            className="w-20 p-1 border rounded text-xs outline-none bg-white text-black focus:ring-1 focus:ring-jilco-500"
+                                                            disabled={pr.status === 'paid'}
+                                                            placeholder="0"
+                                                        />
+                                                    </td>
+                                                    <td className="p-3">
+                                                        <input 
+                                                            type="number" 
+                                                            value={pr.deductions || ''} 
+                                                            onChange={e => updateGeneratedPayroll(idx, 'deductions', parseFloat(e.target.value) || 0)}
+                                                            className="w-20 p-1 border rounded text-xs outline-none bg-white text-black focus:ring-1 focus:ring-red-500"
+                                                            disabled={pr.status === 'paid'}
+                                                            placeholder="0"
+                                                        />
+                                                    </td>
+                                                    <td className="p-3 text-center font-black text-green-700 font-mono text-base">{pr.netSalary.toLocaleString()}</td>
+                                                    <td className="p-3 text-center">
+                                                        {pr.status === 'paid' ? (
+                                                            <span className="bg-green-100 text-green-700 px-2 py-1 flex items-center justify-center gap-1 rounded text-xs font-bold w-fit mx-auto"><Check size={12}/> معتمد</span>
+                                                        ) : (
+                                                            <span className="bg-amber-100 text-amber-700 px-2 py-1 rounded text-xs font-bold inline-block">قيد المراجعة</span>
+                                                        )}
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                            {generatedPayrolls.length > 0 && (
+                                                <tr className="bg-jilco-50 border-t-2 border-jilco-200">
+                                                    <td colSpan={5} className="p-3 font-bold text-jilco-900 text-left">إجمالي مسير الرواتب:</td>
+                                                    <td className="p-3 text-center font-black text-jilco-900 font-mono text-lg">{generatedPayrolls.reduce((sum, p) => sum + p.netSalary, 0).toLocaleString()}</td>
+                                                    <td></td>
+                                                </tr>
+                                            )}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                )}
             </div>
 
             {/* Modals */}
             {showEmployeeForm && renderEmployeeForm()}
             {showCommissionForm && renderCommissionForm()}
+            {renderEmployeeStatement()}
         </div>
     );
 };

@@ -1,9 +1,10 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { Wallet, Plus, Search, Edit, Trash2, Printer, Save, ArrowLeft, Upload, FileText, X, ImageIcon, Banknote, Calendar, Download, PieChart, Filter, Eye, Paperclip, Briefcase } from 'lucide-react';
-import { Expense, ExpenseCategory, Attachment, CompanyConfig, Project, SupplierPayment, Supplier } from '../types';
+import { Expense, ExpenseCategory, Attachment, CompanyConfig, Project, SupplierPayment, Supplier, EmployeePayment } from '../types';
 import { useProject } from '../contexts/ProjectContext.tsx';
 import { usePurchase } from '../contexts/PurchaseContext.tsx';
+import { useHR } from '../contexts/HRContext.tsx';
 
 const INITIAL_CONFIG: CompanyConfig = {
     logo: null,
@@ -69,6 +70,7 @@ export const ExpenseModule: React.FC = () => {
         projects,
         saveProjectRecord, deleteProjectRecord
     } = useProject();
+    const { hrEmployeePayments } = useHR();
 
     const [viewMode, setViewMode] = useState<'list' | 'editor' | 'report'>('list');
     const [expenses, setExpenses] = useState<Expense[]>([]);
@@ -117,14 +119,29 @@ export const ExpenseModule: React.FC = () => {
             };
         });
 
-        setExpenses([...rawExpenses, ...convertedPayments]);
+        // Generate derived expenses from employee payments
+        const convertedHR: Expense[] = hrEmployeePayments.map(p => ({
+            id: `HR-${p.id}`,
+            number: `HRV-${p.id.slice(-6)}`,
+            date: p.date,
+            categoryId: 'salary',
+            categoryName: 'رواتب وأجور',
+            paidTo: p.employeeName,
+            description: p.description,
+            amount: p.amount,
+            paymentMethod: p.paymentMethod,
+            referenceNumber: p.referenceNumber,
+            attachments: []
+        }));
+
+        setExpenses([...rawExpenses, ...convertedPayments, ...convertedHR]);
 
         const savedConfig = localStorage.getItem('jilco_quote_data');
         if (savedConfig) try {
             const parsed = JSON.parse(savedConfig);
             if (parsed.config) setConfig(parsed.config);
         } catch (e) { }
-    }, [rawExpenses, supplierPayments, suppliers]);
+    }, [rawExpenses, supplierPayments, suppliers, hrEmployeePayments]);
 
     // Actions
     const handleCreateNew = () => {
@@ -145,8 +162,8 @@ export const ExpenseModule: React.FC = () => {
     };
 
     const handleEdit = (expense: Expense) => {
-        if (expense.id.startsWith('SP-')) {
-            alert('هذا السند تم إنشاؤه تلقائياً من نظام المشتريات. يرجى تعديله من هناك.');
+        if (expense.id.startsWith('SP-') || expense.id.startsWith('HR-')) {
+            alert('هذا السند تم إنشاؤه تلقائياً من نظام المشتريات أو الموارد البشرية. لا يمكن تعديله من هنا.');
             return;
         }
         setCurrentExpense(expense);
@@ -154,8 +171,8 @@ export const ExpenseModule: React.FC = () => {
     };
 
     const handleDelete = async (id: string) => {
-        if (id.startsWith('SP-')) {
-            alert('لا يمكن حذف هذا السند من هنا لأنه مرتبط بنظام المشتريات. يرجى حذفه من قسم "المشتريات > المدفوعات".');
+        if (id.startsWith('SP-') || id.startsWith('HR-')) {
+            alert('لا يمكن حذف هذا السند المولد تلقائياً.');
             return;
         }
         if (window.confirm('هل أنت متأكد من حذف سند الصرف؟')) {
@@ -414,7 +431,7 @@ export const ExpenseModule: React.FC = () => {
                             </thead>
                             <tbody className="divide-y divide-gray-100">
                                 {filteredExpenses.map(exp => (
-                                    <tr key={exp.id} className={`hover:bg-gray-50 ${exp.id.startsWith('SP-') ? 'bg-blue-50/30' : ''}`}>
+                                    <tr key={exp.id} className={`hover:bg-gray-50 ${exp.id.startsWith('SP-') ? 'bg-blue-50/30' : exp.id.startsWith('HR-') ? 'bg-green-50/30' : ''}`}>
                                         <td className="p-4 font-mono font-bold text-gray-800">{exp.number}</td>
                                         <td className="p-4 font-mono text-gray-500 text-xs font-bold">{exp.date}</td>
                                         <td className="p-4 font-bold text-jilco-900">

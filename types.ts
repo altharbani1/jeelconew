@@ -425,6 +425,33 @@ export interface Commission {
   notes?: string;
 }
 
+export interface PayrollRecord {
+  id: string;
+  employeeId: string;
+  employeeName: string;
+  month: string; // Format: YYYY-MM
+  basicSalary: number;
+  commissions: number;
+  deductions: number;
+  bonuses: number;
+  netSalary: number;
+  status: 'pending' | 'approved' | 'paid';
+  notes?: string;
+}
+
+export interface EmployeePayment {
+  id: string;
+  employeeId: string;
+  employeeName: string;
+  date: string;
+  amount: number;
+  paymentMethod: 'cash' | 'transfer' | 'check';
+  referenceNumber?: string;
+  description: string; // e.g., 'راتب شهر مارس 2024' or 'سلفة'
+  payrollId?: string; // Link to specific payroll record if applicable
+  status: 'completed'; // Used for the HR side
+}
+
 // --- DOCUMENTS SYSTEM TYPES ---
 export type DocumentCategory = 'gov' | 'contract' | 'employee' | 'project' | 'other';
 
