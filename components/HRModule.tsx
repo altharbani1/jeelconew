@@ -582,9 +582,12 @@ export const HRModule: React.FC = () => {
                                             </div>
                                         </div>
                                     )}
-                                    <div className="p-3 bg-gray-50 border-t border-gray-100 flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity mt-auto">
-                                        <button title="تعديل الموظف" onClick={() => { setCurrentEmployee(emp); setShowEmployeeForm(true); }} className="p-2 text-blue-600 hover:bg-blue-100 rounded-lg"><Edit size={16} /></button>
-                                        <button title="حذف الموظف" onClick={async () => await deleteHRRecord('jilco_hr_employees', emp.id)} className="p-2 text-red-600 hover:bg-red-100 rounded-lg"><Trash2 size={16} /></button>
+                                    <div className="p-4 bg-gray-50 border-t border-gray-100 flex justify-between items-center mt-auto">
+                                        <button title="كشف حساب موظف" onClick={() => setViewStatementEmployeeId(emp.id)} className="px-3 py-1.5 text-jilco-700 bg-jilco-50 hover:bg-jilco-100 border border-jilco-200 rounded-lg flex items-center justify-center gap-2 font-bold text-xs"><FileSpreadsheet size={16} /> كشف الحساب</button>
+                                        <div className="flex gap-1">
+                                            <button title="تعديل الموظف" onClick={() => { setCurrentEmployee(emp); setShowEmployeeForm(true); }} className="p-1.5 text-blue-600 hover:bg-blue-100 rounded-lg"><Edit size={16} /></button>
+                                            <button title="حذف الموظف" onClick={async () => await deleteHRRecord('jilco_hr_employees', emp.id)} className="p-1.5 text-red-600 hover:bg-red-100 rounded-lg"><Trash2 size={16} /></button>
+                                        </div>
                                     </div>
                                 </div>
                             ))}
