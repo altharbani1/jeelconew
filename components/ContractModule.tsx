@@ -463,8 +463,8 @@ export const ContractModule: React.FC = () => {
                             {/* Contract Number Badge - يسار أسفل الترويسة */}
                             <div className="px-10 py-1.5 bg-gray-50/60 border-b border-gray-100 flex justify-start shrink-0">
                                 <div className="flex items-center gap-2">
-                                    <span className="text-[8px] font-black text-jilco-600 uppercase tracking-widest">Contract No.</span>
-                                    <span className="font-mono font-black text-gold-600 text-[11px] bg-white border border-gold-300 px-2.5 py-0.5 rounded-md tracking-wide">{currentContract.number || '---'}</span>
+                                    <span className="text-[8px] font-black text-gray-800 uppercase tracking-widest">Contract No.</span>
+                                    <span className="font-mono font-black text-gray-900 text-[11px] bg-white border border-gray-300 px-2.5 py-0.5 rounded-md tracking-wide">{currentContract.number || '---'}</span>
                                 </div>
                             </div>
 
