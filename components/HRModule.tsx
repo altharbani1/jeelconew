@@ -49,7 +49,7 @@ export const HRModule: React.FC = () => {
 
     // Forms
     const [showEmployeeForm, setShowEmployeeForm] = useState(false);
-    const [currentEmployee, setCurrentEmployee] = useState<Partial<Employee>>({ custodyItems: [], status: 'active' });
+    const [currentEmployee, setCurrentEmployee] = useState<Partial<Employee>>({ role: 'technician', custodyItems: [], status: 'active' });
 
     const [showCommissionForm, setShowCommissionForm] = useState(false);
     const [currentCommission, setCurrentCommission] = useState<Partial<Commission>>({ status: 'pending', date: new Date().toISOString().split('T')[0] });
@@ -74,14 +74,18 @@ export const HRModule: React.FC = () => {
         const empData: Employee = {
             ...currentEmployee as Employee,
             id: currentEmployee.id || `E-${Date.now()}`,
+            role: currentEmployee.role || 'technician',
             status: currentEmployee.status || 'active',
+            basicSalary: currentEmployee.basicSalary || 0,
+            phone: currentEmployee.phone || '',
+            joinDate: currentEmployee.joinDate || new Date().toISOString().split('T')[0],
             custodyItems: currentEmployee.custodyItems || []
         };
 
         await saveHRRecord('jilco_hr_employees', empData.id, empData);
 
         setShowEmployeeForm(false);
-        setCurrentEmployee({ custodyItems: [], status: 'active' });
+        setCurrentEmployee({ role: 'technician', custodyItems: [], status: 'active' });
     };
 
     const handleSaveCommission = async () => {
@@ -280,7 +284,7 @@ export const HRModule: React.FC = () => {
                         </div>
                         <div className="flex gap-2">
                             {activeTab === 'employees' ? (
-                                <button onClick={() => { setCurrentEmployee({ custodyItems: [], status: 'active' }); setShowEmployeeForm(true); }} className="bg-jilco-900 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 hover:bg-jilco-800 shadow-md text-sm">
+                                <button onClick={() => { setCurrentEmployee({ role: 'technician', custodyItems: [], status: 'active' }); setShowEmployeeForm(true); }} className="bg-jilco-900 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 hover:bg-jilco-800 shadow-md text-sm">
                                     <UserPlus size={18} /> موظف جديد
                                 </button>
                             ) : (
