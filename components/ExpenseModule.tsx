@@ -452,9 +452,13 @@ export const ExpenseModule: React.FC = () => {
                                             ) : <span className="text-gray-300 text-xs">-</span>}
                                         </td>
                                         <td className="p-4 flex justify-center gap-2">
-                                            <button title="تعديل" onClick={() => handleEdit(exp)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-full"><Edit size={16} /></button>
-                                            <button title="طباعة" onClick={() => { handleEdit(exp); setTimeout(() => window.print(), 500); }} className="p-2 text-gray-600 hover:bg-gray-50 rounded-full"><Printer size={16} /></button>
-                                            <button title="حذف" onClick={() => handleDelete(exp.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-full"><Trash2 size={16} /></button>
+                                            {(!exp.id.startsWith('SP-') && !exp.id.startsWith('HR-')) && (
+                                              <>
+                                                <button title="تعديل" onClick={() => handleEdit(exp)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-full"><Edit size={16} /></button>
+                                                <button title="حذف" onClick={() => handleDelete(exp.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-full"><Trash2 size={16} /></button>
+                                              </>
+                                            )}
+                                            <button title="طباعة" onClick={() => { setCurrentExpense(exp); setViewMode('editor'); setTimeout(() => window.print(), 500); }} className="p-2 text-gray-600 hover:bg-gray-50 rounded-full"><Printer size={16} /></button>
                                         </td>
                                     </tr>
                                 ))}
