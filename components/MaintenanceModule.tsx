@@ -191,8 +191,8 @@ export const MaintenanceModule: React.FC = () => {
     );
 
     return (
-        <div className="flex-1 bg-gray-100 p-8 h-full overflow-auto">
-            <div className="max-w-7xl mx-auto space-y-6">
+        <div className="flex-1 bg-gray-100 p-8 h-full overflow-auto print:block print:bg-white print:p-0 print:overflow-visible print:absolute print:inset-0 print:z-50 print:h-auto">
+            <div className={`max-w-7xl mx-auto space-y-6 ${printingContract ? 'print:hidden' : ''}`}>
 
                 {/* Header */}
                 <div className="flex justify-between items-end mb-6">

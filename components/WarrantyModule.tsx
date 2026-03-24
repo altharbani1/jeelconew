@@ -204,7 +204,7 @@ export const WarrantyModule: React.FC = () => {
         <div className="flex flex-col lg:flex-row h-full w-full overflow-hidden animate-fade-in print:h-auto print:overflow-visible print:block">
 
             {/* Editor Sidebar */}
-            <div className="w-full lg:w-1/3 bg-white border-l border-gray-200 h-full overflow-y-auto p-6 no-print shadow-lg z-10 sidebar-container">
+            <div className="w-full lg:w-1/3 bg-white border-l border-gray-200 h-full overflow-y-auto p-6 print:hidden shadow-lg z-10 sidebar-container">
                 <div className="flex justify-between items-center mb-6 border-b border-gray-100 pb-4">
                     <h2 className="text-xl font-bold text-jilco-900 flex items-center gap-2">
                         <ShieldCheck className="text-gold-500" /> محرر الشهادة
