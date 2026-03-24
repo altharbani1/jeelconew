@@ -272,7 +272,17 @@ export const CustomerModule: React.FC = () => {
               <h1 className="text-2xl font-bold text-jilco-900 flex items-center gap-2"><Users className="text-gold-500" /> إدارة العملاء</h1>
               <p className="text-gray-500 text-sm mt-1">قاعدة بيانات العملاء ومتابعة الحالات</p>
             </div>
-            <button onClick={handleCreateNew} className="bg-jilco-600 text-white px-6 py-2.5 rounded-lg font-bold flex items-center gap-2 hover:bg-jilco-700 shadow-md"><Plus size={20} /> عميل جديد</button>
+            <div className="flex items-center gap-3">
+              <button onClick={async () => {
+                if(window.confirm('هل أنت متأكد من نقل العملاء من قاعدة البيانات القديمة للجديدة؟ لن تفقد أي بيانات.')) {
+                  import('../services/cloudService').then(async m => {
+                    const count = await m.cloudService.migrateLegacyCustomers();
+                    alert(`✅ تم ترحيل ${count} ملف عميل بنجاح للجدول الجديد! يرجى تحديث الصفحة.`);
+                  });
+                }
+              }} className="bg-orange-500 text-white px-4 py-2.5 rounded-lg font-bold flex items-center gap-2 hover:bg-orange-600 shadow-sm text-sm"><CheckCircle2 size={16} /> ترحيل البيانات للجدول الجديد</button>
+              <button onClick={handleCreateNew} className="bg-jilco-600 text-white px-6 py-2.5 rounded-lg font-bold flex items-center gap-2 hover:bg-jilco-700 shadow-md"><Plus size={20} /> عميل جديد</button>
+            </div>
           </div>
 
           <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">

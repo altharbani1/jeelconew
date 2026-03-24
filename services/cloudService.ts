@@ -178,6 +178,39 @@ export const cloudService = {
 
   // 9. الاستماع للتغييرات الحية على مجموعة معينة (Subscribe)
   subscribeToCollection(collection: string, onUpdate: (payload: any) => void) {
+    if (collection === 'jilco_customers') {
+      const channel = supabase.channel(`realtime_customers`)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'customers' }, (payload: any) => {
+           let mappedPayload: any = { eventType: payload.eventType };
+           if (payload.new && payload.new.legacy_id) {
+               mappedPayload.new = {
+                   record_id: payload.new.legacy_id,
+                   data: {
+                       id: payload.new.legacy_id,
+                       fullName: payload.new.full_name,
+                       phone: payload.new.phone,
+                       email: payload.new.email,
+                       address: payload.new.address,
+                       type: payload.new.type,
+                       status: payload.new.status,
+                       vatNumber: payload.new.vat_number,
+                       nationalId: payload.new.national_id,
+                       lastContactDate: payload.new.last_contact_date,
+                       notes: payload.new.notes,
+                       createdAt: payload.new.created_at
+                   }
+               };
+           }
+           if (payload.old) {
+               // Fallback: If legacy_id is not in old payload, we might need to handle it or guess from cache, but usually Realtime provides it if REPLICA IDENTITY is set.
+               mappedPayload.old = { record_id: payload.old.legacy_id || payload.old.id };
+           }
+           onUpdate(mappedPayload);
+        })
+        .subscribe();
+      return () => { supabase.removeChannel(channel); };
+    }
+
     const channel = supabase.channel(`realtime_${collection}`)
       .on(
         'postgres_changes',
@@ -194,6 +227,28 @@ export const cloudService = {
   // 10. تحميل مجموعة كاملة (مثل: جميع عروض الأسعار)
   async loadCollection(collection: string) {
     try {
+      if (collection === 'jilco_customers') {
+        const { data, error } = await supabase.from('customers').select('*');
+        if (error) throw error;
+        return (data || []).map((row: any) => ({
+          record_id: row.legacy_id || row.id,
+          data: {
+            id: row.legacy_id || row.id,
+            fullName: row.full_name,
+            phone: row.phone,
+            email: row.email,
+            address: row.address,
+            type: row.type,
+            status: row.status,
+            vatNumber: row.vat_number,
+            nationalId: row.national_id,
+            lastContactDate: row.last_contact_date,
+            notes: row.notes,
+            createdAt: row.created_at
+          }
+        }));
+      }
+
       const { data, error } = await supabase
         .from('jilco_realtime_data')
         .select('record_id, data')
@@ -210,6 +265,25 @@ export const cloudService = {
   // 11. إضافة أو تحديث سجل واحد فقط (Upsert Record)
   async saveRecord(collection: string, recordId: string, dataObj: any) {
     try {
+      if (collection === 'jilco_customers') {
+        const payload = {
+            legacy_id: dataObj.id,
+            full_name: dataObj.fullName,
+            phone: dataObj.phone,
+            email: dataObj.email,
+            address: dataObj.address,
+            type: dataObj.type || 'individual',
+            status: dataObj.status || 'new',
+            vat_number: dataObj.vatNumber,
+            national_id: dataObj.nationalId,
+            last_contact_date: dataObj.lastContactDate || null,
+            notes: dataObj.notes || []
+        };
+        const { error } = await supabase.from('customers').upsert(payload, { onConflict: 'legacy_id' });
+        if (error) throw error;
+        return true;
+      }
+
       const { error } = await supabase
         .from('jilco_realtime_data')
         .upsert(
@@ -236,6 +310,12 @@ export const cloudService = {
   // 12. حذف سجل
   async deleteRecord(collection: string, recordId: string) {
     try {
+      if (collection === 'jilco_customers') {
+         const { error } = await supabase.from('customers').delete().eq('legacy_id', recordId);
+         if (error) throw error;
+         return true;
+      }
+
       const { error } = await supabase
         .from('jilco_realtime_data')
         .delete()
@@ -248,5 +328,39 @@ export const cloudService = {
       console.error(`Failed to delete record ${recordId} in ${collection}:`, e);
       return false;
     }
+  },
+
+  // 13. Data Migration Tool for Customers
+  async migrateLegacyCustomers() {
+    try {
+      // 1. Load legacy records from JSON store
+      const { data, error } = await supabase
+        .from('jilco_realtime_data')
+        .select('record_id, data')
+        .eq('collection', 'jilco_customers');
+      
+      if (error || !data) return false;
+      
+      let migrated = 0;
+      for (const row of data) {
+         const cData = row.data;
+         const payload = {
+            legacy_id: cData.id || row.record_id,
+            full_name: cData.fullName || 'بدون اسم',
+            phone: cData.phone || '',
+            email: cData.email || '',
+            address: cData.address || '',
+            type: cData.type || 'individual',
+            status: cData.status || 'new',
+            vat_number: cData.vatNumber || '',
+            national_id: cData.nationalId || '',
+            last_contact_date: cData.lastContactDate || null,
+            notes: cData.notes || []
+         };
+         await supabase.from('customers').upsert(payload, { onConflict: 'legacy_id' });
+         migrated++;
+      }
+      return migrated;
+    } catch { return -1; }
   }
 };
