@@ -201,13 +201,30 @@ export const cloudService = {
                    }
                };
            }
-           if (payload.old) {
-               // Fallback: If legacy_id is not in old payload, we might need to handle it or guess from cache, but usually Realtime provides it if REPLICA IDENTITY is set.
-               mappedPayload.old = { record_id: payload.old.legacy_id || payload.old.id };
-           }
+           if (payload.old) mappedPayload.old = { record_id: payload.old.legacy_id || payload.old.id };
            onUpdate(mappedPayload);
         })
         .subscribe();
+      return () => { supabase.removeChannel(channel); };
+    }
+
+    if (collection === 'jilco_quotes_archive') {
+      // For now we only listen to main quotes table updates, mapping sub-tables would be complex for realtime
+      const channel = supabase.channel(`realtime_quotes`)
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'quotes' }, async (payload: any) => {
+            if (payload.eventType === 'DELETE' && payload.old) {
+                onUpdate({ eventType: 'DELETE', old: { record_id: payload.old.legacy_id || payload.old.id } });
+            } else if (payload.new && payload.new.legacy_id) {
+                // If a quote was created/updated, just trigger a reload or mapped event
+                // Full mapping requires fetching items and specs. Since Realtime doesn't do joins easily,
+                // We'll let `loadAll` handle the complex joins or do a manual fetch here.
+                const quoteAll = await cloudService.loadCollection('jilco_quotes_archive');
+                const fullQuoteData = quoteAll?.find((q:any) => q.record_id === payload.new.legacy_id);
+                if (fullQuoteData) {
+                    onUpdate({ eventType: payload.eventType, new: fullQuoteData });
+                }
+            }
+        }).subscribe();
       return () => { supabase.removeChannel(channel); };
     }
 
@@ -249,6 +266,54 @@ export const cloudService = {
         }));
       }
 
+      if (collection === 'jilco_quotes_archive') {
+         const { data: quotes, error: qErr } = await supabase.from('quotes').select('*, quote_items(*), quote_specs(*)');
+         if (qErr) throw qErr;
+         return (quotes || []).map((row: any) => ({
+             record_id: row.legacy_id || row.id,
+             data: {
+                 id: row.legacy_id || row.id,
+                 ...row, // Spread all primitive database fields out of laziness initially
+                 // Map quotes back
+                 number: row.number,
+                 date: row.date,
+                 customerName: row.customer_name,
+                 customerAddress: row.customer_address,
+                 projectName: row.project_name,
+                 validity: row.validity,
+                 taxRate: row.tax_rate,
+                 warrantyInstallation: row.warranty_installation,
+                 warrantyMotor: row.warranty_motor,
+                 paymentTerms: row.payment_terms || [],
+                 termsAndConditions: row.terms_and_conditions,
+                 features: row.features || [],
+                 handoverAndWarranty: row.handover_and_warranty,
+                 firstPartyObligations: row.first_party_obligations,
+                 secondPartyObligations: row.second_party_obligations,
+                 worksDuration: row.works_duration,
+                 showGallery: row.show_gallery,
+                 galleryImages: row.gallery_images || {},
+                 items: (row.quote_items || []).map((i:any) => ({
+                     id: i.legacy_id || i.id,
+                     description: i.description,
+                     details: i.details,
+                     quantity: Number(i.quantity),
+                     unitPrice: Number(i.unit_price),
+                     total: Number(i.total)
+                 })),
+                 techSpecs: row.quote_specs && row.quote_specs.length > 0 ? {
+                     ...row.quote_specs[0],
+                     elevatorType: row.quote_specs[0].elevator_type,
+                     driveType: row.quote_specs[0].drive_type,
+                     controlSystem: row.quote_specs[0].control_system,
+                     powerSupply: row.quote_specs[0].power_supply,
+                     externalDoors: row.quote_specs[0].external_doors,
+                     machineRoom: row.quote_specs[0].machine_room
+                 } : {}
+             }
+         }));
+      }
+
       const { data, error } = await supabase
         .from('jilco_realtime_data')
         .select('record_id, data')
@@ -284,6 +349,82 @@ export const cloudService = {
         return true;
       }
 
+      if (collection === 'jilco_quotes_archive') {
+         const qData = dataObj;
+         const quotePayload = {
+            legacy_id: qData.id,
+            number: qData.number,
+            date: qData.date,
+            customer_name: qData.customerName,
+            customer_address: qData.customerAddress,
+            project_name: qData.projectName,
+            validity: qData.validity,
+            tax_rate: qData.taxRate,
+            warranty_installation: qData.warrantyInstallation,
+            warranty_motor: qData.warrantyMotor,
+            payment_terms: qData.paymentTerms,
+            terms_and_conditions: qData.termsAndConditions,
+            features: qData.features,
+            handover_and_warranty: qData.handoverAndWarranty,
+            first_party_obligations: qData.firstPartyObligations,
+            second_party_obligations: qData.secondPartyObligations,
+            works_duration: qData.worksDuration,
+            show_gallery: qData.showGallery,
+            gallery_images: qData.galleryImages
+         };
+         
+         // 1. Upsert Quote
+         const { data: newQ, error: errQ } = await supabase.from('quotes').upsert(quotePayload, { onConflict: 'legacy_id' }).select('id').single();
+         if (errQ) throw errQ;
+         
+         const qId = newQ.id;
+
+         // 2. Delete existing items/specs (simplest upsert pattern for sub-tables)
+         await supabase.from('quote_items').delete().eq('quote_id', qId);
+         await supabase.from('quote_specs').delete().eq('quote_id', qId);
+
+         // 3. Insert Items
+         if (qData.items && qData.items.length > 0) {
+            const itemsPayload = qData.items.map((i:any) => ({
+                legacy_id: i.id || (Math.random().toString()),
+                quote_id: qId,
+                quote_legacy_id: qData.id,
+                description: i.description,
+                details: i.details,
+                quantity: i.quantity,
+                unit_price: i.unitPrice,
+                total: i.total
+            }));
+            await supabase.from('quote_items').insert(itemsPayload);
+         }
+
+         // 4. Insert Specs
+         if (qData.techSpecs) {
+            const specsPayload = {
+                quote_id: qId,
+                quote_legacy_id: qData.id,
+                elevator_type: qData.techSpecs.elevatorType,
+                capacity: qData.techSpecs.capacity,
+                speed: qData.techSpecs.speed,
+                stops: qData.techSpecs.stops,
+                drive_type: qData.techSpecs.driveType,
+                control_system: qData.techSpecs.controlSystem,
+                power_supply: qData.techSpecs.powerSupply,
+                cabin: qData.techSpecs.cabin,
+                doors: qData.techSpecs.doors,
+                external_doors: qData.techSpecs.externalDoors,
+                machine_room: qData.techSpecs.machineRoom,
+                rails: qData.techSpecs.rails,
+                ropes: qData.techSpecs.ropes,
+                safety: qData.techSpecs.safety,
+                emergency: qData.techSpecs.emergency
+            };
+            await supabase.from('quote_specs').insert(specsPayload);
+         }
+
+         return true;
+      }
+
       const { error } = await supabase
         .from('jilco_realtime_data')
         .upsert(
@@ -312,6 +453,13 @@ export const cloudService = {
     try {
       if (collection === 'jilco_customers') {
          const { error } = await supabase.from('customers').delete().eq('legacy_id', recordId);
+         if (error) throw error;
+         return true;
+      }
+
+      if (collection === 'jilco_quotes_archive') {
+         // Because of CASCADE ON DELETE in postgres, we just delete the master quote row
+         const { error } = await supabase.from('quotes').delete().eq('legacy_id', recordId);
          if (error) throw error;
          return true;
       }
@@ -362,5 +510,24 @@ export const cloudService = {
       }
       return migrated;
     } catch { return -1; }
+  },
+
+  // 14. Data Migration Tool for Quotes
+  async migrateLegacyQuotes() {
+      try {
+        const { data, error } = await supabase
+          .from('jilco_realtime_data')
+          .select('record_id, data')
+          .eq('collection', 'jilco_quotes_archive');
+        
+        if (error || !data) return false;
+
+        let migrated = 0;
+        for (const row of data) {
+           await this.saveRecord('jilco_quotes_archive', row.record_id, row.data);
+           migrated++;
+        }
+        return migrated;
+      } catch { return -1; }
   }
 };

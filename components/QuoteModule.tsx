@@ -207,9 +207,19 @@ export const QuoteModule: React.FC = () => {
                             <h1 className="text-2xl font-bold text-jilco-900">أرشيف عروض الأسعار</h1>
                             <p className="text-gray-500 text-sm">إدارة كافة عروض الأسعار الصادرة</p>
                         </div>
-                        <button onClick={handleCreateNew} className="bg-jilco-600 text-white px-6 py-2 rounded-lg font-bold flex items-center gap-2 hover:bg-jilco-700 shadow-md">
-                            <Plus size={20} /> عرض سعر جديد
-                        </button>
+                        <div className="flex items-center gap-3">
+                            <button onClick={async () => {
+                                if(window.confirm('هل أنت متأكد من ترحيل العروض من قاعدة البيانات القديمة للجديدة؟')) {
+                                    import('../services/cloudService').then(async m => {
+                                        const count = await m.cloudService.migrateLegacyQuotes();
+                                        alert(`✅ تم ترحيل ${count} عرض سعر بنجاح للجدول الجديد! يرجى تحديث الصفحة.`);
+                                    });
+                                }
+                            }} className="bg-orange-500 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 hover:bg-orange-600 shadow-sm text-sm">ترحيل البيانات للجدول الجديد</button>
+                            <button onClick={handleCreateNew} className="bg-jilco-600 text-white px-6 py-2 rounded-lg font-bold flex items-center gap-2 hover:bg-jilco-700 shadow-md">
+                                <Plus size={20} /> عرض سعر جديد
+                            </button>
+                        </div>
                     </div>
                     <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
                         <table className="w-full text-sm text-right">
