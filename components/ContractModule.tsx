@@ -471,26 +471,26 @@ export const ContractModule: React.FC = () => {
                             <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
                                 <h3 className="text-xs font-black text-jilco-900 mb-3 flex items-center gap-2"><DollarSign size={16} /> جدول الدفعات المالية</h3>
                                 <div className="space-y-2">
-                                    {currentContract.paymentTerms.map((term, idx) => (
+                                    {(currentContract.paymentTerms || []).map((term, idx) => (
                                         <div key={idx} className="flex gap-2 items-center bg-gray-50 p-2 rounded border border-gray-200">
                                             <input title="اسم الدفعة" placeholder="اسم الدفعة" type="text" value={term.name} onChange={e => {
-                                                const newTerms = [...currentContract.paymentTerms];
+                                                const newTerms = [...(currentContract.paymentTerms || [])];
                                                 newTerms[idx].name = e.target.value;
                                                 setCurrentContract({ ...currentContract, paymentTerms: newTerms });
                                             }} className="flex-1 p-1.5 text-xs border border-gray-400 rounded bg-white text-black font-bold" />
                                             <div className="relative w-16">
                                                 <input title="نسبة الدفعة" placeholder="نسبة" type="number" value={term.percentage} onChange={e => {
-                                                    const newTerms = [...currentContract.paymentTerms];
+                                                    const newTerms = [...(currentContract.paymentTerms || [])];
                                                     newTerms[idx].percentage = parseFloat(e.target.value) || 0;
                                                     setCurrentContract({ ...currentContract, paymentTerms: newTerms });
                                                 }} className="w-full p-1.5 text-xs border border-gray-400 rounded text-center bg-white text-black font-bold" />
                                                 <span className="absolute left-1 top-1.5 text-[9px] text-gray-400 pointer-events-none">%</span>
                                             </div>
-                                            <button title="حذف الدفعة" onClick={() => setCurrentContract({ ...currentContract, paymentTerms: currentContract.paymentTerms.filter((_, i) => i !== idx) })} className="text-red-300 hover:text-red-500"><X size={14} /></button>
+                                            <button title="حذف الدفعة" onClick={() => setCurrentContract({ ...currentContract, paymentTerms: (currentContract.paymentTerms || []).filter((_, i) => i !== idx) })} className="text-red-300 hover:text-red-500"><X size={14} /></button>
                                         </div>
                                     ))}
                                 </div>
-                                <button onClick={() => setCurrentContract({ ...currentContract, paymentTerms: [...currentContract.paymentTerms, { name: 'دفعة جديدة', percentage: 0 }] })} className="mt-4 w-full py-2 bg-gray-100 text-xs font-bold rounded border border-dashed border-gray-300">+ إضافة دفعة</button>
+                                <button onClick={() => setCurrentContract({ ...currentContract, paymentTerms: [...(currentContract.paymentTerms || []), { name: 'دفعة جديدة', percentage: 0 }] })} className="mt-4 w-full py-2 bg-gray-100 text-xs font-bold rounded border border-dashed border-gray-300">+ إضافة دفعة</button>
                             </div>
                         </div>
                     )}
@@ -590,7 +590,12 @@ export const ContractModule: React.FC = () => {
 
                                         <p className="font-bold border-r-4 border-gold-500 pr-3 bg-gray-50 p-2 mt-6">جدول الدفعات:</p>
                                         <div className="grid grid-cols-2 gap-4">
-                                            {currentContract.paymentTerms.map((t, i) => (
+                                            {(currentContract.paymentTerms || [
+                                                { name: 'الدفعة الأولى (توقيع العقد)', percentage: 40 },
+                                                { name: 'الدفعة الثانية (عند توريد السكك)', percentage: 30 },
+                                                { name: 'الدفعة الثالثة (عند توريد الماكينة)', percentage: 20 },
+                                                { name: 'الدفعة الرابعة (التسليم والتشغيل)', percentage: 10 }
+                                            ]).map((t, i) => (
                                                 <div key={i} className="flex justify-between items-center p-2 border border-gray-100 rounded">
                                                     <span className="text-[10px] text-gray-500">{t.name}</span>
                                                     <span className="font-bold">{t.percentage}% - {((currentContract.totalValue * t.percentage) / 100).toLocaleString()}</span>
