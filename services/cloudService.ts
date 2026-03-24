@@ -417,26 +417,28 @@ export const cloudService = {
 
       if (collection === 'jilco_quotes_archive') {
          const qData = dataObj;
+         const d = qData.details ? qData.details : qData; // Support wrapped or flat
+
          const quotePayload = {
-            legacy_id: qData.id,
-            number: qData.number,
-            date: qData.date,
-            customer_name: qData.customerName,
-            customer_address: qData.customerAddress,
-            project_name: qData.projectName,
-            validity: qData.validity,
-            tax_rate: qData.taxRate,
-            warranty_installation: qData.warrantyInstallation,
-            warranty_motor: qData.warrantyMotor,
-            payment_terms: qData.paymentTerms,
-            terms_and_conditions: qData.termsAndConditions,
-            features: qData.features,
-            handover_and_warranty: qData.handoverAndWarranty,
-            first_party_obligations: qData.firstPartyObligations,
-            second_party_obligations: qData.secondPartyObligations,
-            works_duration: qData.worksDuration,
-            show_gallery: qData.showGallery,
-            gallery_images: qData.galleryImages
+            legacy_id: qData.id || d.number,
+            number: d.number,
+            date: d.date,
+            customer_name: d.customerName,
+            customer_address: d.customerAddress,
+            project_name: d.projectName,
+            validity: d.validity,
+            tax_rate: d.taxRate,
+            warranty_installation: d.warrantyInstallation,
+            warranty_motor: d.warrantyMotor,
+            payment_terms: d.paymentTerms,
+            terms_and_conditions: d.termsAndConditions,
+            features: d.features,
+            handover_and_warranty: d.handoverAndWarranty,
+            first_party_obligations: d.firstPartyObligations,
+            second_party_obligations: d.secondPartyObligations,
+            works_duration: d.worksDuration,
+            show_gallery: d.showGallery,
+            gallery_images: d.galleryImages
          };
          
          // 1. Upsert Quote
