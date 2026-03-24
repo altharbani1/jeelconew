@@ -337,17 +337,21 @@ export const cloudService = {
       const phase3Collections: any = {
           'jilco_contracts_archive': {
               table: 'contracts',
-              mapFn: (row: any) => ({
-                 id: row.legacy_id || row.id,
-                 number: row.number, date: row.date, firstPartyName: row.first_party_name,
-                 secondPartyName: row.second_party_name, secondPartyId: row.second_party_id,
-                 location: row.location, totalValue: Number(row.total_value), elevatorType: row.elevator_type,
-                 stops: Number(row.stops), elevatorCount: Number(row.elevator_count),
-                 internalDoorsCount: Number(row.internal_doors_count), externalDoorsCount: Number(row.external_doors_count),
-                 accessControl: row.access_control, durationMonths: Number(row.duration_months),
-                 firstPartyObligations: row.first_party_obligations, secondPartyObligations: row.second_party_obligations,
-                 handoverAndWarranty: row.handover_and_warranty, worksDuration: row.works_duration
-              })
+              mapFn: (row: any) => {
+                 const contractData = {
+                     id: row.legacy_id || row.id,
+                     number: row.number, date: row.date, firstPartyName: row.first_party_name,
+                     secondPartyName: row.second_party_name, secondPartyId: row.second_party_id,
+                     location: row.location, totalValue: Number(row.total_value), elevatorType: row.elevator_type,
+                     stops: Number(row.stops), elevatorCount: Number(row.elevator_count),
+                     internalDoorsCount: Number(row.internal_doors_count), externalDoorsCount: Number(row.external_doors_count),
+                     accessControl: row.access_control, durationMonths: Number(row.duration_months),
+                     firstPartyObligations: row.first_party_obligations, secondPartyObligations: row.second_party_obligations,
+                     handoverAndWarranty: row.handover_and_warranty, worksDuration: row.works_duration
+                 };
+                 // Simulate old wrapping so frontend doesn't break
+                 return { id: contractData.id, data: contractData, specs: {} }; // Assuming specs might need to be joined later
+              }
           },
           'jilco_invoices_archive': {
               table: 'invoices',
@@ -490,32 +494,42 @@ export const cloudService = {
       const phase3Upserts: any = {
           'jilco_contracts_archive': {
               table: 'contracts',
-              mapFn: (d: any) => ({
-                 legacy_id: d.id, number: d.number, date: d.date, first_party_name: d.firstPartyName,
-                 second_party_name: d.secondPartyName, second_party_id: d.secondPartyId,
-                 location: d.location, total_value: d.totalValue, elevator_type: d.elevatorType,
-                 stops: d.stops, elevator_count: d.elevatorCount, internal_doors_count: d.internalDoorsCount,
-                 external_doors_count: d.externalDoorsCount, access_control: d.accessControl,
-                 duration_months: d.durationMonths, first_party_obligations: d.firstPartyObligations,
-                 second_party_obligations: d.secondPartyObligations, handover_and_warranty: d.handoverAndWarranty,
-                 works_duration: d.worksDuration
-              })
+              mapFn: (payloadRecord: any) => {
+                 // Check if it's wrapped in { data: {...} } or not
+                 const d = payloadRecord.data ? payloadRecord.data : payloadRecord;
+                 return {
+                     legacy_id: payloadRecord.id || d.number, number: d.number, date: d.date, first_party_name: d.firstPartyName,
+                     second_party_name: d.secondPartyName, second_party_id: d.secondPartyId,
+                     location: d.location, total_value: d.totalValue, elevator_type: d.elevatorType,
+                     stops: d.stops, elevator_count: d.elevatorCount, internal_doors_count: d.internalDoorsCount,
+                     external_doors_count: d.externalDoorsCount, access_control: d.accessControl,
+                     duration_months: d.durationMonths, first_party_obligations: d.firstPartyObligations,
+                     second_party_obligations: d.secondPartyObligations, handover_and_warranty: d.handoverAndWarranty,
+                     works_duration: d.worksDuration
+                 };
+              }
           },
           'jilco_invoices_archive': {
               table: 'invoices',
-              mapFn: (d: any) => ({
-                  legacy_id: d.id, number: d.number, date: d.date, due_date: d.dueDate,
-                  customer_name: d.customerName, customer_vat_number: d.customerVatNumber,
-                  items: d.items, status: d.status, discount_amount: d.discountAmount, is_tax_inclusive: d.isTaxInclusive
-              })
+              mapFn: (payloadRecord: any) => {
+                  const d = payloadRecord.data ? payloadRecord.data : payloadRecord;
+                  return {
+                      legacy_id: payloadRecord.id || d.number, number: d.number, date: d.date, due_date: d.dueDate,
+                      customer_name: d.customerName, customer_vat_number: d.customerVatNumber,
+                      items: d.items, status: d.status, discount_amount: d.discountAmount, is_tax_inclusive: d.isTaxInclusive
+                  };
+              }
           },
           'jilco_receipts_archive': {
               table: 'receipts',
-              mapFn: (d: any) => ({
-                  legacy_id: d.id, number: d.number, date: d.date, received_from: d.receivedFrom,
-                  amount: d.amount, amount_in_words: d.amountInWords, payment_method: d.paymentMethod,
-                  bank_name: d.bankName, check_number: d.checkNumber, for_reason: d.forReason, attachments: d.attachments
-              })
+              mapFn: (payloadRecord: any) => {
+                  const d = payloadRecord.data ? payloadRecord.data : payloadRecord;
+                  return {
+                      legacy_id: payloadRecord.id || d.number, number: d.number, date: d.date, received_from: d.receivedFrom,
+                      amount: d.amount, amount_in_words: d.amountInWords, payment_method: d.paymentMethod,
+                      bank_name: d.bankName, check_number: d.checkNumber, for_reason: d.forReason, attachments: d.attachments
+                  };
+              }
           }
       };
 
