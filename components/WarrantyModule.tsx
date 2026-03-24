@@ -204,215 +204,216 @@ export const WarrantyModule: React.FC = () => {
         <div className="flex flex-col lg:flex-row h-full w-full overflow-hidden animate-fade-in print:h-auto print:overflow-visible print:block">
 
             {/* Editor Sidebar */}
-            <div className="w-full lg:w-1/3 bg-white border-l border-gray-200 h-full overflow-y-auto p-6 print:hidden shadow-lg z-10 sidebar-container">
-                <div className="flex justify-between items-center mb-6 border-b border-gray-100 pb-4">
-                    <h2 className="text-xl font-bold text-jilco-900 flex items-center gap-2">
-                        <ShieldCheck className="text-gold-500" /> محرر الشهادة
+            <div className="w-full lg:w-72 bg-white border-l border-gray-200 h-full overflow-y-auto p-4 print:hidden shadow-lg z-10 sidebar-container shrink-0">
+                <div className="flex justify-between items-center mb-4 border-b border-gray-100 pb-3">
+                    <h2 className="text-base font-bold text-jilco-900 flex items-center gap-2">
+                        <ShieldCheck size={16} className="text-gold-500" /> محرر الشهادة
                     </h2>
-                    <button title="Close Editor" onClick={() => setViewMode('list')} className="p-2 hover:bg-gray-100 rounded-full text-gray-600"><ArrowLeft size={20} /></button>
+                    <button title="Close Editor" onClick={() => setViewMode('list')} className="p-1.5 hover:bg-gray-100 rounded-full text-gray-600"><ArrowLeft size={18} /></button>
                 </div>
 
-                <div className="space-y-6">
-                    {/* Actions */}
+                <div className="space-y-4">
                     <div className="grid grid-cols-2 gap-2">
-                        <button onClick={handleSave} className="bg-green-600 text-white py-2 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-green-700">
-                            <Save size={18} /> حفظ
+                        <button onClick={handleSave} className="bg-green-600 text-white py-2 rounded-lg font-bold flex items-center justify-center gap-1.5 hover:bg-green-700 text-sm">
+                            <Save size={15} /> حفظ
                         </button>
-                        <button onClick={() => window.print()} className="bg-jilco-900 text-white py-2 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-jilco-800">
-                            <Printer size={18} /> طباعة / PDF
+                        <button onClick={() => window.print()} className="bg-jilco-900 text-white py-2 rounded-lg font-bold flex items-center justify-center gap-1.5 hover:bg-jilco-800 text-sm">
+                            <Printer size={15} /> طباعة
                         </button>
                     </div>
 
-                    <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 space-y-3">
-                        <h3 className="font-bold text-sm text-jilco-800 border-b pb-2 mb-2 flex items-center gap-2"><User size={14} /> بيانات العميل</h3>
-
-                        <select
-                            title="Select Customer"
-                            onChange={handleCustomerSelect}
-                            className="w-full p-2 border rounded text-sm mb-2"
-                            defaultValue=""
-                        >
+                    <div className="space-y-2">
+                        <h3 className="font-bold text-xs text-jilco-800 flex items-center gap-1.5 uppercase tracking-wide"><User size={12} /> بيانات العميل</h3>
+                        <select title="Select Customer" onChange={handleCustomerSelect} className="w-full p-2 border rounded text-xs" defaultValue="">
                             <option value="" disabled>-- اختر عميل مسجل --</option>
                             {customers.map(c => <option key={c.id} value={c.id}>{c.fullName}</option>)}
                         </select>
-
-                        <input
-                            title="Customer Name"
-                            type="text" placeholder="اسم العميل" value={currentWarranty.customerName}
-                            onChange={e => setCurrentWarranty({ ...currentWarranty, customerName: e.target.value })}
-                            className="w-full p-2 border rounded text-sm"
-                        />
-                        <input
-                            title="Project Name"
-                            type="text" placeholder="اسم المشروع / المبنى" value={currentWarranty.projectName}
-                            onChange={e => setCurrentWarranty({ ...currentWarranty, projectName: e.target.value })}
-                            className="w-full p-2 border rounded text-sm"
-                        />
-                        <input
-                            title="Location"
-                            type="text" placeholder="الموقع" value={currentWarranty.location}
-                            onChange={e => setCurrentWarranty({ ...currentWarranty, location: e.target.value })}
-                            className="w-full p-2 border rounded text-sm"
-                        />
+                        <input title="Customer Name" type="text" placeholder="اسم العميل" value={currentWarranty.customerName} onChange={e => setCurrentWarranty({ ...currentWarranty, customerName: e.target.value })} className="w-full p-2 border rounded text-xs" />
+                        <input title="Project Name" type="text" placeholder="اسم المشروع / المبنى" value={currentWarranty.projectName} onChange={e => setCurrentWarranty({ ...currentWarranty, projectName: e.target.value })} className="w-full p-2 border rounded text-xs" />
+                        <input title="Location" type="text" placeholder="الموقع" value={currentWarranty.location} onChange={e => setCurrentWarranty({ ...currentWarranty, location: e.target.value })} className="w-full p-2 border rounded text-xs" />
                     </div>
 
-                    <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 space-y-3">
-                        <h3 className="font-bold text-sm text-jilco-800 border-b pb-2 mb-2 flex items-center gap-2"><Award size={14} /> تفاصيل المصعد</h3>
-
-                        <div className="grid grid-cols-2 gap-2">
-                            <input title="Elevator Type" type="text" placeholder="نوع المصعد" value={currentWarranty.elevatorType} onChange={e => setCurrentWarranty({ ...currentWarranty, elevatorType: e.target.value })} className="w-full p-2 border rounded text-sm" />
-                            <input title="Machine Number" type="text" placeholder="رقم الماكينة / التسلسلي" value={currentWarranty.machineNumber} onChange={e => setCurrentWarranty({ ...currentWarranty, machineNumber: e.target.value })} className="w-full p-2 border rounded text-sm" />
-                            <input title="Capacity" type="text" placeholder="الحمولة" value={currentWarranty.capacity} onChange={e => setCurrentWarranty({ ...currentWarranty, capacity: e.target.value })} className="w-full p-2 border rounded text-sm" />
-                            <input title="Stops" type="text" placeholder="عدد الوقفات" value={currentWarranty.stops} onChange={e => setCurrentWarranty({ ...currentWarranty, stops: e.target.value })} className="w-full p-2 border rounded text-sm" />
+                    <div className="space-y-2">
+                        <h3 className="font-bold text-xs text-jilco-800 flex items-center gap-1.5 uppercase tracking-wide"><Award size={12} /> تفاصيل المصعد</h3>
+                        <div className="grid grid-cols-2 gap-1.5">
+                            <input title="Elevator Type" type="text" placeholder="نوع المصعد" value={currentWarranty.elevatorType} onChange={e => setCurrentWarranty({ ...currentWarranty, elevatorType: e.target.value })} className="w-full p-2 border rounded text-xs" />
+                            <input title="Machine Number" type="text" placeholder="رقم الماكينة" value={currentWarranty.machineNumber} onChange={e => setCurrentWarranty({ ...currentWarranty, machineNumber: e.target.value })} className="w-full p-2 border rounded text-xs" />
+                            <input title="Capacity" type="text" placeholder="الحمولة" value={currentWarranty.capacity} onChange={e => setCurrentWarranty({ ...currentWarranty, capacity: e.target.value })} className="w-full p-2 border rounded text-xs" />
+                            <input title="Stops" type="text" placeholder="عدد الوقفات" value={currentWarranty.stops} onChange={e => setCurrentWarranty({ ...currentWarranty, stops: e.target.value })} className="w-full p-2 border rounded text-xs" />
                         </div>
                     </div>
 
-                    <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 space-y-3">
-                        <h3 className="font-bold text-sm text-jilco-800 border-b pb-2 mb-2 flex items-center gap-2"><Calendar size={14} /> فترة الضمان</h3>
-
-                        <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-2">
+                        <h3 className="font-bold text-xs text-jilco-800 flex items-center gap-1.5 uppercase tracking-wide"><Calendar size={12} /> فترة الضمان</h3>
+                        <div className="grid grid-cols-2 gap-1.5">
                             <div>
-                                <label className="text-xs text-gray-500">مدة الضمان (سنوات)</label>
-                                <select title="Warranty Period" value={currentWarranty.periodYears} onChange={handlePeriodChange} className="w-full p-2 border rounded text-sm mt-1">
+                                <label className="text-[10px] text-gray-500 block mb-0.5">المدة (سنوات)</label>
+                                <select title="Warranty Period" value={currentWarranty.periodYears} onChange={handlePeriodChange} className="w-full p-2 border rounded text-xs">
                                     {Array.from({ length: 10 }, (_, i) => i + 1).map(n => <option key={n} value={n}>{n} سنة</option>)}
                                 </select>
                             </div>
                             <div>
-                                <label className="text-xs text-gray-500">بداية الضمان</label>
-                                <input title="Warranty Start Date" placeholder="بداية الضمان" type="date" value={currentWarranty.warrantyStartDate} onChange={e => setCurrentWarranty({ ...currentWarranty, warrantyStartDate: e.target.value })} className="w-full p-2 border rounded text-sm mt-1" />
+                                <label className="text-[10px] text-gray-500 block mb-0.5">بداية الضمان</label>
+                                <input title="Start Date" type="date" value={currentWarranty.warrantyStartDate} onChange={e => setCurrentWarranty({ ...currentWarranty, warrantyStartDate: e.target.value })} className="w-full p-2 border rounded text-xs" />
                             </div>
                             <div className="col-span-2">
-                                <label className="text-xs text-gray-500">نهاية الضمان</label>
-                                <input title="Warranty End Date" placeholder="نهاية الضمان" type="date" value={currentWarranty.warrantyEndDate} onChange={e => setCurrentWarranty({ ...currentWarranty, warrantyEndDate: e.target.value })} className="w-full p-2 border rounded text-sm mt-1 bg-gray-100" />
+                                <label className="text-[10px] text-gray-500 block mb-0.5">نهاية الضمان</label>
+                                <input title="End Date" type="date" value={currentWarranty.warrantyEndDate} onChange={e => setCurrentWarranty({ ...currentWarranty, warrantyEndDate: e.target.value })} className="w-full p-2 border rounded text-xs bg-gray-50" />
                             </div>
                         </div>
                     </div>
 
                     <div>
-                        <label className="text-xs font-bold text-gray-700 block mb-1">الشروط والأحكام</label>
-                        <textarea title="Terms and Conditions" placeholder="الشروط والأحكام" value={currentWarranty.notes} onChange={e => setCurrentWarranty({ ...currentWarranty, notes: e.target.value })} className="w-full p-2 border rounded text-sm h-24 text-gray-600 text-xs leading-relaxed" />
+                        <label className="text-[10px] font-bold text-gray-700 block mb-1">الشروط والأحكام</label>
+                        <textarea title="Terms" value={currentWarranty.notes} onChange={e => setCurrentWarranty({ ...currentWarranty, notes: e.target.value })} className="w-full p-2 border rounded text-xs h-20 resize-none leading-relaxed" />
                     </div>
                 </div>
             </div>
 
-            {/* Certificate Preview */}
-            <div className="flex-1 bg-gray-200 p-8 overflow-auto flex justify-center items-start print:p-0 print:bg-white print:overflow-visible print:block">
-                <div className="bg-white shadow-2xl w-[210mm] min-h-[297mm] relative flex flex-col p-0 print:shadow-none print:w-full print:h-auto print:m-0">
+            {/* Certificate Preview - A4 sized */}
+            <div className="flex-1 bg-gray-300 overflow-auto flex justify-center items-start p-6 print:p-0 print:bg-white print:overflow-visible print:block print:flex-none">
+                {/* A4 container: 210mm × 297mm */}
+                <div
+                    dir="rtl"
+                    className="bg-white relative print:shadow-none"
+                    style={{
+                        width: '210mm',
+                        minHeight: '297mm',
+                        maxHeight: '297mm',
+                        overflow: 'hidden',
+                        boxShadow: '0 4px 32px rgba(0,0,0,0.18)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        padding: '10mm 12mm',
+                        boxSizing: 'border-box',
+                        position: 'relative'
+                    }}
+                >
+                    {/* Gold border frame */}
+                    <div style={{ position: 'absolute', inset: '5mm', border: '2.5px double #d97706', borderRadius: '2px', pointerEvents: 'none', zIndex: 20 }} />
+                    {/* Corner ornaments */}
+                    {[['top-[5mm]','right-[5mm]','border-t-2 border-r-2'],['top-[5mm]','left-[5mm]','border-t-2 border-l-2'],['bottom-[5mm]','right-[5mm]','border-b-2 border-r-2'],['bottom-[5mm]','left-[5mm]','border-b-2 border-l-2']].map(([t,l,b],i) => (
+                        <div key={i} className={`absolute ${t} ${l} ${b} border-gold-600 w-8 h-8`} style={{ zIndex: 21 }} />
+                    ))}
 
-                    {/* Decorative Border Layer */}
-                    <div className="absolute inset-4 border-4 border-double border-gold-500 pointer-events-none z-20 rounded-sm"></div>
-                    <div className="absolute inset-5 border border-gold-300 pointer-events-none z-20 rounded-sm opacity-50"></div>
-
-                    {/* Corner Ornaments (CSS Shapes) */}
-                    <div className="absolute top-4 left-4 w-16 h-16 border-t-4 border-l-4 border-gold-600 z-20"></div>
-                    <div className="absolute top-4 right-4 w-16 h-16 border-t-4 border-r-4 border-gold-600 z-20"></div>
-                    <div className="absolute bottom-4 left-4 w-16 h-16 border-b-4 border-l-4 border-gold-600 z-20"></div>
-                    <div className="absolute bottom-4 right-4 w-16 h-16 border-b-4 border-r-4 border-gold-600 z-20"></div>
-
-                    {/* Content Container */}
-                    <div className="flex-1 p-12 flex flex-col relative z-10">
-
-                        {/* Header */}
-                        <div className="text-center mb-12">
-                            {config.logo && <img src={config.logo} alt="Logo" className="h-28 mx-auto mb-4 object-contain" />}
-                            <h1 className="text-4xl font-black text-jilco-900 tracking-wider mb-2 font-serif">شهادة ضمان</h1>
-                            <p className="text-gold-600 text-lg font-serif uppercase tracking-[0.3em]">Warranty Certificate</p>
-                        </div>
-
-                        {/* Certificate Body */}
-                        <div className="text-center space-y-8 flex-1">
-
-                            <p className="text-gray-600 text-sm">
-                                رقم الشهادة: <span className="font-mono font-bold text-black">{currentWarranty.certificateNumber}</span>
-                            </p>
-
-                            <div className="text-lg leading-loose text-gray-800">
-                                تشهد شركة <span className="font-bold text-jilco-900 text-xl">{config.headerTitle}</span> بأن العميل:
-                                <br />
-                                <div className="text-2xl font-bold text-black my-2 border-b border-dotted border-gray-400 inline-block px-8 pb-1">
-                                    {currentWarranty.customerName || '...........................................'}
-                                </div>
-                                <br />
-                                يتمتع بضمان شامل للمصعد الذي تم تركيبه في المشروع:
-                                <br />
-                                <span className="font-bold text-jilco-800">{currentWarranty.projectName} - {currentWarranty.location}</span>
-                            </div>
-
-                            {/* Technical Details Grid */}
-                            <div className="mx-auto max-w-2xl bg-gray-50 border border-gray-200 rounded-lg p-6 mt-8 shadow-sm">
-                                <div className="grid grid-cols-2 gap-y-4 gap-x-8 text-right">
-                                    <div className="border-b border-gray-200 pb-2">
-                                        <span className="text-gray-500 text-xs block mb-1">نوع المصعد</span>
-                                        <span className="font-bold text-jilco-900">{currentWarranty.elevatorType}</span>
-                                    </div>
-                                    <div className="border-b border-gray-200 pb-2">
-                                        <span className="text-gray-500 text-xs block mb-1">رقم الماكينة / التسلسلي</span>
-                                        <span className="font-bold font-mono text-jilco-900">{currentWarranty.machineNumber || 'N/A'}</span>
-                                    </div>
-                                    <div className="border-b border-gray-200 pb-2">
-                                        <span className="text-gray-500 text-xs block mb-1">الحمولة</span>
-                                        <span className="font-bold text-jilco-900">{currentWarranty.capacity}</span>
-                                    </div>
-                                    <div className="border-b border-gray-200 pb-2">
-                                        <span className="text-gray-500 text-xs block mb-1">عدد الوقفات</span>
-                                        <span className="font-bold text-jilco-900">{currentWarranty.stops}</span>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Warranty Period */}
-                            <div className="my-8 py-4 bg-gold-50 border-y border-gold-200">
-                                <p className="text-gray-600 mb-2">فترة الضمان سارية لمدة <span className="font-bold text-black">{currentWarranty.periodYears} سنة</span></p>
-                                <div className="flex justify-center items-center gap-8 font-bold text-lg text-jilco-900">
-                                    <div>
-                                        <span className="text-xs text-gray-500 block font-normal">من تاريخ</span>
-                                        <span className="font-mono">{currentWarranty.warrantyStartDate}</span>
-                                    </div>
-                                    <div className="text-gray-400">←</div>
-                                    <div>
-                                        <span className="text-xs text-gray-500 block font-normal">إلى تاريخ</span>
-                                        <span className="font-mono">{currentWarranty.warrantyEndDate}</span>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Terms */}
-                            <div className="text-right text-xs text-gray-500 max-w-2xl mx-auto leading-relaxed">
-                                <p className="font-bold mb-1">الشروط والأحكام:</p>
-                                <p>{currentWarranty.notes}</p>
-                            </div>
-
-                        </div>
-
-                        {/* Footer / Signatures */}
-                        <div className="mt-16 flex justify-between items-end px-8">
-                            <div className="text-center">
-                                <p className="font-bold text-jilco-900 mb-8">إدارة الصيانة والضمان</p>
-                                <div className="w-40 border-b-2 border-gray-800"></div>
-                            </div>
-
-                            <div className="text-center relative">
-                                {config.stamp && (
-                                    <img src={config.stamp} alt="Stamp" className="w-32 opacity-90 rotate-[-5deg] mix-blend-multiply" />
-                                )}
-                                {!config.stamp && <div className="w-32 h-32 border-2 border-dashed border-gray-300 rounded-full flex items-center justify-center text-gray-400">الختم</div>}
-                            </div>
-
-                            <div className="text-center">
-                                <p className="font-bold text-jilco-900 mb-8">المدير العام</p>
-                                <div className="w-40 border-b-2 border-gray-800"></div>
+                    {/* ========== HEADER ========== */}
+                    <div className="flex items-center justify-between mb-3 pb-2 border-b-2 border-jilco-900">
+                        {/* Logo + company name */}
+                        <div className="flex items-center gap-3">
+                            {config.logo
+                                ? <img src={config.logo} alt="Logo" className="h-14 object-contain" />
+                                : <div className="w-14 h-14 bg-jilco-900 rounded-lg flex items-center justify-center text-white font-black text-2xl italic">J</div>
+                            }
+                            <div>
+                                <p className="font-black text-jilco-900 text-base leading-tight">{config.headerTitle}</p>
+                                <p className="text-gray-500 text-xs">{config.headerSubtitle || 'Jilco Elevators Co.'}</p>
+                                {config.contactPhone && <p className="text-gray-400 text-[10px]" dir="ltr">{config.contactPhone}</p>}
                             </div>
                         </div>
-
-                        {/* Watermark Big */}
-                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none opacity-[0.03] z-0 overflow-hidden">
-                            <ShieldCheck size={400} />
+                        {/* Certificate title */}
+                        <div className="text-center">
+                            <h1 className="text-2xl font-black text-jilco-900 tracking-wide">شهادة ضمان</h1>
+                            <p className="text-gold-600 text-xs font-bold uppercase tracking-widest">Warranty Certificate</p>
+                            <p className="text-gray-400 text-[10px] mt-0.5 font-mono">رقم: {currentWarranty.certificateNumber}</p>
+                            <p className="text-gray-400 text-[10px] font-mono">{currentWarranty.date}</p>
                         </div>
-
                     </div>
 
-                    {/* Footer Info */}
-                    <div className="bg-jilco-900 text-white text-center py-2 text-xs relative z-30">
+                    {/* ========== INTRO TEXT ========== */}
+                    <div className="bg-jilco-50 border border-jilco-100 rounded-lg px-4 py-2.5 mb-3 text-center">
+                        <p className="text-gray-700 text-sm leading-relaxed">
+                            تشهد شركة <span className="font-black text-jilco-900">{config.headerTitle}</span> بأن العميل الكريم:
+                        </p>
+                        <p className="text-xl font-black text-jilco-900 mt-1 border-b border-dotted border-gray-400 inline-block px-6 pb-0.5">
+                            {currentWarranty.customerName || '..........................................'}
+                        </p>
+                        <p className="text-gray-600 text-xs mt-1.5">
+                            يتمتع بضمان شامل للمصعد المُركَّب في:{' '}
+                            <span className="font-bold text-jilco-800">{currentWarranty.projectName}{currentWarranty.location ? ` - ${currentWarranty.location}` : ''}</span>
+                        </p>
+                    </div>
+
+                    {/* ========== TECHNICAL DETAILS ========== */}
+                    <div className="mb-3">
+                        <div className="flex items-center gap-2 mb-1.5">
+                            <div className="h-0.5 flex-1 bg-gold-400" />
+                            <span className="text-[10px] font-black text-gold-600 uppercase tracking-widest">بيانات المصعد الفنية</span>
+                            <div className="h-0.5 flex-1 bg-gold-400" />
+                        </div>
+                        <div className="grid grid-cols-4 gap-2">
+                            {[
+                                { label: 'نوع المصعد', value: currentWarranty.elevatorType },
+                                { label: 'رقم الماكينة', value: currentWarranty.machineNumber || 'N/A' },
+                                { label: 'الحمولة', value: currentWarranty.capacity },
+                                { label: 'عدد الوقفات', value: currentWarranty.stops },
+                            ].map(({ label, value }) => (
+                                <div key={label} className="bg-gray-50 border border-gray-200 rounded p-2 text-center">
+                                    <p className="text-[9px] text-gray-500 mb-0.5">{label}</p>
+                                    <p className="font-black text-jilco-900 text-xs leading-tight">{value}</p>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* ========== WARRANTY PERIOD ========== */}
+                    <div className="bg-gold-50 border border-gold-200 rounded-lg px-4 py-2.5 mb-3">
+                        <div className="flex items-center gap-2 mb-1">
+                            <div className="h-0.5 flex-1 bg-gold-300" />
+                            <span className="text-[10px] font-black text-gold-700 uppercase tracking-widest">فترة الضمان</span>
+                            <div className="h-0.5 flex-1 bg-gold-300" />
+                        </div>
+                        <div className="flex justify-center items-center gap-6">
+                            <div className="text-center">
+                                <p className="text-[9px] text-gray-500 mb-0.5">البداية</p>
+                                <p className="font-black text-jilco-900 text-sm font-mono">{currentWarranty.warrantyStartDate}</p>
+                            </div>
+                            <div className="flex flex-col items-center gap-0.5">
+                                <div className="w-16 h-0.5 bg-gold-500" />
+                                <p className="text-[10px] font-black text-gold-700 bg-white px-2 border border-gold-300 rounded-full">
+                                    {currentWarranty.periodYears} سنة
+                                </p>
+                                <div className="w-16 h-0.5 bg-gold-500" />
+                            </div>
+                            <div className="text-center">
+                                <p className="text-[9px] text-gray-500 mb-0.5">النهاية</p>
+                                <p className="font-black text-jilco-900 text-sm font-mono">{currentWarranty.warrantyEndDate}</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* ========== TERMS ========== */}
+                    <div className="mb-3 flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                            <div className="h-0.5 flex-1 bg-gray-300" />
+                            <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">الشروط والأحكام</span>
+                            <div className="h-0.5 flex-1 bg-gray-300" />
+                        </div>
+                        <p className="text-[10px] text-gray-600 leading-relaxed text-justify">{currentWarranty.notes}</p>
+                    </div>
+
+                    {/* ========== SIGNATURES ========== */}
+                    <div className="grid grid-cols-3 gap-4 mt-auto pt-3 border-t border-gray-200">
+                        <div className="text-center">
+                            <div className="h-10 flex items-end justify-center mb-1"></div>
+                            <div className="border-b-2 border-gray-700 w-32 mx-auto" />
+                            <p className="text-[10px] font-bold text-gray-600 mt-1">إدارة الصيانة والضمان</p>
+                        </div>
+                        <div className="text-center flex flex-col items-center">
+                            {config.stamp
+                                ? <img src={config.stamp} alt="Stamp" className="h-14 object-contain opacity-90 rotate-[-4deg] mix-blend-multiply" />
+                                : <div className="w-14 h-14 border-2 border-dashed border-gray-300 rounded-full flex items-center justify-center text-gray-400 text-[9px]">الختم</div>
+                            }
+                        </div>
+                        <div className="text-center">
+                            <div className="h-10 flex items-end justify-center mb-1"></div>
+                            <div className="border-b-2 border-gray-700 w-32 mx-auto" />
+                            <p className="text-[10px] font-bold text-gray-600 mt-1">المدير العام</p>
+                        </div>
+                    </div>
+
+                    {/* ========== FOOTER ========== */}
+                    <div className="mt-2 bg-jilco-900 text-white text-center py-1.5 text-[10px] mx-[-12mm] mb-[-10mm] px-4 flex justify-between">
+                        <span>www.jilco.com.sa</span>
                         <span dir="ltr">{config.contactPhone} | {config.contactEmail}</span>
                     </div>
                 </div>
@@ -420,3 +421,5 @@ export const WarrantyModule: React.FC = () => {
         </div>
     );
 };
+
+
