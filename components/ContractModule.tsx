@@ -263,9 +263,19 @@ export const ContractModule: React.FC = () => {
                             </h1>
                             <p className="text-gray-500 text-sm mt-1">إدارة ومتابعة عقود التوريد والتركيب</p>
                         </div>
-                        <button onClick={handleCreateNew} className="bg-jilco-600 text-white px-6 py-2.5 rounded-lg font-bold flex items-center gap-2 hover:bg-jilco-700 shadow-md">
-                            <Plus size={20} /> عقد جديد
-                        </button>
+                        <div className="flex items-center gap-3">
+                            <button onClick={async () => {
+                                if(window.confirm('هل أنت متأكد من ترحيل العقود من قاعدة البيانات القديمة للجديدة؟')) {
+                                    import('../services/cloudService').then(async m => {
+                                        const count = await m.cloudService.migrateLegacyContracts();
+                                        alert(`✅ تم ترحيل ${count} عقد بنجاح للجدول الجديد! يرجى تحديث الصفحة.`);
+                                    });
+                                }
+                            }} className="bg-orange-500 text-white px-4 py-2.5 rounded-lg font-bold flex items-center gap-2 hover:bg-orange-600 shadow-sm text-sm">ترحيل البيانات للجدول الجديد</button>
+                            <button onClick={handleCreateNew} className="bg-jilco-600 text-white px-6 py-2.5 rounded-lg font-bold flex items-center gap-2 hover:bg-jilco-700 shadow-md">
+                                <Plus size={20} /> عقد جديد
+                            </button>
+                        </div>
                     </div>
 
                     <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">

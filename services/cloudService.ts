@@ -228,6 +228,26 @@ export const cloudService = {
       return () => { supabase.removeChannel(channel); };
     }
 
+    if (collection === 'jilco_contracts_archive' || collection === 'jilco_invoices_archive' || collection === 'jilco_receipts_archive') {
+        const tableMap: any = {
+            'jilco_contracts_archive': 'contracts',
+            'jilco_invoices_archive': 'invoices',
+            'jilco_receipts_archive': 'receipts'
+        };
+        const tableName = tableMap[collection];
+        const channel = supabase.channel(`realtime_${tableName}`)
+            .on('postgres_changes', { event: '*', schema: 'public', table: tableName }, async (payload: any) => {
+                if (payload.eventType === 'DELETE' && payload.old) {
+                    onUpdate({ eventType: 'DELETE', old: { record_id: payload.old.legacy_id || payload.old.id } });
+                } else if (payload.new && payload.new.legacy_id) {
+                    const allData = await cloudService.loadCollection(collection);
+                    const record = allData?.find((q:any) => q.record_id === payload.new.legacy_id);
+                    if (record) onUpdate({ eventType: payload.eventType, new: record });
+                }
+            }).subscribe();
+        return () => { supabase.removeChannel(channel); };
+    }
+
     const channel = supabase.channel(`realtime_${collection}`)
       .on(
         'postgres_changes',
@@ -312,6 +332,48 @@ export const cloudService = {
                  } : {}
              }
          }));
+      }
+
+      const phase3Collections: any = {
+          'jilco_contracts_archive': {
+              table: 'contracts',
+              mapFn: (row: any) => ({
+                 id: row.legacy_id || row.id,
+                 number: row.number, date: row.date, firstPartyName: row.first_party_name,
+                 secondPartyName: row.second_party_name, secondPartyId: row.second_party_id,
+                 location: row.location, totalValue: Number(row.total_value), elevatorType: row.elevator_type,
+                 stops: Number(row.stops), elevatorCount: Number(row.elevator_count),
+                 internalDoorsCount: Number(row.internal_doors_count), externalDoorsCount: Number(row.external_doors_count),
+                 accessControl: row.access_control, durationMonths: Number(row.duration_months),
+                 firstPartyObligations: row.first_party_obligations, secondPartyObligations: row.second_party_obligations,
+                 handoverAndWarranty: row.handover_and_warranty, worksDuration: row.works_duration
+              })
+          },
+          'jilco_invoices_archive': {
+              table: 'invoices',
+              mapFn: (row: any) => ({
+                  id: row.legacy_id || row.id, number: row.number, date: row.date, dueDate: row.due_date,
+                  customerName: row.customer_name, customerVatNumber: row.customer_vat_number,
+                  items: row.items || [], status: row.status, discountAmount: Number(row.discount_amount),
+                  isTaxInclusive: row.is_tax_inclusive
+              })
+          },
+          'jilco_receipts_archive': {
+              table: 'receipts',
+              mapFn: (row: any) => ({
+                  id: row.legacy_id || row.id, number: row.number, date: row.date, receivedFrom: row.received_from,
+                  amount: Number(row.amount), amountInWords: row.amount_in_words, paymentMethod: row.payment_method,
+                  bankName: row.bank_name, checkNumber: row.check_number, forReason: row.for_reason,
+                  attachments: row.attachments || []
+              })
+          }
+      };
+
+      if (phase3Collections[collection]) {
+          const cfg = phase3Collections[collection];
+          const { data, error } = await supabase.from(cfg.table).select('*');
+          if (error) throw error;
+          return (data || []).map((row: any) => ({ record_id: row.legacy_id || row.id, data: cfg.mapFn(row) }));
       }
 
       const { data, error } = await supabase
@@ -425,6 +487,46 @@ export const cloudService = {
          return true;
       }
 
+      const phase3Upserts: any = {
+          'jilco_contracts_archive': {
+              table: 'contracts',
+              mapFn: (d: any) => ({
+                 legacy_id: d.id, number: d.number, date: d.date, first_party_name: d.firstPartyName,
+                 second_party_name: d.secondPartyName, second_party_id: d.secondPartyId,
+                 location: d.location, total_value: d.totalValue, elevator_type: d.elevatorType,
+                 stops: d.stops, elevator_count: d.elevatorCount, internal_doors_count: d.internalDoorsCount,
+                 external_doors_count: d.externalDoorsCount, access_control: d.accessControl,
+                 duration_months: d.durationMonths, first_party_obligations: d.firstPartyObligations,
+                 second_party_obligations: d.secondPartyObligations, handover_and_warranty: d.handoverAndWarranty,
+                 works_duration: d.worksDuration
+              })
+          },
+          'jilco_invoices_archive': {
+              table: 'invoices',
+              mapFn: (d: any) => ({
+                  legacy_id: d.id, number: d.number, date: d.date, due_date: d.dueDate,
+                  customer_name: d.customerName, customer_vat_number: d.customerVatNumber,
+                  items: d.items, status: d.status, discount_amount: d.discountAmount, is_tax_inclusive: d.isTaxInclusive
+              })
+          },
+          'jilco_receipts_archive': {
+              table: 'receipts',
+              mapFn: (d: any) => ({
+                  legacy_id: d.id, number: d.number, date: d.date, received_from: d.receivedFrom,
+                  amount: d.amount, amount_in_words: d.amountInWords, payment_method: d.paymentMethod,
+                  bank_name: d.bankName, check_number: d.checkNumber, for_reason: d.forReason, attachments: d.attachments
+              })
+          }
+      };
+
+      if (phase3Upserts[collection]) {
+          const cfg = phase3Upserts[collection];
+          const payload = cfg.mapFn(dataObj);
+          const { error } = await supabase.from(cfg.table).upsert(payload, { onConflict: 'legacy_id' });
+          if (error) throw error;
+          return true;
+      }
+
       const { error } = await supabase
         .from('jilco_realtime_data')
         .upsert(
@@ -527,6 +629,39 @@ export const cloudService = {
            await this.saveRecord('jilco_quotes_archive', row.record_id, row.data);
            migrated++;
         }
+        return migrated;
+      } catch { return -1; }
+  },
+
+  // 15. Data Migration Tool for Contracts
+  async migrateLegacyContracts() {
+      try {
+        const { data, error } = await supabase.from('jilco_realtime_data').select('record_id, data').eq('collection', 'jilco_contracts_archive');
+        if (error || !data) return false;
+        let migrated = 0;
+        for (const row of data) { await this.saveRecord('jilco_contracts_archive', row.record_id, row.data); migrated++; }
+        return migrated;
+      } catch { return -1; }
+  },
+
+  // 16. Data Migration Tool for Invoices
+  async migrateLegacyInvoices() {
+      try {
+        const { data, error } = await supabase.from('jilco_realtime_data').select('record_id, data').eq('collection', 'jilco_invoices_archive');
+        if (error || !data) return false;
+        let migrated = 0;
+        for (const row of data) { await this.saveRecord('jilco_invoices_archive', row.record_id, row.data); migrated++; }
+        return migrated;
+      } catch { return -1; }
+  },
+
+  // 17. Data Migration Tool for Receipts
+  async migrateLegacyReceipts() {
+      try {
+        const { data, error } = await supabase.from('jilco_realtime_data').select('record_id, data').eq('collection', 'jilco_receipts_archive');
+        if (error || !data) return false;
+        let migrated = 0;
+        for (const row of data) { await this.saveRecord('jilco_receipts_archive', row.record_id, row.data); migrated++; }
         return migrated;
       } catch { return -1; }
   }
