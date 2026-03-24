@@ -47,6 +47,35 @@ const ACCESS_CONTROL_OPTIONS = [
     'بطاقة ذكية + رمز سري (Card + PIN)',
 ];
 
+const DEFAULT_FIRST_PARTY = `توريد وتركيب وتشغيل المصاعد بحسب الموصفات الفنية المعتمدة وذلك بحسب المدة المتفق عليها.
+فتح الفتحات اللازمة لعلب الطلبات الخارجية.
+عمل الإختبارات المطلوبة بعد الانتهاء من التركيب والتشغيل للتأكد من سلامة المصاعد وتقديم شهادة بذلك.
+تقديم شهادة الضمان للمصاعد بعد تشغيل المصاعد وإستلام الدفعة الأخيرة.
+توفير طرف ثالث لفحص المصاعد بعد الإنتهاء من التركيب والتشغيل عند الطلب.`;
+
+const DEFAULT_SECOND_PARTY = `تجهيز البئر بالكامل قبل البدء في التركيب بأسبوع على الأقل.
+تركيب كابل ١٦ مم و قاطع ٦٠ أمبير بالدور الأخير للمصعد.
+تحديد المنسوب النهائي للبلاط قبل تركيب الأبواب.
+جميع أعمال التكسيير والتشطيب والتلييس والتقفيل على الأبواب وجوانبها وأعمال الجسور المعدنية داخل بئر المصعد.
+تأمين مكان جاف لحفظ المواد طوال فترة التركيب.
+تأمين السكن المناسب للفنيين ومهندس المشروع خلال فترة التركيب والتشغيل.`;
+
+const DEFAULT_HANDOVER = `1. تقوم المؤسسة بإخطار العميل بإنتهاء أعمال التركيب والتشغيل للمصعد وأنه جاهز للإستخدام ويتم تسليم المصعد للعميل عن طريق كتاب خطي للتوقيع من الطرفين.
+
+2. في حال عدم قيام العميل باستلام المصعد في مدة أقصاها ثلاثون يوماً (٣٠) يوم من تاريخ إخطار العميل سواء بالإتصال أو عن طريق رسالة واتس أب للجوال المدون في العقد حينها تعتبر المدة التي تليها من الصيانة المجانية ويعتبر المصعد قد سلم للعميل.
+
+3. تخلي المؤسسة مسؤوليتها عن أي أضرار ناتجة عن عدم تمكين فريق الصيانة من عمل الصيانة الدورية للمصعد أو أي أضرار تنتج للمصعد.
+
+4. مدة الضمان والصيانة المجانية (عامين) من تاريخ تسليم المصعد شاملاً قطع الغيار ضد عيوب الصنع بواقع زيارة كل شهرين.
+
+5. مدة ضمان الماكينة (حسب المدة المحددة في جدول فترات الضمان) ضد عيوب الصنع من تاريخ تسليم المصعد بشرط أن تتم الصيانة للمصعد عن طريق المؤسسة بعد إنتهاء الفترة المجانية بعقود منفصلة.
+
+6. عند عدم تجديد عقد الصيانة بمدة أقصاها ثلاثون يوماً (٣٠) يوم) من إنتهاء الفترة المجانية يسقط حق العميل في ضمان الماكينة ويتحمل العميل نفقات الإصلاح، يستمر الضمان عن طريق عقود سنوية يتفق عليها.
+
+7. لا تضمن المؤسسة الأضرار التي يسببها الغير بشكل مقصود أو في حال وصول الماء لأجزاء المصعد أو في حال استخدام مواد كيمائية في التنظيف.`;
+
+const DEFAULT_DURATION = '60 يوماً';
+
 // --- Helper Components for Preview ---
 const QuoteHeader: React.FC<{ config: CompanyConfig }> = ({ config }) => (
     <header className="px-10 py-6 border-b-2 border-jilco-100 flex justify-between items-center h-[160px] shrink-0">
@@ -109,7 +138,7 @@ export const ContractModule: React.FC = () => {
 
     const [viewMode, setViewMode] = useState<'list' | 'editor'>('list');
     const [searchTerm, setSearchTerm] = useState('');
-    const [activeTab, setActiveTab] = useState<'details' | 'specs' | 'payments'>('details');
+    const [activeTab, setActiveTab] = useState<'details' | 'specs' | 'payments' | 'legal'>('details');
     const [config, setConfig] = useState<CompanyConfig>(INITIAL_CONFIG);
 
     // Specs Database State (fallback to default if context is empty)
@@ -123,7 +152,11 @@ export const ContractModule: React.FC = () => {
             { name: 'الدفعة الثانية (عند توريد السكك)', percentage: 30 },
             { name: 'الدفعة الثالثة (عند توريد الماكينة)', percentage: 20 },
             { name: 'الدفعة الرابعة (التسليم والتشغيل)', percentage: 10 }
-        ]
+        ],
+        firstPartyObligations: DEFAULT_FIRST_PARTY,
+        secondPartyObligations: DEFAULT_SECOND_PARTY,
+        handoverAndWarranty: DEFAULT_HANDOVER,
+        worksDuration: DEFAULT_DURATION
     });
 
     const [currentSpecs, setCurrentSpecs] = useState<TechnicalSpecs>({
@@ -152,7 +185,11 @@ export const ContractModule: React.FC = () => {
                 { name: 'الدفعة الثانية (عند توريد السكك)', percentage: 30 },
                 { name: 'الدفعة الثالثة (عند توريد الماكينة)', percentage: 20 },
                 { name: 'الدفعة الرابعة (التسليم والتشغيل)', percentage: 10 }
-            ]
+            ],
+            firstPartyObligations: DEFAULT_FIRST_PARTY,
+            secondPartyObligations: DEFAULT_SECOND_PARTY,
+            handoverAndWarranty: DEFAULT_HANDOVER,
+            worksDuration: DEFAULT_DURATION
         });
         setCurrentSpecs({
             elevatorType: '', capacity: '', speed: '', stops: '', driveType: '', controlSystem: '', powerSupply: '', cabin: '', doors: '', externalDoors: '', machineRoom: '', rails: '', ropes: '', safety: '', emergency: ''
@@ -176,7 +213,11 @@ export const ContractModule: React.FC = () => {
                 location: details.projectName || quote.projectName || '',
                 totalValue: items.reduce((s: number, i: any) => s + (i.total || 0), 0) * 1.15, // Including tax
                 paymentTerms: details.paymentTerms || prev.paymentTerms,
-                elevatorCount: totalQty > 0 ? totalQty : 1 // Import count or default to 1
+                elevatorCount: totalQty > 0 ? totalQty : 1, // Import count or default to 1
+                firstPartyObligations: details.firstPartyObligations || prev.firstPartyObligations,
+                secondPartyObligations: details.secondPartyObligations || prev.secondPartyObligations,
+                handoverAndWarranty: details.handoverAndWarranty || prev.handoverAndWarranty,
+                worksDuration: details.worksDuration || prev.worksDuration
             }));
             setCurrentSpecs(qTechSpecs);
             alert('تم استيراد البيانات والمواصفات وعدد المصاعد بنجاح.');
@@ -314,10 +355,11 @@ export const ContractModule: React.FC = () => {
                     </select>
                 </div>
 
-                <div className="flex border-b border-gray-100 bg-gray-50 shrink-0">
-                    <button onClick={() => setActiveTab('details')} className={`flex-1 py-4 text-xs font-black transition-all ${activeTab === 'details' ? 'border-b-4 border-jilco-600 text-jilco-900 bg-white' : 'text-gray-400'}`}>البيانات الأساسية</button>
-                    <button onClick={() => setActiveTab('specs')} className={`flex-1 py-4 text-xs font-black transition-all ${activeTab === 'specs' ? 'border-b-4 border-jilco-600 text-jilco-900 bg-white' : 'text-gray-400'}`}>المواصفات الفنية</button>
-                    <button onClick={() => setActiveTab('payments')} className={`flex-1 py-4 text-xs font-black transition-all ${activeTab === 'payments' ? 'border-b-4 border-jilco-600 text-jilco-900 bg-white' : 'text-gray-400'}`}>الدفعات المالية</button>
+                <div className="flex border-b border-gray-100 bg-gray-50 shrink-0 overflow-x-auto">
+                    <button onClick={() => setActiveTab('details')} className={`flex-1 min-w-[100px] py-4 text-xs font-black transition-all ${activeTab === 'details' ? 'border-b-4 border-jilco-600 text-jilco-900 bg-white' : 'text-gray-400'}`}>البيانات الأساسية</button>
+                    <button onClick={() => setActiveTab('specs')} className={`flex-1 min-w-[100px] py-4 text-xs font-black transition-all ${activeTab === 'specs' ? 'border-b-4 border-jilco-600 text-jilco-900 bg-white' : 'text-gray-400'}`}>المواصفات الفنية</button>
+                    <button onClick={() => setActiveTab('payments')} className={`flex-1 min-w-[100px] py-4 text-xs font-black transition-all ${activeTab === 'payments' ? 'border-b-4 border-jilco-600 text-jilco-900 bg-white' : 'text-gray-400'}`}>الدفعات المالية</button>
+                    <button onClick={() => setActiveTab('legal')} className={`flex-1 min-w-[100px] py-4 text-xs font-black transition-all ${activeTab === 'legal' ? 'border-b-4 border-jilco-600 text-jilco-900 bg-white' : 'text-gray-400'}`}>البنود القانونية</button>
                 </div>
 
                 <div className="p-6 space-y-6 overflow-y-auto flex-1 bg-gray-50/30">
@@ -439,6 +481,51 @@ export const ContractModule: React.FC = () => {
                                     ))}
                                 </div>
                                 <button onClick={() => setCurrentContract({ ...currentContract, paymentTerms: [...currentContract.paymentTerms, { name: 'دفعة جديدة', percentage: 0 }] })} className="mt-4 w-full py-2 bg-gray-100 text-xs font-bold rounded border border-dashed border-gray-300">+ إضافة دفعة</button>
+                            </div>
+                        </div>
+                    )}
+
+                    {activeTab === 'legal' && (
+                        <div className="space-y-6 animate-fade-in">
+                            <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+                                <h3 className="text-sm font-black text-jilco-900 mb-4 border-b pb-2">التزامات الطرف الأول (المؤسسة)</h3>
+                                <textarea
+                                    title="التزامات الطرف الأول"
+                                    value={currentContract.firstPartyObligations}
+                                    onChange={e => setCurrentContract({ ...currentContract, firstPartyObligations: e.target.value })}
+                                    className="w-full h-32 p-3 text-xs border border-gray-300 rounded-lg outline-none bg-gray-50 text-black leading-relaxed"
+                                />
+                            </div>
+                            
+                            <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+                                <h3 className="text-sm font-black text-jilco-900 mb-4 border-b pb-2">التزامات الطرف الثاني (العميل)</h3>
+                                <textarea
+                                    title="التزامات الطرف الثاني"
+                                    value={currentContract.secondPartyObligations}
+                                    onChange={e => setCurrentContract({ ...currentContract, secondPartyObligations: e.target.value })}
+                                    className="w-full h-32 p-3 text-xs border border-gray-300 rounded-lg outline-none bg-gray-50 text-black leading-relaxed"
+                                />
+                            </div>
+
+                            <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+                                <h3 className="text-sm font-black text-jilco-900 mb-4 border-b pb-2">التسليم والضمان والصيانة</h3>
+                                <textarea
+                                    title="شروط التسليم والضمان"
+                                    value={currentContract.handoverAndWarranty}
+                                    onChange={e => setCurrentContract({ ...currentContract, handoverAndWarranty: e.target.value })}
+                                    className="w-full h-48 p-3 text-xs border border-gray-300 rounded-lg outline-none bg-gray-50 text-black leading-relaxed"
+                                />
+                            </div>
+                            
+                            <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+                                <h3 className="text-sm font-black text-jilco-900 mb-4 border-b pb-2">مدة الأعمال والتنفيذ</h3>
+                                <input
+                                    type="text"
+                                    title="مدة تنفيذ الأعمال"
+                                    value={currentContract.worksDuration}
+                                    onChange={e => setCurrentContract({ ...currentContract, worksDuration: e.target.value })}
+                                    className="w-full p-2.5 text-xs border border-gray-300 rounded-lg outline-none bg-gray-50 text-black font-bold"
+                                />
                             </div>
                         </div>
                     )}
@@ -568,6 +655,60 @@ export const ContractModule: React.FC = () => {
 
                                 <QuoteFooter config={config} />
                             </div>
+                        </div>
+                    </div>
+
+                    {/* PAGE 3: LEGAL ANNEX - USING a4-page CLASS */}
+                    <div className="a4-page bg-white shadow-2xl mb-10 print:mb-0 mx-auto flex flex-col relative">
+
+                        <div className="absolute inset-3 border-[6px] border-jilco-900 pointer-events-none z-0"></div>
+                        <div className="absolute inset-[18px] border border-gold-500 pointer-events-none z-0"></div>
+                        <div className="absolute inset-[24px] border border-gray-100 pointer-events-none z-0"></div>
+
+                        <div className="relative z-10 flex flex-col flex-1 m-[28px] bg-white">
+                            <QuoteHeader config={config} />
+
+                            <div className="px-10 py-6 flex-1 flex flex-col relative overflow-hidden">
+                                <div className="absolute inset-0 flex items-center justify-center opacity-[0.02] pointer-events-none z-0"><h1 className="text-[120px] font-bold rotate-[-15deg]">LEGAL ANNEX</h1></div>
+                                <div className="relative z-10">
+                                    <div className="flex items-center justify-between border-b-2 border-jilco-900 pb-4 mb-6">
+                                        <h3 className="text-xl font-black text-jilco-900 flex items-center gap-3 uppercase tracking-tighter">
+                                            <div className="w-10 h-10 bg-jilco-900 text-gold-500 flex items-center justify-center rounded-xl shadow-lg"><ShieldCheck size={20} /></div>
+                                            الملحق القانوني (الشروط والضمان)
+                                        </h3>
+                                        <span className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em]">Legal Terms</span>
+                                    </div>
+
+                                    <div className="space-y-6 text-xs leading-relaxed">
+                                        <div>
+                                            <h4 className="font-bold border-r-4 border-gold-500 pr-3 bg-gray-50 p-2 text-jilco-900">التزامات الطرف الأول (المقاول):</h4>
+                                            <div className="whitespace-pre-line pr-4 mt-2">{currentContract.firstPartyObligations}</div>
+                                        </div>
+
+                                        <div>
+                                            <h4 className="font-bold border-r-4 border-gold-500 pr-3 bg-gray-50 p-2 text-jilco-900">التزامات الطرف الثاني (العميل):</h4>
+                                            <div className="whitespace-pre-line pr-4 mt-2">{currentContract.secondPartyObligations}</div>
+                                        </div>
+
+                                        <div>
+                                            <h4 className="font-bold border-r-4 border-gold-500 pr-3 bg-gray-50 p-2 text-jilco-900">شروط التسليم والضمان والصيانة:</h4>
+                                            <div className="whitespace-pre-line pr-4 mt-2">{currentContract.handoverAndWarranty}</div>
+                                        </div>
+
+                                        <div className="mt-8 border-t border-gray-200 pt-6 grid grid-cols-2 gap-16">
+                                            <div className="text-center">
+                                                <p className="font-bold text-sm mb-12">توقيع الطرف الأول</p>
+                                                <div className="w-40 border-b-2 border-gray-300 mx-auto"></div>
+                                            </div>
+                                            <div className="text-center">
+                                                <p className="font-bold text-sm mb-12">توقيع الطرف الثاني</p>
+                                                <div className="w-40 border-b-2 border-gray-300 mx-auto"></div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <QuoteFooter config={config} />
                         </div>
                     </div>
                 </div>

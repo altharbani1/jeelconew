@@ -94,6 +94,7 @@ export const HRModule: React.FC = () => {
     // Payroll State
     const [payrollMonth, setPayrollMonth] = useState(new Date().toISOString().slice(0, 7)); // YYYY-MM
     const [generatedPayrolls, setGeneratedPayrolls] = useState<PayrollRecord[]>([]);
+    const [selectedEmployeeForPayroll, setSelectedEmployeeForPayroll] = useState<string>('all');
 
     // Employee Statement Modals
     const [viewStatementEmployeeId, setViewStatementEmployeeId] = useState<string | null>(null);
@@ -222,7 +223,17 @@ export const HRModule: React.FC = () => {
     // --- PAYROLL ACTIONS ---
     const handleGeneratePayroll = () => {
         // Find active employees and generate their payroll for the selected month
-        const activeEmployees = employees.filter(e => e.status === 'active');
+        let activeEmployees = employees.filter(e => e.status === 'active');
+        
+        if (selectedEmployeeForPayroll !== 'all') {
+            activeEmployees = activeEmployees.filter(e => e.id === selectedEmployeeForPayroll);
+        }
+
+        if (activeEmployees.length === 0) {
+            alert('لا يوجد موظفين لتوليد رواتبهم بناءً على التحديد.');
+            return;
+        }
+
         const newPayrolls: PayrollRecord[] = activeEmployees.map(emp => {
             // Find existing if already generated but not paid
             const existing = payrolls.find(p => p.employeeId === emp.id && p.month === payrollMonth);
@@ -984,6 +995,18 @@ export const HRModule: React.FC = () => {
                                         onChange={e => setPayrollMonth(e.target.value)}
                                         className="p-2 border border-gray-400 rounded-lg text-sm bg-white text-black font-bold outline-none h-[42px]" 
                                     />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-600 mb-1">الموظف (اختياري)</label>
+                                    <select
+                                        title="اختر الموظف"
+                                        value={selectedEmployeeForPayroll}
+                                        onChange={e => setSelectedEmployeeForPayroll(e.target.value)}
+                                        className="p-2 border border-gray-400 rounded-lg text-sm bg-white text-black font-bold outline-none h-[42px]"
+                                    >
+                                        <option value="all">الكل</option>
+                                        {employees.filter(e => e.status === 'active').map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+                                    </select>
                                 </div>
                                 <button 
                                     onClick={handleGeneratePayroll}
