@@ -68,7 +68,7 @@
       scrollbar-width: none;
     }
 
-    /* --- PROFESSIONAL PRINT ENGINE CSS v2.2 --- */
+    /* --- PROFESSIONAL PRINT ENGINE CSS v3.0 --- */
     @media print {
 
       /* 1. Global Reset */
@@ -79,6 +79,7 @@
         text-shadow: none !important;
       }
 
+      /* 2. Body & HTML - allow full expansion */
       body,
       html {
         background-color: #ffffff !important;
@@ -87,38 +88,50 @@
         margin: 0 !important;
         padding: 0 !important;
         overflow: visible !important;
-      }
-
-      /* 2. Hide UI Elements */
-      .no-print,
-      .sidebar-container,
-      nav,
-      button,
-      input[type="file"],
-      .hidden-print,
-      aside,
-      header.dashboard-header {
-        display: none !important;
+        visibility: visible !important;
       }
 
       /* 3. Page Geometry */
       @page {
         size: A4;
-        margin: 0;
+        margin: 10mm;
       }
 
-      /* 4. Content Visibility */
-      body {
-        visibility: hidden;
+      /* 4. Hide Navigation & UI Controls */
+      nav,
+      aside,
+      .no-print,
+      .sidebar-container,
+      header.dashboard-header,
+      input[type="file"],
+      .hidden-print {
+        display: none !important;
       }
 
+      /* Hide ALL buttons EXCEPT those inside the printable certificate area */
+      body > * button,
+      #root > * button {
+        display: none !important;
+      }
+
+      /* 5. Fix App Layout for print - remove height/overflow constraints */
+      #root,
+      #root > div,
+      #root > div > main {
+        display: block !important;
+        height: auto !important;
+        min-height: 0 !important;
+        max-height: none !important;
+        overflow: visible !important;
+        width: 100% !important;
+        position: static !important;
+      }
+
+      /* 6. Legacy #printable-area support */
       #printable-area {
         visibility: visible !important;
-        position: absolute;
-        top: 0;
-        left: 0;
+        position: static !important;
         width: 100% !important;
-        z-index: 9999;
         background-color: white;
       }
 
@@ -126,11 +139,9 @@
         visibility: visible !important;
       }
 
-      /* 5. The A4 Page Container - Strict Height Enforcement */
+      /* 7. The A4 Page Container */
       .a4-page {
         width: 210mm !important;
-        height: 296mm !important;
-        /* Strict height to prevent overflow */
         min-height: 296mm !important;
         position: relative !important;
         background: white !important;
@@ -138,35 +149,27 @@
         page-break-after: always !important;
         break-after: page !important;
         overflow: hidden !important;
-        /* Clip content to avoid spillover */
       }
 
-      /* Prevent extra blank page after the last sheet */
       .a4-page:last-child {
         page-break-after: auto !important;
         break-after: auto !important;
         margin-bottom: 0 !important;
       }
 
-      /* 6. Color Accuracy */
-      .a4-page,
-      .a4-page * {
+      /* 8. Color Accuracy */
+      * {
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
       }
 
-      /* 7. Typography & Layout Fixes */
-      h1,
-      h2,
-      h3,
-      h4,
-      h5,
-      h6 {
+      /* 9. Typography & Layout Fixes */
+      h1, h2, h3, h4, h5, h6 {
         break-after: avoid;
         page-break-after: avoid;
       }
 
-      /* 8. Table Optimizations */
+      /* 10. Table Optimizations */
       table {
         width: 100% !important;
         border-collapse: collapse !important;
@@ -176,7 +179,7 @@
         break-inside: avoid !important;
       }
 
-      /* 9. Link Cleanup */
+      /* 11. Link Cleanup */
       a {
         text-decoration: none !important;
         color: inherit !important;
