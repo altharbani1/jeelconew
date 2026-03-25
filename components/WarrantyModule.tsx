@@ -270,156 +270,257 @@ export const WarrantyModule: React.FC = () => {
                 </div>
             </div>
 
-            {/* Certificate Preview - A4 sized */}
-            <div className="flex-1 bg-gray-300 overflow-auto flex justify-center items-start p-6 print:p-0 print:bg-white print:overflow-visible print:block print:flex-none">
-                {/* A4 container: 210mm × 297mm */}
-                <div
-                    dir="rtl"
-                    className="bg-white relative print:shadow-none"
-                    style={{
-                        width: '210mm',
-                        minHeight: '297mm',
-                        maxHeight: '297mm',
-                        overflow: 'hidden',
-                        boxShadow: '0 4px 32px rgba(0,0,0,0.18)',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        padding: '10mm 12mm',
-                        boxSizing: 'border-box',
-                        position: 'relative'
-                    }}
-                >
-                    {/* Gold border frame */}
-                    <div style={{ position: 'absolute', inset: '5mm', border: '2.5px double #d97706', borderRadius: '2px', pointerEvents: 'none', zIndex: 20 }} />
-                    {/* Corner ornaments */}
-                    {[['top-[5mm]','right-[5mm]','border-t-2 border-r-2'],['top-[5mm]','left-[5mm]','border-t-2 border-l-2'],['bottom-[5mm]','right-[5mm]','border-b-2 border-r-2'],['bottom-[5mm]','left-[5mm]','border-b-2 border-l-2']].map(([t,l,b],i) => (
-                        <div key={i} className={`absolute ${t} ${l} ${b} border-gold-600 w-8 h-8`} style={{ zIndex: 21 }} />
-                    ))}
-
-                    {/* ========== HEADER ========== */}
-                    <div className="flex items-center justify-between mb-3 pb-2 border-b-2 border-jilco-900">
-                        {/* Logo + company name */}
-                        <div className="flex items-center gap-3">
-                            {config.logo
-                                ? <img src={config.logo} alt="Logo" className="h-14 object-contain" />
-                                : <div className="w-14 h-14 bg-jilco-900 rounded-lg flex items-center justify-center text-white font-black text-2xl italic">J</div>
-                            }
-                            <div>
-                                <p className="font-black text-jilco-900 text-base leading-tight">{config.headerTitle}</p>
-                                <p className="text-gray-500 text-xs">{config.headerSubtitle || 'Jilco Elevators Co.'}</p>
-                                {config.contactPhone && <p className="text-gray-400 text-[10px]" dir="ltr">{config.contactPhone}</p>}
-                            </div>
-                        </div>
-                        {/* Certificate title */}
-                        <div className="text-center">
-                            <h1 className="text-2xl font-black text-jilco-900 tracking-wide">شهادة ضمان</h1>
-                            <p className="text-gold-600 text-xs font-bold uppercase tracking-widest">Warranty Certificate</p>
-                            <p className="text-gray-400 text-[10px] mt-0.5 font-mono">رقم: {currentWarranty.certificateNumber}</p>
-                            <p className="text-gray-400 text-[10px] font-mono">{currentWarranty.date}</p>
-                        </div>
-                    </div>
-
-                    {/* ========== INTRO TEXT ========== */}
-                    <div className="bg-jilco-50 border border-jilco-100 rounded-lg px-4 py-2.5 mb-3 text-center">
-                        <p className="text-gray-700 text-sm leading-relaxed">
-                            تشهد شركة <span className="font-black text-jilco-900">{config.headerTitle}</span> بأن العميل الكريم:
-                        </p>
-                        <p className="text-xl font-black text-jilco-900 mt-1 border-b border-dotted border-gray-400 inline-block px-6 pb-0.5">
-                            {currentWarranty.customerName || '..........................................'}
-                        </p>
-                        <p className="text-gray-600 text-xs mt-1.5">
-                            يتمتع بضمان شامل للمصعد المُركَّب في:{' '}
-                            <span className="font-bold text-jilco-800">{currentWarranty.projectName}{currentWarranty.location ? ` - ${currentWarranty.location}` : ''}</span>
-                        </p>
-                    </div>
-
-                    {/* ========== TECHNICAL DETAILS ========== */}
-                    <div className="mb-3">
-                        <div className="flex items-center gap-2 mb-1.5">
-                            <div className="h-0.5 flex-1 bg-gold-400" />
-                            <span className="text-[10px] font-black text-gold-600 uppercase tracking-widest">بيانات المصعد الفنية</span>
-                            <div className="h-0.5 flex-1 bg-gold-400" />
-                        </div>
-                        <div className="grid grid-cols-4 gap-2">
-                            {[
-                                { label: 'نوع المصعد', value: currentWarranty.elevatorType },
-                                { label: 'رقم الماكينة', value: currentWarranty.machineNumber || 'N/A' },
-                                { label: 'الحمولة', value: currentWarranty.capacity },
-                                { label: 'عدد الوقفات', value: currentWarranty.stops },
-                            ].map(({ label, value }) => (
-                                <div key={label} className="bg-gray-50 border border-gray-200 rounded p-2 text-center">
-                                    <p className="text-[9px] text-gray-500 mb-0.5">{label}</p>
-                                    <p className="font-black text-jilco-900 text-xs leading-tight">{value}</p>
-                                </div>
-                            ))}
-                        </div>
-                    </div>
-
-                    {/* ========== WARRANTY PERIOD ========== */}
-                    <div className="bg-gold-50 border border-gold-200 rounded-lg px-4 py-2.5 mb-3">
-                        <div className="flex items-center gap-2 mb-1">
-                            <div className="h-0.5 flex-1 bg-gold-300" />
-                            <span className="text-[10px] font-black text-gold-700 uppercase tracking-widest">فترة الضمان</span>
-                            <div className="h-0.5 flex-1 bg-gold-300" />
-                        </div>
-                        <div className="flex justify-center items-center gap-6">
-                            <div className="text-center">
-                                <p className="text-[9px] text-gray-500 mb-0.5">البداية</p>
-                                <p className="font-black text-jilco-900 text-sm font-mono">{currentWarranty.warrantyStartDate}</p>
-                            </div>
-                            <div className="flex flex-col items-center gap-0.5">
-                                <div className="w-16 h-0.5 bg-gold-500" />
-                                <p className="text-[10px] font-black text-gold-700 bg-white px-2 border border-gold-300 rounded-full">
-                                    {currentWarranty.periodYears} سنة
-                                </p>
-                                <div className="w-16 h-0.5 bg-gold-500" />
-                            </div>
-                            <div className="text-center">
-                                <p className="text-[9px] text-gray-500 mb-0.5">النهاية</p>
-                                <p className="font-black text-jilco-900 text-sm font-mono">{currentWarranty.warrantyEndDate}</p>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* ========== TERMS ========== */}
-                    <div className="mb-3 flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                            <div className="h-0.5 flex-1 bg-gray-300" />
-                            <span className="text-[10px] font-black text-gray-500 uppercase tracking-widest">الشروط والأحكام</span>
-                            <div className="h-0.5 flex-1 bg-gray-300" />
-                        </div>
-                        <p className="text-[10px] text-gray-600 leading-relaxed text-justify">{currentWarranty.notes}</p>
-                    </div>
-
-                    {/* ========== SIGNATURES ========== */}
-                    <div className="grid grid-cols-3 gap-4 mt-auto pt-3 border-t border-gray-200">
-                        <div className="text-center">
-                            <div className="h-10 flex items-end justify-center mb-1"></div>
-                            <div className="border-b-2 border-gray-700 w-32 mx-auto" />
-                            <p className="text-[10px] font-bold text-gray-600 mt-1">إدارة الصيانة والضمان</p>
-                        </div>
-                        <div className="text-center flex flex-col items-center">
-                            {config.stamp
-                                ? <img src={config.stamp} alt="Stamp" className="h-14 object-contain opacity-90 rotate-[-4deg] mix-blend-multiply" />
-                                : <div className="w-14 h-14 border-2 border-dashed border-gray-300 rounded-full flex items-center justify-center text-gray-400 text-[9px]">الختم</div>
-                            }
-                        </div>
-                        <div className="text-center">
-                            <div className="h-10 flex items-end justify-center mb-1"></div>
-                            <div className="border-b-2 border-gray-700 w-32 mx-auto" />
-                            <p className="text-[10px] font-bold text-gray-600 mt-1">المدير العام</p>
-                        </div>
-                    </div>
-
-                    {/* ========== FOOTER ========== */}
-                    <div className="mt-2 bg-jilco-900 text-white text-center py-1.5 text-[10px] mx-[-12mm] mb-[-10mm] px-4 flex justify-between">
-                        <span>www.jilco.com.sa</span>
-                        <span dir="ltr">{config.contactPhone} | {config.contactEmail}</span>
-                    </div>
-                </div>
+            {/* Certificate Preview - screen wrapper (hidden during print) */}
+            <div className="flex-1 bg-gray-300 overflow-auto flex justify-center items-start p-6 print:hidden">
+                {/* On-screen preview: scaled-down A4 visual */}
+                <CertificateContent
+                    currentWarranty={currentWarranty}
+                    config={config}
+                    isPreview={true}
+                />
             </div>
+
+            {/* Hidden actual print target - shown ONLY during print via CSS */}
+            <CertificateContent
+                currentWarranty={currentWarranty}
+                config={config}
+                isPreview={false}
+            />
         </div>
     );
 };
 
+/* ─── Certificate content rendered both on-screen preview and for print ─── */
+const CertificateContent: React.FC<{
+    currentWarranty: any;
+    config: any;
+    isPreview: boolean;
+}> = ({ currentWarranty, config, isPreview }) => {
+    const wrapperClass = isPreview
+        ? 'bg-white relative'
+        : 'warranty-certificate-page bg-white relative hidden print:flex print:shadow-none';
 
+    const wrapperStyle: React.CSSProperties = {
+        width: '210mm',
+        height: '297mm',
+        overflow: 'hidden',
+        boxShadow: isPreview ? '0 4px 32px rgba(0,0,0,0.18)' : 'none',
+        display: 'flex',
+        flexDirection: 'column',
+        boxSizing: 'border-box',
+        position: 'relative',
+        flexShrink: 0,
+        margin: '0 auto',
+        pageBreakAfter: 'always',
+        pageBreakInside: 'avoid',
+        backgroundColor: 'white',
+        WebkitPrintColorAdjust: 'exact',
+        printColorAdjust: 'exact'
+    };
+
+    return (
+        <div dir="rtl" className={wrapperClass} style={wrapperStyle}>
+            {/* ═══ OUTER GOLD BORDER FRAME (absolute, inside edge 5mm) ═══ */}
+            <div style={{
+                position: 'absolute',
+                inset: '6mm',
+                border: '2px solid #d97706',
+                outline: '1px solid #f59e0b',
+                outlineOffset: '3px',
+                borderRadius: '1px',
+                pointerEvents: 'none',
+                zIndex: 30,
+                boxSizing: 'border-box',
+            }} />
+            {/* Corner accents */}
+            {([['top', 'right'], ['top', 'left'], ['bottom', 'right'], ['bottom', 'left']] as const).map(([v, h], i) => (
+                <div key={i} style={{
+                    position: 'absolute',
+                    [v]: '4mm',
+                    [h]: '4mm',
+                    width: '10mm',
+                    height: '10mm',
+                    borderTop: v === 'top' ? '3px solid #b45309' : 'none',
+                    borderBottom: v === 'bottom' ? '3px solid #b45309' : 'none',
+                    borderRight: h === 'right' ? '3px solid #b45309' : 'none',
+                    borderLeft: h === 'left' ? '3px solid #b45309' : 'none',
+                    zIndex: 31,
+                }} />
+            ))}
+
+            {/* ═══ MAIN CONTENT — padding inside the border ═══ */}
+            <div style={{
+                flex: 1,
+                display: 'flex',
+                flexDirection: 'column',
+                padding: '14mm 14mm 0mm 14mm',
+                overflow: 'hidden',
+                gap: '3mm',
+            }}>
+
+                {/* ── HEADER ── */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '2px solid #0c4a6e', paddingBottom: '3mm' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '3mm' }}>
+                        {config.logo
+                            ? <img src={config.logo} alt="Logo" style={{ height: '13mm', objectFit: 'contain' }} />
+                            : <div style={{ width: '13mm', height: '13mm', background: '#0c4a6e', borderRadius: '3px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: 900, fontSize: '6mm', fontStyle: 'italic' }}>J</div>
+                        }
+                        <div>
+                            <p style={{ fontWeight: 900, color: '#0c4a6e', fontSize: '4.5mm', lineHeight: 1.2 }}>{config.headerTitle}</p>
+                            <p style={{ color: '#6b7280', fontSize: '2.8mm' }}>{config.headerSubtitle || 'Jilco Elevators Co.'}</p>
+                            {config.contactPhone && <p style={{ color: '#9ca3af', fontSize: '2.5mm' }} dir="ltr">{config.contactPhone}</p>}
+                        </div>
+                    </div>
+                    <div style={{ textAlign: 'center' }}>
+                        <h1 style={{ fontWeight: 900, color: '#0c4a6e', fontSize: '8mm', letterSpacing: '1px', margin: 0 }}>شهادة ضمان</h1>
+                        <p style={{ color: '#d97706', fontSize: '2.5mm', fontWeight: 700, letterSpacing: '2px', textTransform: 'uppercase', margin: '1mm 0 0' }}>Warranty Certificate</p>
+                        <p style={{ color: '#9ca3af', fontSize: '2.5mm', fontFamily: 'monospace', margin: '1mm 0 0' }}>رقم: {currentWarranty.certificateNumber}</p>
+                        <p style={{ color: '#9ca3af', fontSize: '2.5mm', fontFamily: 'monospace', margin: '0.5mm 0 0' }}>{currentWarranty.date}</p>
+                    </div>
+                </div>
+
+                {/* ── INTRO BOX ── */}
+                <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: '3px', padding: '4mm 6mm', textAlign: 'center' }}>
+                    <p style={{ color: '#374151', fontSize: '3.5mm', margin: 0 }}>
+                        تشهد شركة <strong style={{ color: '#0c4a6e' }}>{config.headerTitle}</strong> بأن العميل الكريم:
+                    </p>
+                    <p style={{ fontWeight: 900, color: '#0c4a6e', fontSize: '6mm', borderBottom: '1px dotted #9ca3af', display: 'inline-block', padding: '0 8mm', margin: '2mm 0 1mm' }}>
+                        {currentWarranty.customerName || '..........................................'}
+                    </p>
+                    <p style={{ color: '#4b5563', fontSize: '3mm', margin: 0 }}>
+                        يتمتع بضمان شامل للمصعد المُركَّب في:&nbsp;
+                        <strong style={{ color: '#1e40af' }}>{currentWarranty.projectName}{currentWarranty.location ? ` - ${currentWarranty.location}` : ''}</strong>
+                    </p>
+                </div>
+
+                {/* ── TECHNICAL DETAILS (4 cards) ── */}
+                <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '2mm', marginBottom: '2mm' }}>
+                        <div style={{ flex: 1, height: '0.5px', background: '#f59e0b' }} />
+                        <span style={{ fontSize: '2.3mm', fontWeight: 900, color: '#d97706', letterSpacing: '1.5px', textTransform: 'uppercase' }}>بيانات المصعد الفنية</span>
+                        <div style={{ flex: 1, height: '0.5px', background: '#f59e0b' }} />
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '2mm' }}>
+                        {[
+                            { label: 'نوع المصعد', value: currentWarranty.elevatorType },
+                            { label: 'رقم الماكينة', value: currentWarranty.machineNumber || 'N/A' },
+                            { label: 'الحمولة', value: currentWarranty.capacity },
+                            { label: 'عدد الوقفات', value: currentWarranty.stops },
+                        ].map(({ label, value }) => (
+                            <div key={label} style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: '2px', padding: '2mm', textAlign: 'center' }}>
+                                <p style={{ fontSize: '2.2mm', color: '#6b7280', margin: '0 0 1mm' }}>{label}</p>
+                                <p style={{ fontWeight: 900, color: '#0c4a6e', fontSize: '3mm', margin: 0 }}>{value}</p>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                {/* ── WARRANTY PERIODS & COVERAGE ── */}
+                <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '3px', padding: '3mm 6mm' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '2mm', marginBottom: '2mm' }}>
+                        <div style={{ flex: 1, height: '0.5px', background: '#fcd34d' }} />
+                        <span style={{ fontSize: '2.3mm', fontWeight: 900, color: '#92400e', letterSpacing: '1.5px', textTransform: 'uppercase' }}>تفاصيل وفترات الضمان</span>
+                        <div style={{ flex: 1, height: '0.5px', background: '#fcd34d' }} />
+                    </div>
+                    
+                    <div style={{ display: 'flex', justifySelf: 'center', alignSelf: 'center', gap: '4mm', marginBottom: '2mm', margin: '0 auto', width: 'max-content' }}>
+                        <div style={{ background: 'white', padding: '1mm 3mm', border: '1px solid #fde68a', borderRadius: '3px', fontSize: '2.5mm' }}>
+                            <span style={{ color: '#6b7280' }}>تاريخ بداية الضمان: </span>
+                            <span style={{ fontWeight: 900, color: '#0c4a6e', fontFamily: 'monospace' }}>{currentWarranty.warrantyStartDate}</span>
+                        </div>
+                    </div>
+
+                    <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'center', backgroundColor: 'white', fontSize: '2.5mm' }}>
+                        <thead>
+                            <tr style={{ backgroundColor: '#fef3c7', color: '#92400e', fontWeight: 'bold' }}>
+                                <th style={{ border: '1px solid #fde68a', padding: '1.5mm' }}>نوع التغطية والضمان</th>
+                                <th style={{ border: '1px solid #fde68a', padding: '1.5mm' }}>مدة الضمان</th>
+                            </tr>
+                        </thead>
+                        <tbody style={{ color: '#374151', fontWeight: 700 }}>
+                            <tr>
+                                <td style={{ border: '1px solid #fde68a', padding: '1.5mm' }}>صيانة دورية</td>
+                                <td style={{ border: '1px solid #fde68a', padding: '1.5mm', color: '#0c4a6e' }}>24 شهر</td>
+                            </tr>
+                            <tr>
+                                <td style={{ border: '1px solid #fde68a', padding: '1.5mm' }}>ضمان الماكينة</td>
+                                <td style={{ border: '1px solid #fde68a', padding: '1.5mm', color: '#0c4a6e' }}>5 سنوات</td>
+                            </tr>
+                            <tr>
+                                <td style={{ border: '1px solid #fde68a', padding: '1.5mm' }}>ضمان التركيبات</td>
+                                <td style={{ border: '1px solid #fde68a', padding: '1.5mm', color: '#0c4a6e' }}>15 سنة</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                {/* <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '3px', padding: '3mm 6mm' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '2mm', marginBottom: '2mm' }}>
+                        <div style={{ flex: 1, height: '0.5px', background: '#fcd34d' }} />
+                        <span style={{ fontSize: '2.3mm', fontWeight: 900, color: '#92400e', letterSpacing: '1.5px', textTransform: 'uppercase' }}>فترة الضمان</span>
+                        <div style={{ flex: 1, height: '0.5px', background: '#fcd34d' }} />
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8mm' }}>
+                        <div style={{ textAlign: 'center' }}>
+                            <p style={{ fontSize: '2.5mm', color: '#6b7280', margin: '0 0 1mm' }}>من تاريخ</p>
+                            <p style={{ fontWeight: 900, color: '#0c4a6e', fontSize: '4mm', fontFamily: 'monospace', margin: 0 }}>{currentWarranty.warrantyStartDate}</p>
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1mm' }}>
+                            <div style={{ width: '15mm', height: '0.5px', background: '#f59e0b' }} />
+                            <span style={{ fontSize: '2.8mm', fontWeight: 900, color: '#92400e', background: 'white', padding: '0.5mm 2mm', border: '1px solid #fde68a', borderRadius: '99px' }}>{currentWarranty.periodYears} سنة</span>
+                            <div style={{ width: '15mm', height: '0.5px', background: '#f59e0b' }} />
+                        </div>
+                        <div style={{ textAlign: 'center' }}>
+                            <p style={{ fontSize: '2.5mm', color: '#6b7280', margin: '0 0 1mm' }}>إلى تاريخ</p>
+                            <p style={{ fontWeight: 900, color: '#0c4a6e', fontSize: '4mm', fontFamily: 'monospace', margin: 0 }}>{currentWarranty.warrantyEndDate}</p>
+                        </div>
+                    </div>
+                </div> */}
+
+                {/* ── TERMS ── */}
+                <div style={{ flex: 1, minHeight: 0 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '2mm', marginBottom: '2mm' }}>
+                        <div style={{ flex: 1, height: '0.5px', background: '#d1d5db' }} />
+                        <span style={{ fontSize: '2.3mm', fontWeight: 900, color: '#6b7280', letterSpacing: '1.5px', textTransform: 'uppercase' }}>الشروط والأحكام</span>
+                        <div style={{ flex: 1, height: '0.5px', background: '#d1d5db' }} />
+                    </div>
+                    <p style={{ fontSize: '2.8mm', color: '#4b5563', lineHeight: 1.7, textAlign: 'justify', margin: 0 }}>{currentWarranty.notes}</p>
+                </div>
+
+                {/* ── SIGNATURES ── */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: '4mm', borderTop: '1px solid #e5e7eb', paddingTop: '3mm' }}>
+                    <div style={{ textAlign: 'center' }}>
+                        <div style={{ height: '12mm' }} />
+                        <div style={{ borderBottom: '2px solid #374151', width: '32mm', margin: '0 auto' }} />
+                        <p style={{ fontSize: '2.5mm', color: '#4b5563', fontWeight: 700, margin: '1.5mm 0 0' }}>إدارة الصيانة والضمان</p>
+                    </div>
+                    <div style={{ textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+                        {config.stamp
+                            ? <img src={config.stamp} alt="Stamp" style={{ height: '35mm', objectFit: 'contain', opacity: 0.9, transform: 'rotate(-5deg)', mixBlendMode: 'multiply' }} />
+                            : <div style={{ width: '35mm', height: '35mm', border: '1.5px dashed #d1d5db', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#9ca3af', fontSize: '4mm' }}>الختم</div>
+                        }
+                    </div>
+                    <div style={{ textAlign: 'center' }}>
+                        <div style={{ height: '12mm' }} />
+                        <div style={{ borderBottom: '2px solid #374151', width: '32mm', margin: '0 auto' }} />
+                        <p style={{ fontSize: '2.5mm', color: '#4b5563', fontWeight: 700, margin: '1.5mm 0 0' }}>المدير العام</p>
+                    </div>
+                </div>
+            </div>
+
+            {/* ── FOOTER BAR ── */}
+            <div style={{
+                background: '#0c4a6e',
+                color: 'white',
+                display: 'flex',
+                justifyContent: 'space-between',
+                padding: '2mm 14mm',
+                fontSize: '2.5mm',
+                flexShrink: 0,
+                marginTop: '3mm',
+            }}>
+                <span>www.jilco.com.sa</span>
+                <span dir="ltr">{config.contactPhone} | {config.contactEmail}</span>
+            </div>
+        </div>
+    );
+};
