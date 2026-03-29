@@ -367,7 +367,35 @@ export const QuotePreview: React.FC<QuotePreviewProps> = ({ items, details, tech
                     </div>
                 </div>
 
-                {/* PAGE 5: TERMS, CONDITIONS, HANDOVER AND WARRANTY */}
+                {/* PAGE 5: HANDOVER AND WARRANTY PAGE */}
+                <div className="a4-page bg-white shadow-2xl mb-10 print:mb-0 mx-auto flex flex-col relative">
+
+                    <div className="absolute inset-3 border-[6px] border-jilco-900 pointer-events-none z-0"></div>
+                    <div className="absolute inset-[18px] border border-gold-500 pointer-events-none z-0"></div>
+                    <div className="absolute inset-[24px] border border-gray-100 pointer-events-none z-0"></div>
+
+                    <div className="relative z-10 flex flex-col flex-1 m-[28px] bg-white">
+                        <QuoteHeader config={config} />
+
+                        <div className="px-10 py-6 flex-1 flex flex-col">
+                            <div className="flex items-center justify-between border-b-2 border-jilco-900 pb-4 mb-6">
+                                <h3 className="text-xl font-black text-jilco-900 flex items-center gap-3 uppercase tracking-tighter">
+                                    <div className="w-10 h-10 bg-jilco-900 text-gold-500 flex items-center justify-center rounded-xl shadow-lg"><ShieldCheck size={20} /></div>
+                                    التسليم والضمان
+                                </h3>
+                                <span className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em]">Warranty & Handover</span>
+                            </div>
+
+                            <div className="flex-1 text-sm leading-8 text-justify font-medium text-gray-700 whitespace-pre-wrap px-4">
+                                {details.handoverAndWarranty || 'لا توجد تفاصيل إضافية.'}
+                            </div>
+
+                            <QuoteFooter config={config} />
+                        </div>
+                    </div>
+                </div>
+
+                {/* PAGE 6: TERMS AND CONDITIONS WITH ROYAL FRAME */}
                 <div className="a4-page bg-white shadow-2xl mb-10 print:mb-0 mx-auto flex flex-col relative">
 
                     <div className="absolute inset-3 border-[6px] border-jilco-900 pointer-events-none z-0"></div>
@@ -381,20 +409,13 @@ export const QuotePreview: React.FC<QuotePreviewProps> = ({ items, details, tech
                             <div className="flex items-center justify-between border-b-2 border-jilco-900 pb-4 mb-6">
                                 <h3 className="text-xl font-black text-jilco-900 flex items-center gap-3 uppercase tracking-tighter">
                                     <div className="w-10 h-10 bg-jilco-900 text-gold-500 flex items-center justify-center rounded-xl shadow-lg"><FileText size={20} /></div>
-                                    الشروط والأحكام العامة والضمان
+                                    الشروط والأحكام العامة
                                 </h3>
-                                <span className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em]">Terms & Warranty</span>
+                                <span className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em]">Terms & Conditions</span>
                             </div>
 
-                            <div className="flex-1 flex flex-col gap-4 text-[12px] leading-7 text-justify font-bold text-gray-800">
-                                <div>
-                                    <h4 className="font-black text-jilco-900 mb-2 border-b border-gray-200 pb-1 w-max">التسليم والضمان:</h4>
-                                    <div className="whitespace-pre-wrap px-2 text-gray-700">{details.handoverAndWarranty || 'لا توجد تفاصيل إضافية.'}</div>
-                                </div>
-                                <div>
-                                    <h4 className="font-black text-jilco-900 mb-2 border-b border-gray-200 pb-1 w-max">الشروط والأحكام العامة:</h4>
-                                    <div className="whitespace-pre-wrap px-2 text-gray-700">{details.termsAndConditions || 'لا توجد شروط إضافية.'}</div>
-                                </div>
+                            <div className="flex-1 text-sm leading-8 text-justify font-medium text-gray-700 whitespace-pre-wrap px-4">
+                                {details.termsAndConditions || 'لا توجد شروط إضافية.'}
                             </div>
 
                             {/* Bottom Warranty & Bank Box */}
