@@ -77,14 +77,30 @@
       }
 
       /* 1. Hide entire page first */
-      html, body {
+      html, body, #root {
         margin: 0 !important;
         padding: 0 !important;
         background: white !important;
         overflow: visible !important;
+        height: auto !important;
+        width: 100% !important;
       }
 
       body * {
+        visibility: hidden !important;
+        overflow: visible !important;
+      }
+
+      /* Reset all flex/grid containers to normal flow */
+      body > #root,
+      body > #root > *,
+      body > #root > * > *,
+      body > #root > * > * > * {
+        all: unset !important;
+        display: block !important;
+        overflow: visible !important;
+        height: auto !important;
+        width: 100% !important;
         visibility: hidden !important;
       }
 
@@ -136,41 +152,50 @@
         print-color-adjust: exact !important;
       }
 
-      /* 4. General a4-page support for other modules */
-      .a4-page {
-        visibility: visible !important;
-        position: fixed !important;
-        top: 0 !important;
-        left: 0 !important;
-        width: 210mm !important;
-        height: 297mm !important;
-        overflow: hidden !important;
-        margin: 0 !important;
-        -webkit-print-color-adjust: exact !important;
-        print-color-adjust: exact !important;
-      }
-
-      .a4-page * {
-        visibility: visible !important;
-        -webkit-print-color-adjust: exact !important;
-        print-color-adjust: exact !important;
-      }
-
-      /* 5. #printable-area legacy support */
+      /* 4. General a4-page support for other modules - MULTI-PAGE FIX */
       #printable-area {
         visibility: visible !important;
-        position: fixed !important;
-        top: 0 !important;
-        left: 0 !important;
+        position: static !important;
         width: 210mm !important;
-        height: 297mm !important;
-        overflow: hidden !important;
+        margin: 0 auto !important;
+        padding: 0 !important;
+        background: white !important;
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
       }
 
       #printable-area * {
         visibility: visible !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+
+      .a4-page {
+        visibility: visible !important;
+        position: relative !important;
+        width: 210mm !important;
+        height: 297mm !important;
+        overflow: hidden !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        box-sizing: border-box !important;
+        page-break-after: always !important;
+        break-after: page !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        display: flex !important;
+        flex-direction: column !important;
+      }
+
+      .a4-page:last-child {
+        page-break-after: avoid !important;
+        break-after: avoid !important;
+      }
+
+      .a4-page * {
+        visibility: visible !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
       }
 
       /* 6. Tables */
