@@ -21,7 +21,7 @@ const DEFAULT_OPTIONS: SpecsDatabase = {
     capacity: ['320 كجم - 4 أشخاص', '450 كجم - 6 أشخاص', '630 كجم - 8 أشخاص', '800 كجم - 10 أشخاص', '1000 كجم - 13 شخص', '1250 كجم - 16 شخص'],
     speed: ['0.5 متر/ثانية', '1.0 متر/ثانية', '1.6 متر/ثانية', '2.0 متر/ثانية'],
     stops: ['2 وقفات / 2 فتحات', '3 وقفات / 3 فتحات', '4 وقفات / 4 فتحات', '5 وقفات / 5 فتحات', '6 وقفات / 6 فتحات', '7 وقفات / 7 فتحات', '8 وقفات / 8 فتحات'],
-    driveType: ['Gearless Machine (Montanari Italy)', 'Gearless Machine (Sicor Italy)', 'Geared Machine (Alberto Sassi)', 'Geared Machine (Torin Drive)', 'Hydraulic System'],
+    driveType: ['Gearless Machine (Montanari Italy)', 'Gearless Machine (Sicor Italy)', 'Geared Machine (Alberto Sassi)', 'Geared Machine (Torin Drive)', 'Hydraulic System', 'FUJI Gearless Machine'],
     controlSystem: ['Microprocessor Full Collective (VVVF)', 'Monarch Nice 3000+', 'Step Control System', 'INVT System'],
     powerSupply: ['3 Phase, 380V, 60Hz', '3 Phase, 220V, 60Hz', 'Single Phase, 220V, 60Hz'],
     cabin: ['ستانلس ستيل مع ديكورات ليزر ومرايا', 'ستانلس ستيل ذهبي (Ti-Gold)', 'بانوراما زجاجي كامل', 'تشطيب خشبي فاخر'],
