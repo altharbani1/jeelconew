@@ -228,14 +228,14 @@ export const InvoiceModule: React.FC = () => {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100">
-                                {invoices.filter(i => i.number.includes(searchTerm) || i.customerName.includes(searchTerm)).map(inv => (
+                                {invoices.filter(i => (i.number || '').includes(searchTerm) || (i.customerName || '').includes(searchTerm)).map(inv => (
                                     <tr key={inv.number} className="hover:bg-gray-50 transition-colors">
                                         <td className="p-4 font-mono font-bold text-jilco-900">{inv.number}</td>
                                         <td className="p-4 font-bold">{inv.customerName}</td>
                                         <td className="p-4 font-mono text-xs">{inv.date}</td>
                                         <td className="p-4 font-black text-green-700">
                                             {(() => {
-                                                const sub = inv.items.reduce((s, it) => s + it.total, 0);
+                                                const sub = (inv.items || []).reduce((s, it) => s + it.total, 0);
                                                 const disc = inv.discountAmount || 0;
                                                 if (inv.isTaxInclusive) {
                                                     return Math.max(0, sub - disc).toLocaleString();
