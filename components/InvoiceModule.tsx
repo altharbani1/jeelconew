@@ -412,29 +412,65 @@ export const InvoiceModule: React.FC = () => {
                             </div>
                             <button
                                 onClick={() => {
-                                    if (!currentItem.description || !currentItem.unitPrice) return;
-                                    const item = { ...currentItem, id: Date.now().toString(), total: currentItem.quantity * currentItem.unitPrice };
-                                    setCurrentInvoice({ ...currentInvoice, items: [...currentInvoice.items, item] });
+                                    if (!currentItem.description.trim()) {
+                                        alert('يرجى كتابة اسم أو وصف الصنف');
+                                        return;
+                                    }
+                                    const item = {
+                                        ...currentItem,
+                                        id: Date.now().toString(),
+                                        total: currentItem.quantity * currentItem.unitPrice
+                                    };
+                                    setCurrentInvoice(prev => ({ ...prev, items: [...(prev.items || []), item] }));
                                     setCurrentItem({ id: '', description: '', details: '', quantity: 1, unitPrice: 0, total: 0 });
                                 }}
-                                className="w-full bg-blue-600 text-white py-2 rounded font-bold text-sm"
+                                className="w-full bg-blue-600 text-white py-2 rounded font-bold text-sm hover:bg-blue-700 active:bg-blue-800 transition-colors"
                             >
                                 + إضافة للجدول
                             </button>
                         </div>
                     </div>
 
-                    {currentInvoice.items.length > 0 && (
-                        <div className="space-y-2">
-                            {currentInvoice.items.map(item => (
-                                <div key={item.id} className="p-2 bg-white border rounded flex justify-between items-center group">
-                                    <div className="flex-1">
-                                        <p className="text-xs font-bold text-gray-800">{item.description}</p>
-                                        <p className="text-[10px] text-gray-400">{item.quantity} x {item.unitPrice.toLocaleString()}</p>
-                                    </div>
-                                    <button title="حذف البند" onClick={() => setCurrentInvoice({ ...currentInvoice, items: currentInvoice.items.filter(i => i.id !== item.id) })} className="text-red-300 hover:text-red-600 p-1 opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 size={14} /></button>
-                                </div>
-                            ))}
+                    {(currentInvoice.items || []).length > 0 && (
+                        <div className="border border-blue-200 rounded-lg overflow-hidden bg-white">
+                            <div className="bg-blue-600 text-white px-3 py-2 text-xs font-black">
+                                الأصناف المضافة ({currentInvoice.items.length})
+                            </div>
+                            <table className="w-full text-xs">
+                                <thead className="bg-gray-800 text-white">
+                                    <tr>
+                                        <th className="p-2 text-right font-bold">الصنف</th>
+                                        <th className="p-2 text-center font-bold w-10">كمية</th>
+                                        <th className="p-2 text-center font-bold w-16">السعر</th>
+                                        <th className="p-2 text-center font-bold w-16">الإجمالي</th>
+                                        <th className="p-2 w-8"></th>
+                                    </tr>
+                                </thead>
+                                <tbody className="divide-y divide-gray-100">
+                                    {currentInvoice.items.map(item => (
+                                        <tr key={item.id} className="hover:bg-gray-50 group">
+                                            <td className="p-2 font-bold text-gray-800 truncate max-w-[100px]">{item.description}</td>
+                                            <td className="p-2 text-center text-gray-600 font-mono">{item.quantity}</td>
+                                            <td className="p-2 text-center font-mono text-gray-700">{item.unitPrice.toLocaleString()}</td>
+                                            <td className="p-2 text-center font-black text-green-700">{item.total.toLocaleString()}</td>
+                                            <td className="p-2 text-center">
+                                                <button
+                                                    title="حذف البند"
+                                                    onClick={() => setCurrentInvoice(prev => ({ ...prev, items: prev.items.filter(i => i.id !== item.id) }))}
+                                                    className="text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                ><Trash2 size={13} /></button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                                <tfoot className="bg-gray-50 border-t-2 border-gray-200">
+                                    <tr>
+                                        <td colSpan={3} className="p-2 text-right font-black text-gray-600 text-[10px] uppercase">الإجمالي الفرعي:</td>
+                                        <td className="p-2 text-center font-black text-jilco-900">{currentInvoice.items.reduce((s,i) => s+i.total, 0).toLocaleString()}</td>
+                                        <td></td>
+                                    </tr>
+                                </tfoot>
+                            </table>
                         </div>
                     )}
                 </div>
