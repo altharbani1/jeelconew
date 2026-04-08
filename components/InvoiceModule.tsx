@@ -217,14 +217,14 @@ export const InvoiceModule: React.FC = () => {
                             </div>
                         </div>
                         <table className="w-full text-sm text-right">
-                            <thead className="bg-gray-50 text-gray-500">
+                            <thead className="bg-gray-900 text-white">
                                 <tr>
-                                    <th className="p-4">رقم الفاتورة</th>
-                                    <th className="p-4">العميل</th>
-                                    <th className="p-4">التاريخ</th>
-                                    <th className="p-4">الإجمالي</th>
-                                    <th className="p-4">الحالة</th>
-                                    <th className="p-4 text-center">إجراءات</th>
+                                    <th className="p-4 font-black">رقم الفاتورة</th>
+                                    <th className="p-4 font-black">العميل</th>
+                                    <th className="p-4 font-black">التاريخ</th>
+                                    <th className="p-4 font-black">الإجمالي</th>
+                                    <th className="p-4 font-black">الحالة</th>
+                                    <th className="p-4 text-center font-black">إجراءات</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100">
