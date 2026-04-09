@@ -526,7 +526,14 @@ export const InvoiceModule: React.FC = () => {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-100">
-                                    {currentInvoice.items.map((item, idx) => (
+                                    {(currentInvoice.items || []).length === 0 && (
+                                        <tr>
+                                            <td colSpan={5} className="p-6 text-center text-gray-300 text-sm font-bold">
+                                                لا توجد بنود مضافة
+                                            </td>
+                                        </tr>
+                                    )}
+                                    {(currentInvoice.items || []).map((item, idx) => (
                                         <tr key={idx} className="border-b border-gray-100">
                                             <td className="p-3 text-center font-bold text-gray-400">{idx + 1}</td>
                                             <td className="p-3 font-bold text-gray-800 text-sm">{item.description}</td>
