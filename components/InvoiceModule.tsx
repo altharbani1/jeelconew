@@ -515,31 +515,31 @@ export const InvoiceModule: React.FC = () => {
                                 </div>
                             </div>
 
-                            <table className="w-full border-collapse border-2 border-jilco-900 mb-8 flex-1">
+                            <table className="w-full border-collapse border-2 border-jilco-900 mb-6">
                                 <thead>
-                                    <tr className="bg-jilco-900 text-white text-[11px] font-black uppercase">
-                                        <th className="p-3 text-center w-12 border border-jilco-900">#</th>
-                                        <th className="p-3 text-right border border-jilco-900">البيان / Description</th>
-                                        <th className="p-3 text-center w-24 border border-jilco-900">الكمية</th>
-                                        <th className="p-3 text-center w-36 border border-jilco-900">سعر الوحدة</th>
-                                        <th className="p-3 text-center w-36 border border-jilco-900">الإجمالي (SAR)</th>
+                                    <tr className="bg-jilco-900 text-white text-[10px] font-black uppercase">
+                                        <th className="p-2 text-center w-10 border border-jilco-900">#</th>
+                                        <th className="p-2 text-right border border-jilco-900">البيان / Description</th>
+                                        <th className="p-2 text-center w-20 border border-jilco-900">الكمية</th>
+                                        <th className="p-2 text-center w-28 border border-jilco-900">سعر الوحدة</th>
+                                        <th className="p-2 text-center w-28 border border-jilco-900">الإجمالي (SAR)</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     {(currentInvoice.items || []).length === 0 && (
                                         <tr>
-                                            <td colSpan={5} className="p-6 text-center text-gray-300 text-sm font-bold border border-gray-300">
+                                            <td colSpan={5} className="p-4 text-center text-gray-300 text-xs font-bold border border-gray-300">
                                                 لا توجد بنود مضافة
                                             </td>
                                         </tr>
                                     )}
                                     {(currentInvoice.items || []).map((item, idx) => (
                                         <tr key={idx} className="border-b border-gray-300">
-                                            <td className="p-3 text-center font-bold text-gray-600 border border-gray-300">{idx + 1}</td>
-                                            <td className="p-3 font-bold text-gray-900 text-sm border border-gray-300">{item.description}</td>
-                                            <td className="p-3 text-center font-bold text-gray-900 border border-gray-300">{item.quantity}</td>
-                                            <td className="p-3 text-center font-mono font-bold border border-gray-300">{item.unitPrice.toLocaleString()}</td>
-                                            <td className="p-3 text-center font-black text-black border border-gray-300">{item.total.toLocaleString()}</td>
+                                            <td className="p-2 text-center font-bold text-gray-600 border border-gray-300 text-xs">{idx + 1}</td>
+                                            <td className="p-2 font-bold text-gray-900 text-xs border border-gray-300 leading-tight">{item.description}</td>
+                                            <td className="p-2 text-center font-bold text-gray-900 border border-gray-300 text-xs">{item.quantity}</td>
+                                            <td className="p-2 text-center font-mono font-bold border border-gray-300 text-xs">{item.unitPrice.toLocaleString()}</td>
+                                            <td className="p-2 text-center font-black text-black border border-gray-300 text-xs">{item.total.toLocaleString()}</td>
                                         </tr>
                                     ))}
                                 </tbody>
