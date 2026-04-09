@@ -10,6 +10,7 @@ const INITIAL_CONFIG: CompanyConfig = {
     stamp: null,
     headerTitle: 'جيلكو للمصاعد',
     headerSubtitle: 'Jilco Elevators Co.',
+    taxNumber: '311834758800003',
     footerText: 'المملكة العربية السعودية - الرياض - هاتف: 920000000 - س.ت: 1010101010',
     contactPhone: '+966 50 000 0000',
     contactEmail: 'sales@jilco-elevators.com',
@@ -198,6 +199,10 @@ export const CompanyProfileModule: React.FC = () => {
                                 <div>
                                     <label className="block text-xs font-bold text-gray-500 mb-1">العنوان الفرعي (Subtitle)</label>
                                     <input title="العنوان الفرعي" placeholder="العنوان الفرعي" type="text" value={config.headerSubtitle} onChange={e => setConfig({ ...config, headerSubtitle: e.target.value })} className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-jilco-500 outline-none text-sm text-black font-bold" />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-500 mb-1">الرقم الضريبي (VAT Number)</label>
+                                    <input title="الرقم الضريبي" placeholder="الرقم الضريبي" type="text" value={config.taxNumber} onChange={e => setConfig({ ...config, taxNumber: e.target.value })} className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-jilco-500 outline-none text-sm text-black font-bold" />
                                 </div>
                                 <div>
                                     <label className="block text-xs font-bold text-gray-500 mb-1">نص التذييل (Footer Text)</label>

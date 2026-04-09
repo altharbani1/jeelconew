@@ -33,6 +33,7 @@ const INITIAL_CONFIG: CompanyConfig = {
     stamp: null,
     headerTitle: 'جيلكو للمصاعد',
     headerSubtitle: 'Jilco Elevators Co.',
+    taxNumber: '311834758800003', // الرقم الضريبي للشركة
     footerText: 'المملكة العربية السعودية - الرياض',
     contactPhone: '+966 50 000 0000',
     contactEmail: 'sales@jilco-elevators.com',
@@ -485,7 +486,8 @@ export const InvoiceModule: React.FC = () => {
                         <header className="px-10 py-6 border-b-2 border-jilco-100 flex justify-between items-center bg-white h-[160px] relative overflow-hidden shrink-0">
                             <div className="w-1/3 text-right">
                                 <h1 className="text-2xl font-black text-jilco-900 mb-0.5">{config.headerTitle}</h1>
-                                <p className="text-[10px] font-bold text-gray-500 mb-3">{config.headerSubtitle}</p>
+                                <p className="text-[10px] font-bold text-gray-500 mb-1">{config.headerSubtitle}</p>
+                                <p className="text-[11px] font-black text-jilco-800">الرقم الضريبي: {config.taxNumber}</p>
                             </div>
                             <div className="w-1/3 flex justify-center">
                                 {config.logo && <img src={config.logo} alt="Logo" className="h-32 w-auto object-contain" />}

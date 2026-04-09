@@ -111,7 +111,7 @@ export const QuoteModule: React.FC = () => {
         elevatorType: '', capacity: '', speed: '', stops: '', driveType: '', controlSystem: '', powerSupply: '', cabin: '', doors: '', externalDoors: '', machineRoom: '', rails: '', ropes: '', safety: '', emergency: ''
     });
     const [config, setConfig] = useState<CompanyConfig>({
-        logo: null, stamp: null, headerTitle: 'جيلكو للمصاعد', headerSubtitle: 'JILCO ELEVATORS', footerText: '', contactPhone: '', contactEmail: '', bankAccounts: []
+        logo: null, stamp: null, headerTitle: 'جيلكو للمصاعد', headerSubtitle: 'JILCO ELEVATORS', taxNumber: '311834758800003', footerText: '', contactPhone: '', contactEmail: '', bankAccounts: []
     });
 
     useEffect(() => {

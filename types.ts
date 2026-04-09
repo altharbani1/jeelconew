@@ -70,6 +70,7 @@ export interface CompanyConfig {
   stamp: string | null;
   headerTitle: string;
   headerSubtitle: string;
+  taxNumber: string; // الرقم الضريبي للشركة
   footerText: string;
   contactPhone: string;
   contactEmail: string;
