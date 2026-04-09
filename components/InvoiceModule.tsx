@@ -166,7 +166,7 @@ export const InvoiceModule: React.FC = () => {
         }
     };
 
-    const subtotal = currentInvoice.items.reduce((s, i) => s + i.total, 0);
+    const subtotal = (currentInvoice.items || []).reduce((s, i) => s + i.total, 0);
     const discount = currentInvoice.discountAmount || 0;
 
     // حسابات الضريبة بناء على الخيار (شامل أو غير شامل)
@@ -447,7 +447,7 @@ export const InvoiceModule: React.FC = () => {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-100">
-                                    {currentInvoice.items.map(item => (
+                                    {(currentInvoice.items || []).map(item => (
                                         <tr key={item.id} className="hover:bg-gray-50 group">
                                             <td className="p-2 font-bold text-gray-800 truncate max-w-[100px]">{item.description}</td>
                                             <td className="p-2 text-center text-gray-600 font-mono">{item.quantity}</td>
@@ -456,7 +456,7 @@ export const InvoiceModule: React.FC = () => {
                                             <td className="p-2 text-center">
                                                 <button
                                                     title="حذف البند"
-                                                    onClick={() => setCurrentInvoice(prev => ({ ...prev, items: prev.items.filter(i => i.id !== item.id) }))}
+                                                    onClick={() => setCurrentInvoice(prev => ({ ...prev, items: (prev.items || []).filter(i => i.id !== item.id) }))}
                                                     className="text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
                                                 ><Trash2 size={13} /></button>
                                             </td>
@@ -466,7 +466,7 @@ export const InvoiceModule: React.FC = () => {
                                 <tfoot className="bg-gray-50 border-t-2 border-gray-200">
                                     <tr>
                                         <td colSpan={3} className="p-2 text-right font-black text-gray-600 text-[10px] uppercase">الإجمالي الفرعي:</td>
-                                        <td className="p-2 text-center font-black text-jilco-900">{currentInvoice.items.reduce((s,i) => s+i.total, 0).toLocaleString()}</td>
+                                        <td className="p-2 text-center font-black text-jilco-900">{(currentInvoice.items || []).reduce((s,i) => s+i.total, 0).toLocaleString()}</td>
                                         <td></td>
                                     </tr>
                                 </tfoot>
@@ -515,31 +515,31 @@ export const InvoiceModule: React.FC = () => {
                                 </div>
                             </div>
 
-                            <table className="w-full border-collapse mb-8 flex-1">
+                            <table className="w-full border-collapse border-2 border-jilco-900 mb-8 flex-1">
                                 <thead>
                                     <tr className="bg-jilco-900 text-white text-[11px] font-black uppercase">
-                                        <th className="p-3 text-center w-12 border-l border-white/10">#</th>
-                                        <th className="p-3 text-right border-l border-white/10">البيان / Description</th>
-                                        <th className="p-3 text-center w-24 border-l border-white/10">الكمية</th>
-                                        <th className="p-3 text-center w-36 border-l border-white/10">سعر الوحدة</th>
-                                        <th className="p-3 text-center w-36">الإجمالي (SAR)</th>
+                                        <th className="p-3 text-center w-12 border border-jilco-900">#</th>
+                                        <th className="p-3 text-right border border-jilco-900">البيان / Description</th>
+                                        <th className="p-3 text-center w-24 border border-jilco-900">الكمية</th>
+                                        <th className="p-3 text-center w-36 border border-jilco-900">سعر الوحدة</th>
+                                        <th className="p-3 text-center w-36 border border-jilco-900">الإجمالي (SAR)</th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-gray-100">
+                                <tbody>
                                     {(currentInvoice.items || []).length === 0 && (
                                         <tr>
-                                            <td colSpan={5} className="p-6 text-center text-gray-300 text-sm font-bold">
+                                            <td colSpan={5} className="p-6 text-center text-gray-300 text-sm font-bold border border-gray-300">
                                                 لا توجد بنود مضافة
                                             </td>
                                         </tr>
                                     )}
                                     {(currentInvoice.items || []).map((item, idx) => (
-                                        <tr key={idx} className="border-b border-gray-100">
-                                            <td className="p-3 text-center font-bold text-gray-400">{idx + 1}</td>
-                                            <td className="p-3 font-bold text-gray-800 text-sm">{item.description}</td>
-                                            <td className="p-3 text-center font-bold text-gray-800">{item.quantity}</td>
-                                            <td className="p-3 text-center font-mono font-bold">{item.unitPrice.toLocaleString()}</td>
-                                            <td className="p-3 text-center font-black text-black">{item.total.toLocaleString()}</td>
+                                        <tr key={idx} className="border-b border-gray-300">
+                                            <td className="p-3 text-center font-bold text-gray-600 border border-gray-300">{idx + 1}</td>
+                                            <td className="p-3 font-bold text-gray-900 text-sm border border-gray-300">{item.description}</td>
+                                            <td className="p-3 text-center font-bold text-gray-900 border border-gray-300">{item.quantity}</td>
+                                            <td className="p-3 text-center font-mono font-bold border border-gray-300">{item.unitPrice.toLocaleString()}</td>
+                                            <td className="p-3 text-center font-black text-black border border-gray-300">{item.total.toLocaleString()}</td>
                                         </tr>
                                     ))}
                                 </tbody>
