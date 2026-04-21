@@ -71,9 +71,9 @@ export const QuotePreview: React.FC<QuotePreviewProps> = ({ items, details, tech
         : ["لا توجد مزايا إضافية مسجلة."];
 
     // --- MULTI-PAGE ITEMS LOGIC ---
-    // Split items into chunks: first page holds 4 items, continuation pages hold 5 items each
-    const ITEMS_PER_FIRST_PAGE = 4;
-    const ITEMS_PER_CONT_PAGE = 5;
+    // Split items into chunks: first page holds 3 items, continuation pages hold 3 items each
+    const ITEMS_PER_FIRST_PAGE = 3;
+    const ITEMS_PER_CONT_PAGE = 3;
     const itemPages: typeof items[] = [];
     if (items.length > 0) {
         itemPages.push(items.slice(0, ITEMS_PER_FIRST_PAGE));
@@ -90,6 +90,7 @@ export const QuotePreview: React.FC<QuotePreviewProps> = ({ items, details, tech
             <tr className="bg-jilco-900 text-white text-[11px] font-black uppercase">
                 <th className="p-3 text-center w-10 border-l border-white/10 rounded-tr-lg">#</th>
                 <th className="p-3 text-right border-l border-white/10">اسم البند / التفاصيل الفنية</th>
+                <th className="p-3 text-center w-28 border-l border-white/10">سعر الوحدة (SAR)</th>
                 <th className="p-3 text-center w-20 border-l border-white/10">الكمية</th>
                 <th className="p-3 text-center w-36 rounded-tl-lg">الإجمالي (SAR)</th>
             </tr>
@@ -176,6 +177,7 @@ export const QuotePreview: React.FC<QuotePreviewProps> = ({ items, details, tech
                                                                 {item.details}
                                                             </div>
                                                         </td>
+                                                        <td className="p-3 text-center font-black text-base text-black align-top bg-gray-50/30">{item.unitPrice.toLocaleString()}</td>
                                                         <td className="p-3 text-center font-black text-base text-black align-top bg-gray-50/30">{item.quantity}</td>
                                                         <td className="p-3 text-center font-black text-lg text-black align-top">{item.total.toLocaleString()}</td>
                                                     </tr>
