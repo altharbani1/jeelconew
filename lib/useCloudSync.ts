@@ -79,10 +79,10 @@ export const useCloudSync = (modules: SyncModule[]) => {
                     });
                     stateSetter(sortNewestFirst(parsed));
                     localStorage.setItem(collection, JSON.stringify(parsed));
-                } else {
-                    stateSetter([]);
-                    localStorage.setItem(collection, '[]');
                 }
+                // ⚠️ SAFETY: Never wipe local data if cloud returns empty.
+                // Cloud may return empty due to network issues or Supabase downtime.
+                // Local data (already loaded above) remains intact.
             }));
             setSyncStatus('synced');
         } catch (e) {
