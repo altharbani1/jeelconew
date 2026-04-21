@@ -70,126 +70,172 @@ export const QuotePreview: React.FC<QuotePreviewProps> = ({ items, details, tech
         ? details.features.filter(f => f.trim() !== '')
         : ["لا توجد مزايا إضافية مسجلة."];
 
+    // --- MULTI-PAGE ITEMS LOGIC ---
+    // Split items into chunks: first page holds 4 items, continuation pages hold 5 items each
+    const ITEMS_PER_FIRST_PAGE = 4;
+    const ITEMS_PER_CONT_PAGE = 5;
+    const itemPages: typeof items[] = [];
+    if (items.length > 0) {
+        itemPages.push(items.slice(0, ITEMS_PER_FIRST_PAGE));
+        let remaining = items.slice(ITEMS_PER_FIRST_PAGE);
+        while (remaining.length > 0) {
+            itemPages.push(remaining.slice(0, ITEMS_PER_CONT_PAGE));
+            remaining = remaining.slice(ITEMS_PER_CONT_PAGE);
+        }
+    }
+
+    // Shared table header columns
+    const TableHead = () => (
+        <thead>
+            <tr className="bg-jilco-900 text-white text-[11px] font-black uppercase">
+                <th className="p-3 text-center w-10 border-l border-white/10 rounded-tr-lg">#</th>
+                <th className="p-3 text-right border-l border-white/10">اسم البند / التفاصيل الفنية</th>
+                <th className="p-3 text-center w-20 border-l border-white/10">الكمية</th>
+                <th className="p-3 text-center w-36 rounded-tl-lg">الإجمالي (SAR)</th>
+            </tr>
+        </thead>
+    );
+
     return (
         <div className="flex-1 bg-gray-200 p-8 overflow-auto flex flex-col items-center print:bg-white print:p-0 print:block">
 
             <div id="printable-area" className="print:w-full">
 
-                {/* PAGE 1: FINANCIAL QUOTE WITH ROYAL FRAME */}
-                <div className="a4-page bg-white shadow-2xl mb-10 print:mb-0 mx-auto flex flex-col relative">
+                {/* DYNAMIC PAGES: FINANCIAL QUOTE ITEMS - ONE PAGE PER CHUNK */}
+                {itemPages.map((pageItems, pageIndex) => {
+                    const isFirstPage = pageIndex === 0;
+                    const isLastPage = pageIndex === itemPages.length - 1;
+                    // Offset for item numbering on continuation pages
+                    const itemOffset = isFirstPage ? 0 : ITEMS_PER_FIRST_PAGE + (pageIndex - 1) * ITEMS_PER_CONT_PAGE;
 
-                    <div className="absolute inset-3 border-[6px] border-jilco-900 pointer-events-none z-0"></div>
-                    <div className="absolute inset-[18px] border border-gold-500 pointer-events-none z-0"></div>
-                    <div className="absolute inset-[24px] border border-gray-100 pointer-events-none z-0"></div>
+                    return (
+                        <div key={pageIndex} className="a4-page bg-white shadow-2xl mb-10 print:mb-0 mx-auto flex flex-col relative">
+                            <div className="absolute inset-3 border-[6px] border-jilco-900 pointer-events-none z-0"></div>
+                            <div className="absolute inset-[18px] border border-gold-500 pointer-events-none z-0"></div>
+                            <div className="absolute inset-[24px] border border-gray-100 pointer-events-none z-0"></div>
 
-                    <div className="relative z-10 flex flex-col flex-1 m-[28px] bg-white">
-                        <QuoteHeader config={config} />
+                            <div className="relative z-10 flex flex-col flex-1 m-[28px] bg-white">
+                                <QuoteHeader config={config} />
 
-                        <div className="px-10 py-6 flex-1 flex flex-col relative">
-                            <div className="text-center mb-6">
-                                <h2 className="text-xl font-black text-white bg-jilco-900 py-2.5 px-12 rounded-lg inline-block shadow-md border-b-4 border-gold-500 uppercase tracking-tighter">عرض سعر توريد وتركيب مصعد</h2>
-                            </div>
+                                <div className="px-10 py-6 flex-1 flex flex-col relative">
 
-                            {/* Client Section */}
-                            <div className="grid grid-cols-2 gap-6 mb-6 bg-gray-50/80 p-5 rounded-xl border border-gray-100">
-                                <div className="text-right">
-                                    <p className="text-[9px] font-black text-gray-400 mb-1 uppercase tracking-widest">اسم العميل / Customer Name</p>
-                                    <p className="font-black text-xl text-black mb-1 underline decoration-gold-500 decoration-4 underline-offset-8">
-                                        السادة / {details.customerName || 'المحترمين'}
-                                    </p>
-                                    <p className="text-xs font-bold text-gray-600 flex items-center gap-2 mt-3"><MapPin size={14} className="text-gold-600" /> {details.projectName}</p>
-                                </div>
-                                {/* Date/Ref shifted left with ml-auto and specific layout */}
-                                <div className="text-left font-mono text-xs flex flex-col items-end justify-center" dir="ltr">
-                                    <div className="space-y-1.5 w-full flex flex-col items-start pr-12">
-                                        <p className="bg-white px-4 py-1.5 rounded-lg shadow-sm border border-gray-200 min-w-[160px] flex justify-between gap-4">
-                                            <span className="text-gray-400 font-sans font-black text-[9px] uppercase">Date:</span>
-                                            <span className="font-black text-jilco-900">{details.date}</span>
-                                        </p>
-                                        <p className="bg-white px-4 py-1.5 rounded-lg shadow-sm border border-gray-200 min-w-[160px] flex justify-between gap-4">
-                                            <span className="text-gray-400 font-sans font-black text-[9px] uppercase">Ref:</span>
-                                            <span className="font-black text-jilco-900">{details.number}</span>
-                                        </p>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Table */}
-                            <div className="flex-1">
-                                <table className="w-full border-collapse">
-                                    <thead>
-                                        <tr className="bg-jilco-900 text-white text-[11px] font-black uppercase">
-                                            <th className="p-3 text-center w-10 border-l border-white/10 rounded-tr-lg">#</th>
-                                            <th className="p-3 text-right border-l border-white/10">اسم البند / التفاصيل الفنية</th>
-                                            <th className="p-3 text-center w-20 border-l border-white/10">الكمية</th>
-                                            <th className="p-3 text-center w-36 rounded-tl-lg">الإجمالي (SAR)</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {items.map((item, idx) => (
-                                            <tr key={item.id} className="border-b border-gray-100 group">
-                                                <td className="p-3 text-center font-black text-black align-top bg-gray-50/30">{idx + 1}</td>
-                                                <td className="p-3">
-                                                    <p className="font-black text-black text-base mb-2 flex items-center gap-2">
-                                                        <div className="w-1.5 h-1.5 bg-gold-500 rounded-full"></div>
-                                                        {item.description}
-                                                    </p>
-                                                    <div className="bg-gray-100 p-4 rounded-xl text-[13px] font-black text-black whitespace-pre-line leading-relaxed shadow-inner border border-gray-200">
-                                                        {item.details}
-                                                    </div>
-                                                </td>
-                                                <td className="p-3 text-center font-black text-base text-black align-top bg-gray-50/30">{item.quantity}</td>
-                                                <td className="p-3 text-center font-black text-lg text-black align-top">{item.total.toLocaleString()}</td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-
-                            {/* Financials Totals */}
-                            <div className="flex justify-end mt-6 mb-4">
-                                <div className="w-72 bg-white p-5 rounded-2xl border-4 border-jilco-900 shadow-xl space-y-3 relative overflow-hidden">
-                                    <div className="absolute top-0 right-0 w-full h-1.5 bg-gold-500"></div>
-                                    <div className="flex justify-between text-[10px] font-black text-gray-500 uppercase">
-                                        <span>Subtotal:</span>
-                                        <span className="font-mono text-black font-black">{subtotal.toLocaleString()}</span>
-                                    </div>
-                                    <div className="flex justify-between text-[10px] font-black text-gray-500 uppercase">
-                                        <span>VAT 15%:</span>
-                                        <span className="font-mono text-red-600 font-black">{taxAmount.toLocaleString()}</span>
-                                    </div>
-                                    <div className="border-t-2 border-gray-100 pt-3 flex justify-between items-center">
-                                        <span className="font-black text-jilco-900 text-xs uppercase tracking-tighter">Grand Total:</span>
-                                        <div className="text-left">
-                                            <span className="font-black text-black text-2xl font-mono">{grandTotal.toLocaleString()}</span>
-                                            <p className="text-[8px] text-gold-600 font-black text-center">SAR ريال سعودي</p>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* Signature & Stamp Section */}
-                            <div className="grid grid-cols-2 gap-16 px-6 mt-auto pb-6 relative">
-                                <div className="text-center relative">
-                                    <p className="font-black text-[9px] mb-12 text-gray-400 uppercase tracking-[0.2em]">Authorized Signature</p>
-                                    <div className="border-b-2 border-jilco-900 mx-auto w-48 mb-2"></div>
-                                    <p className="font-black text-jilco-900 text-xs uppercase">شركة جيلكو للمصاعد</p>
-                                    {config.stamp && (
-                                        <div className="absolute left-1/2 -translate-x-1/2 bottom-[30px] z-50 pointer-events-none">
-                                            <img src={config.stamp} alt="stamp" className="h-32 mx-auto mix-blend-multiply opacity-95 brightness-90" />
+                                    {/* Title - show on first page only */}
+                                    {isFirstPage && (
+                                        <div className="text-center mb-6">
+                                            <h2 className="text-xl font-black text-white bg-jilco-900 py-2.5 px-12 rounded-lg inline-block shadow-md border-b-4 border-gold-500 uppercase tracking-tighter">عرض سعر توريد وتركيب مصعد</h2>
                                         </div>
                                     )}
-                                </div>
-                                <div className="text-center">
-                                    <p className="font-black text-[9px] mb-12 text-gray-400 uppercase tracking-[0.2em]">Customer Approval</p>
-                                    <div className="border-b-2 border-gray-200 mx-auto w-48 mb-2"></div>
-                                    <p className="font-black text-gray-400 text-xs uppercase">موافقة وتوقيع العميل</p>
+
+                                    {/* Continuation label on non-first pages */}
+                                    {!isFirstPage && (
+                                        <div className="flex items-center justify-between mb-4">
+                                            <span className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em]">Continued / تابع</span>
+                                            <span className="bg-jilco-900 text-white text-[10px] font-black px-4 py-1 rounded-full">صفحة {pageIndex + 1}</span>
+                                        </div>
+                                    )}
+
+                                    {/* Client Section - first page only */}
+                                    {isFirstPage && (
+                                        <div className="grid grid-cols-2 gap-6 mb-6 bg-gray-50/80 p-5 rounded-xl border border-gray-100">
+                                            <div className="text-right">
+                                                <p className="text-[9px] font-black text-gray-400 mb-1 uppercase tracking-widest">اسم العميل / Customer Name</p>
+                                                <p className="font-black text-xl text-black mb-1 underline decoration-gold-500 decoration-4 underline-offset-8">
+                                                    السادة / {details.customerName || 'المحترمين'}
+                                                </p>
+                                                <p className="text-xs font-bold text-gray-600 flex items-center gap-2 mt-3"><MapPin size={14} className="text-gold-600" /> {details.projectName}</p>
+                                            </div>
+                                            <div className="text-left font-mono text-xs flex flex-col items-end justify-center" dir="ltr">
+                                                <div className="space-y-1.5 w-full flex flex-col items-start pr-12">
+                                                    <p className="bg-white px-4 py-1.5 rounded-lg shadow-sm border border-gray-200 min-w-[160px] flex justify-between gap-4">
+                                                        <span className="text-gray-400 font-sans font-black text-[9px] uppercase">Date:</span>
+                                                        <span className="font-black text-jilco-900">{details.date}</span>
+                                                    </p>
+                                                    <p className="bg-white px-4 py-1.5 rounded-lg shadow-sm border border-gray-200 min-w-[160px] flex justify-between gap-4">
+                                                        <span className="text-gray-400 font-sans font-black text-[9px] uppercase">Ref:</span>
+                                                        <span className="font-black text-jilco-900">{details.number}</span>
+                                                    </p>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Items Table */}
+                                    <div className="flex-1">
+                                        <table className="w-full border-collapse">
+                                            <TableHead />
+                                            <tbody>
+                                                {pageItems.map((item, idx) => (
+                                                    <tr key={item.id} className="border-b border-gray-100 group">
+                                                        <td className="p-3 text-center font-black text-black align-top bg-gray-50/30">{itemOffset + idx + 1}</td>
+                                                        <td className="p-3">
+                                                            <p className="font-black text-black text-base mb-2 flex items-center gap-2">
+                                                                <div className="w-1.5 h-1.5 bg-gold-500 rounded-full"></div>
+                                                                {item.description}
+                                                            </p>
+                                                            <div className="bg-gray-100 p-4 rounded-xl text-[13px] font-black text-black whitespace-pre-line leading-relaxed shadow-inner border border-gray-200">
+                                                                {item.details}
+                                                            </div>
+                                                        </td>
+                                                        <td className="p-3 text-center font-black text-base text-black align-top bg-gray-50/30">{item.quantity}</td>
+                                                        <td className="p-3 text-center font-black text-lg text-black align-top">{item.total.toLocaleString()}</td>
+                                                    </tr>
+                                                ))}
+                                            </tbody>
+                                        </table>
+                                    </div>
+
+                                    {/* Totals + Signature - LAST page only */}
+                                    {isLastPage && (
+                                        <>
+                                            {/* Financials Totals */}
+                                            <div className="flex justify-end mt-6 mb-4">
+                                                <div className="w-72 bg-white p-5 rounded-2xl border-4 border-jilco-900 shadow-xl space-y-3 relative overflow-hidden">
+                                                    <div className="absolute top-0 right-0 w-full h-1.5 bg-gold-500"></div>
+                                                    <div className="flex justify-between text-[10px] font-black text-gray-500 uppercase">
+                                                        <span>Subtotal:</span>
+                                                        <span className="font-mono text-black font-black">{subtotal.toLocaleString()}</span>
+                                                    </div>
+                                                    <div className="flex justify-between text-[10px] font-black text-gray-500 uppercase">
+                                                        <span>VAT 15%:</span>
+                                                        <span className="font-mono text-red-600 font-black">{taxAmount.toLocaleString()}</span>
+                                                    </div>
+                                                    <div className="border-t-2 border-gray-100 pt-3 flex justify-between items-center">
+                                                        <span className="font-black text-jilco-900 text-xs uppercase tracking-tighter">Grand Total:</span>
+                                                        <div className="text-left">
+                                                            <span className="font-black text-black text-2xl font-mono">{grandTotal.toLocaleString()}</span>
+                                                            <p className="text-[8px] text-gold-600 font-black text-center">SAR ريال سعودي</p>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {/* Signature & Stamp Section */}
+                                            <div className="grid grid-cols-2 gap-16 px-6 mt-auto pb-6 relative">
+                                                <div className="text-center relative">
+                                                    <p className="font-black text-[9px] mb-12 text-gray-400 uppercase tracking-[0.2em]">Authorized Signature</p>
+                                                    <div className="border-b-2 border-jilco-900 mx-auto w-48 mb-2"></div>
+                                                    <p className="font-black text-jilco-900 text-xs uppercase">شركة جيلكو للمصاعد</p>
+                                                    {config.stamp && (
+                                                        <div className="absolute left-1/2 -translate-x-1/2 bottom-[30px] z-50 pointer-events-none">
+                                                            <img src={config.stamp} alt="stamp" className="h-32 mx-auto mix-blend-multiply opacity-95 brightness-90" />
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <div className="text-center">
+                                                    <p className="font-black text-[9px] mb-12 text-gray-400 uppercase tracking-[0.2em]">Customer Approval</p>
+                                                    <div className="border-b-2 border-gray-200 mx-auto w-48 mb-2"></div>
+                                                    <p className="font-black text-gray-400 text-xs uppercase">موافقة وتوقيع العميل</p>
+                                                </div>
+                                            </div>
+                                        </>
+                                    )}
+
+                                    <QuoteFooter config={config} />
                                 </div>
                             </div>
-                            <QuoteFooter config={config} />
                         </div>
-                    </div>
-                </div>
+                    );
+                })}
 
                 {/* PAGE 2: TECHNICAL SPECIFICATIONS WITH ROYAL FRAME */}
                 <div className="a4-page bg-white shadow-2xl mb-10 print:mb-0 mx-auto flex flex-col relative">
