@@ -75,6 +75,7 @@ export const QuotePreview: React.FC<QuotePreviewProps> = ({ items, details, tech
     const ITEMS_PER_FIRST_PAGE = 3;
     const ITEMS_PER_CONT_PAGE = 3;
     const itemPages: typeof items[] = [];
+    // Always render at least one page even if no items
     if (items.length > 0) {
         itemPages.push(items.slice(0, ITEMS_PER_FIRST_PAGE));
         let remaining = items.slice(ITEMS_PER_FIRST_PAGE);
@@ -82,6 +83,8 @@ export const QuotePreview: React.FC<QuotePreviewProps> = ({ items, details, tech
             itemPages.push(remaining.slice(0, ITEMS_PER_CONT_PAGE));
             remaining = remaining.slice(ITEMS_PER_CONT_PAGE);
         }
+    } else {
+        itemPages.push([]); // Ensure at least one page renders
     }
 
     // Shared table header columns
@@ -177,7 +180,7 @@ export const QuotePreview: React.FC<QuotePreviewProps> = ({ items, details, tech
                                                                 {item.details}
                                                             </div>
                                                         </td>
-                                                        <td className="p-3 text-center font-black text-base text-black align-top bg-gray-50/30">{item.unitPrice.toLocaleString()}</td>
+                                                        <td className="p-3 text-center font-black text-base text-black align-top bg-gray-50/30">{(item.unitPrice ?? 0).toLocaleString()}</td>
                                                         <td className="p-3 text-center font-black text-base text-black align-top bg-gray-50/30">{item.quantity}</td>
                                                         <td className="p-3 text-center font-black text-lg text-black align-top">{item.total.toLocaleString()}</td>
                                                     </tr>
