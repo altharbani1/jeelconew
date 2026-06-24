@@ -54,6 +54,8 @@ export const MaintenanceModule: React.FC = () => {
     .sig-line { border-bottom: 2px dashed #bbb; width: 180px; margin: 0 auto 8px; }
     .sig-block .sig-name { font-size: 12px; color: #777; font-weight: 700; }
     .footer { margin-top: 60px; border-top: 1px solid #ddd; padding-top: 16px; display: flex; justify-content: space-between; font-size: 12px; color: #999; font-weight: 700; }
+    .sig-line-container { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 80px; }
+    .official-stamp { position: absolute; top: -60px; left: 50%; transform: translateX(-50%); opacity: 0.85; pointer-events: none; mix-blend-mode: multiply; }
     @media print {
       body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
       .page { margin: 0; padding: 30px 40px; }
@@ -108,12 +110,31 @@ export const MaintenanceModule: React.FC = () => {
   <div class="signatures">
     <div class="sig-block">
       <p class="sig-title">الطرف الأول (الشركة)</p>
-      <div class="sig-line"></div>
+      <div class="sig-line-container">
+        <!-- SVG Stamp -->
+        <svg class="official-stamp" width="120" height="120" viewBox="0 0 140 140">
+          <circle cx="70" cy="70" r="65" stroke="#1a3c5e" stroke-width="3" fill="none" />
+          <circle cx="70" cy="70" r="55" stroke="#1a3c5e" stroke-width="1" fill="none" stroke-dasharray="4 4" />
+          <path id="curve" d="M 20 70 A 50 50 0 0 1 120 70" fill="transparent" />
+          <text>
+            <textPath href="#curve" startOffset="50%" text-anchor="middle" font-family="Cairo" font-weight="900" font-size="14" fill="#1a3c5e">شركة جيلكو للمصاعد</textPath>
+          </text>
+          <path id="curve-bottom" d="M 120 70 A 50 50 0 0 1 20 70" fill="transparent" />
+          <text>
+            <textPath href="#curve-bottom" startOffset="50%" text-anchor="middle" font-family="Cairo" font-weight="700" font-size="12" fill="#1a3c5e">JILCO ELEVATORS</textPath>
+          </text>
+          <rect x="25" y="60" width="90" height="20" fill="none" stroke="#c0392b" stroke-width="2" transform="rotate(-15 70 70)"/>
+          <text x="70" y="75" font-family="Cairo" font-weight="900" font-size="14" fill="#c0392b" text-anchor="middle" transform="rotate(-15 70 70)">مُعتمد - APPROVED</text>
+        </svg>
+        <div class="sig-line"></div>
+      </div>
       <p class="sig-name">التوقيع والختم</p>
     </div>
     <div class="sig-block">
       <p class="sig-title">الطرف الثاني (العميل)</p>
-      <div class="sig-line"></div>
+      <div class="sig-line-container">
+        <div class="sig-line"></div>
+      </div>
       <p class="sig-name">${customerName}</p>
     </div>
   </div>
