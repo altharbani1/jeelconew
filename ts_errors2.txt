@@ -1,0 +1,5 @@
+services/supabaseClient.ts(4,33): error TS2339: Property 'env' does not exist on type 'ImportMeta'.
+services/supabaseClient.ts(5,33): error TS2339: Property 'env' does not exist on type 'ImportMeta'.
+services/supabaseClient.ts(6,38): error TS2339: Property 'env' does not exist on type 'ImportMeta'.
+src/lib/supabase.ts(3,33): error TS2339: Property 'env' does not exist on type 'ImportMeta'.
+src/lib/supabase.ts(4,33): error TS2339: Property 'env' does not exist on type 'ImportMeta'.

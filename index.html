@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>جيلكو للمصاعد | Jilco Elevators - نظام الإدارة المتكامل</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800;900&display=swap"
+    rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Cairo', 'sans-serif'],
+          },
+          colors: {
+            jilco: {
+              50: '#f0f9ff',
+              100: '#e0f2fe',
+              200: '#bae6fd',
+              300: '#7dd3fc',
+              400: '#38bdf8',
+              500: '#0ea5e9',
+              600: '#0284c7',
+              700: '#0369a1',
+              800: '#075985',
+              900: '#0c4a6e',
+              950: '#082f49',
+            },
+            gold: {
+              50: '#fffbeb',
+              100: '#fef3c7',
+              200: '#fde68a',
+              300: '#fcd34d',
+              400: '#fbbf24',
+              500: '#f59e0b',
+              600: '#d97706',
+              700: '#b45309',
+              800: '#92400e',
+              900: '#78350f',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body {
+      font-family: 'Cairo', sans-serif;
+      background-color: #f8fafc;
+      margin: 0;
+      padding: 0;
+    }
+
+    /* Utilities */
+    .no-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+
+    .no-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+
+    /* --- PROFESSIONAL PRINT ENGINE CSS v4.0 --- */
+    @media print {
+
+      @page {
+        size: A4 portrait;
+        margin: 0mm;
+      }
+
+      /* 1. Hide entire page first */
+      html, body, #root {
+        margin: 0 !important;
+        padding: 0 !important;
+        background: white !important;
+        overflow: visible !important;
+        height: auto !important;
+        width: 100% !important;
+      }
+
+      body * {
+        visibility: hidden !important;
+        overflow: visible !important;
+      }
+      
+      body #root .no-print,
+      body #root .print\:hidden,
+      body #root [class*="no-print"] {
+        display: none !important;
+        position: absolute !important;
+        width: 0 !important;
+        height: 0 !important;
+      }
+
+      /* Reset all flex/grid containers to normal flow */
+      body > #root,
+      body > #root > *,
+      body > #root > * > *,
+      body > #root > * > * > * {
+        all: unset !important;
+        display: block !important;
+        overflow: visible !important;
+        height: auto !important;
+        width: 100% !important;
+        visibility: hidden !important;
+      }
+
+      /* 2. WARRANTY CERTIFICATE: Show ONLY the certificate element, positioned fixed to fill page exactly */
+      .warranty-certificate-page {
+        visibility: visible !important;
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        bottom: 0 !important;
+        width: 210mm !important;
+        height: 297mm !important;
+        overflow: hidden !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        box-sizing: border-box !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        page-break-after: avoid !important;
+        break-after: avoid !important;
+      }
+
+      .warranty-certificate-page * {
+        visibility: visible !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+
+      /* 3. MAINTENANCE CONTRACT: Show only .contract-print-page */
+      .contract-print-page {
+        visibility: visible !important;
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        width: 210mm !important;
+        height: 297mm !important;
+        overflow: hidden !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        box-sizing: border-box !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+
+      .contract-print-page * {
+        visibility: visible !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+
+      /* 4. General a4-page support for other modules - MULTI-PAGE FIX */
+      #printable-area {
+        visibility: visible !important;
+        position: static !important;
+        width: 210mm !important;
+        margin: 0 auto !important;
+        padding: 0 !important;
+        background: white !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+
+      #printable-area * {
+        visibility: visible !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+
+      .a4-page {
+        visibility: visible !important;
+        position: relative !important;
+        width: 210mm !important;
+        height: 296.5mm !important;
+        overflow: hidden !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        box-sizing: border-box !important;
+        page-break-after: always !important;
+        break-after: page !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        display: flex !important;
+        flex-direction: column !important;
+      }
+
+      .a4-page:last-of-type {
+        page-break-after: avoid !important;
+        break-after: avoid !important;
+      }
+
+      .a4-page * {
+        visibility: visible !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+
+      /* 6. Tables */
+      table { border-collapse: collapse !important; }
+      tr { break-inside: avoid !important; }
+      a { text-decoration: none !important; color: inherit !important; }
+    }
+
+
+
+    /* Custom scrollbar for better professional look on screen */
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: #f1f1f1;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: #0c4a6e;
+      border-radius: 10px;
+    }
+  </style>
+  <script type="importmap">
+{
+  "imports": {
+    "@google/genai": "https://aistudiocdn.com/@google/genai@^1.30.0",
+    "@neondatabase/serverless": "https://esm.sh/@neondatabase/serverless",
+    "lucide-react": "https://aistudiocdn.com/lucide-react@^0.554.0",
+    "react-dom/client": "https://aistudiocdn.com/react-dom@^19.2.0/client",
+    "react-dom": "https://aistudiocdn.com/react-dom@^19.2.0",
+    "react": "https://aistudiocdn.com/react@^19.2.0",
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/"
+  }
+}
+</script>
+</head>
+
+<body>
+  <div id="root"></div>
+  <script type="module" src="index.tsx"></script>
+</body>
+
+</html>
