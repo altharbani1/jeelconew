@@ -686,3 +686,15 @@ export interface MaintenanceTicket {
   elevatorLocation: string; // Information on where the elevator is located inside the property
   notes?: string;
 }
+
+export type VisitStatus = 'pending' | 'completed' | 'missed' | 'rescheduled';
+
+export interface MaintenanceVisit {
+  id: string;
+  contractId: string;
+  scheduledDate: string; // YYYY-MM-DD
+  completedDate?: string; // YYYY-MM-DD
+  technicianId?: string; // ID from HR
+  status: VisitStatus;
+  notes?: string;
+}

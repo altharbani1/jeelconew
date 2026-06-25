@@ -6,7 +6,7 @@ import { useHR } from '../contexts/HRContext';
 import { MaintenanceContract, MaintenanceTicket, TicketStatus, TicketPriority, TicketType } from '../types';
 
 export const MaintenanceModule: React.FC = () => {
-    const { contracts, tickets, addContract, updateContract, deleteContract, addTicket, updateTicket, deleteTicket } = useMaintenance();
+    const { contracts, tickets, visits, addContract, updateContract, deleteContract, addTicket, updateTicket, deleteTicket, updateVisit } = useMaintenance();
     const { customers = [] } = useSales();
     const { hrEmployees: employees = [] } = useHR();
 
@@ -153,6 +153,7 @@ export const MaintenanceModule: React.FC = () => {
 
     // --- Contract State ---
     const [showContractCreator, setShowContractCreator] = useState(false);
+    const [selectedContractForVisits, setSelectedContractForVisits] = useState<string | null>(null);
     const [currentContract, setCurrentContract] = useState<Partial<MaintenanceContract>>({
         number: `MC-${new Date().getFullYear()}-${String(contracts.length + 1).padStart(3, '0')}`,
         startDate: new Date().toISOString().split('T')[0],
@@ -254,9 +255,10 @@ export const MaintenanceModule: React.FC = () => {
                             <td className="p-4 font-black text-green-700">{contract.amount.toLocaleString()}</td>
                             <td className="p-4"><span className={`px-2 py-1 rounded text-[10px] font-bold ${contract.status === 'active' ? 'bg-green-100 text-green-700' : contract.status === 'expired' ? 'bg-red-100 text-red-700' : 'bg-gray-100 text-gray-700'}`}>{contract.status === 'active' ? 'ساري' : contract.status === 'expired' ? 'منتهي' : 'ملغي'}</span></td>
                             <td className="p-4 flex gap-2 justify-center">
+                                <button onClick={() => setSelectedContractForVisits(contract.id)} className="p-1.5 text-purple-600 hover:bg-purple-50 rounded" title="جدول الزيارات"><Calendar size={16} /></button>
                                 <button onClick={() => handlePrintContract(contract as MaintenanceContract)} className="p-1.5 text-gray-600 hover:bg-gray-50 rounded" title="طباعة العقد"><Printer size={16} /></button>
                                 <button onClick={() => { setCurrentContract(contract); setShowContractCreator(true); }} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded" title="تعديل"><Edit size={16} /></button>
-                                <button onClick={() => { if (window.confirm('هل أنت متأكد من حذف العقد؟')) deleteContract(contract.id); }} className="p-1.5 text-red-500 hover:bg-red-50 rounded" title="حذف"><Trash2 size={16} /></button>
+                                <button onClick={() => { if (window.confirm('هل أنت متأكد من حذف العقد وجميع زياراته؟')) deleteContract(contract.id); }} className="p-1.5 text-red-500 hover:bg-red-50 rounded" title="حذف"><Trash2 size={16} /></button>
                             </td>
                         </tr>
                     ))}
@@ -456,6 +458,64 @@ export const MaintenanceModule: React.FC = () => {
                 </div>
             )}
 
+            {/* Visits Schedule Modal */}
+            {selectedContractForVisits && (
+                <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95">
+                        <div className="bg-purple-700 p-6 flex justify-between items-center text-white shrink-0">
+                            <div>
+                                <h2 className="text-xl font-bold flex items-center gap-2"><Calendar /> جدول الزيارات الدورية</h2>
+                                <p className="text-purple-200 text-sm mt-1">عقد رقم: {contracts.find(c => c.id === selectedContractForVisits)?.number}</p>
+                            </div>
+                            <button title="إغلاق" onClick={() => setSelectedContractForVisits(null)} className="hover:bg-white/10 p-2 rounded-full"><Plus className="rotate-45" /></button>
+                        </div>
+                        <div className="p-6 overflow-y-auto flex-1 bg-gray-50">
+                            {visits.filter(v => v.contractId === selectedContractForVisits).length === 0 ? (
+                                <div className="text-center py-12 text-gray-400 font-bold">لا توجد زيارات مجدولة لهذا العقد. (تم إنشاء العقد قبل تحديث النظام)</div>
+                            ) : (
+                                <div className="space-y-4">
+                                    {visits.filter(v => v.contractId === selectedContractForVisits).sort((a,b) => new Date(a.scheduledDate).getTime() - new Date(b.scheduledDate).getTime()).map((visit, index) => (
+                                        <div key={visit.id} className={`bg-white p-4 rounded-xl border flex items-center gap-4 shadow-sm transition-all ${visit.status === 'completed' ? 'border-green-200 opacity-70' : visit.status === 'missed' ? 'border-red-200 bg-red-50' : 'border-gray-200 hover:border-purple-300'}`}>
+                                            <div className={`w-12 h-12 shrink-0 rounded-full flex items-center justify-center font-black text-lg ${visit.status === 'completed' ? 'bg-green-100 text-green-600' : visit.status === 'missed' ? 'bg-red-100 text-red-600' : 'bg-purple-100 text-purple-600'}`}>
+                                                {index + 1}
+                                            </div>
+                                            <div className="flex-1 grid grid-cols-4 gap-4 items-center">
+                                                <div>
+                                                    <p className="text-xs text-gray-500 font-bold mb-1">تاريخ الزيارة المجدول</p>
+                                                    <p className="font-mono font-bold text-jilco-900">{visit.scheduledDate}</p>
+                                                </div>
+                                                <div>
+                                                    <p className="text-xs text-gray-500 font-bold mb-1">الفني</p>
+                                                    <select title="الفني" value={visit.technicianId || ''} onChange={e => updateVisit(visit.id, { technicianId: e.target.value })} className="w-full text-xs font-bold border-gray-200 rounded p-1 outline-none">
+                                                        <option value="">-- لم يعين --</option>
+                                                        {technicians.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                                                    </select>
+                                                </div>
+                                                <div>
+                                                    <p className="text-xs text-gray-500 font-bold mb-1">تاريخ التنفيذ</p>
+                                                    <input title="تاريخ التنفيذ الفعلي" type="date" value={visit.completedDate || ''} onChange={e => updateVisit(visit.id, { completedDate: e.target.value })} className="w-full text-xs font-bold border-gray-200 rounded p-1 outline-none" disabled={visit.status !== 'completed'} />
+                                                </div>
+                                                <div>
+                                                    <p className="text-xs text-gray-500 font-bold mb-1">الحالة</p>
+                                                    <select title="الحالة" value={visit.status} onChange={e => updateVisit(visit.id, { status: e.target.value as any, completedDate: e.target.value === 'completed' ? new Date().toISOString().split('T')[0] : visit.completedDate })} className={`w-full text-xs font-bold border-none outline-none rounded p-1 cursor-pointer ${visit.status === 'completed' ? 'bg-green-100 text-green-700' : visit.status === 'missed' ? 'bg-red-100 text-red-700' : visit.status === 'rescheduled' ? 'bg-amber-100 text-amber-700' : 'bg-gray-100 text-gray-700'}`}>
+                                                        <option value="pending">مجدولة</option>
+                                                        <option value="completed">مكتملة</option>
+                                                        <option value="missed">فائتة</option>
+                                                        <option value="rescheduled">مؤجلة</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                            <div className="w-48 shrink-0">
+                                                <input title="ملاحظات" type="text" placeholder="ملاحظات الزيارة..." value={visit.notes || ''} onChange={e => updateVisit(visit.id, { notes: e.target.value })} className="w-full text-xs border border-gray-200 rounded-lg p-2 outline-none focus:border-purple-400" />
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
 
         </div>
     );
