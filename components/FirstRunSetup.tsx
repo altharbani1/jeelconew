@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { supabase } from '../services/supabaseClient';
 
 export const FirstRunSetup: React.FC = () => {
+  const [mode, setMode] = useState<'login' | 'setup'>('login');
   const [companyName, setCompanyName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -54,6 +55,35 @@ export const FirstRunSetup: React.FC = () => {
     setLoading(false);
   };
 
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+    if (signInError) {
+      setError('تعذر تسجيل دخول المزامنة. تحقق من البريد وكلمة المرور.');
+      setLoading(false);
+      return;
+    }
+    window.location.href = '/';
+  };
+
+  if (mode === 'login') {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-900">
+        <form onSubmit={handleLogin} className="bg-white p-8 rounded shadow w-96">
+          <h2 className="text-xl font-bold mb-2">دخول المزامنة السحابية</h2>
+          <p className="text-sm text-gray-600 mb-4">سجّل الدخول بحساب المزامنة الذي أنشأته مسبقًا.</p>
+          <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="البريد الإلكتروني" className="mb-2 w-full p-2 border rounded" required />
+          <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="كلمة المرور" className="mb-3 w-full p-2 border rounded" required />
+          <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded w-full" disabled={loading}>{loading ? 'جاري الدخول...' : 'دخول المزامنة'}</button>
+          <button type="button" onClick={() => { setError(''); setMode('setup'); }} className="text-blue-700 text-sm mt-4 w-full">إعداد المزامنة لأول مرة</button>
+          {error && <div className="text-red-600 mt-2">{error}</div>}
+        </form>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-900">
       <form onSubmit={handleSetup} className="bg-white p-8 rounded shadow w-96">
@@ -65,6 +95,7 @@ export const FirstRunSetup: React.FC = () => {
         <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded" disabled={loading}>إنشاء المدير</button>
         {error && <div className="text-red-600 mt-2">{error}</div>}
         {success && <div className="text-green-600 mt-2">تم إنشاء المدير والشركة بنجاح!</div>}
+        <button type="button" onClick={() => { setError(''); setMode('login'); }} className="text-blue-700 text-sm mt-4 w-full">لدي حساب مزامنة بالفعل</button>
       </form>
     </div>
   );
