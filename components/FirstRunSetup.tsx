@@ -1,8 +1,7 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { supabase } from '../services/supabaseClient';
 
 export const FirstRunSetup: React.FC = () => {
-  const [needsSetup, setNeedsSetup] = useState(false);
   const [companyName, setCompanyName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -10,50 +9,38 @@ export const FirstRunSetup: React.FC = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
 
-  useEffect(() => {
-    supabase.from('app_users').select('id').limit(1).then(({ data }) => {
-      if (!data || data.length === 0) setNeedsSetup(true);
-    });
-  }, []);
-
   const handleSetup = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
     try {
-      // 1. Create company
+      // يجب إنشاء جلسة Supabase أولاً، لأن قاعدة البيانات لا تقبل الكتابة
+      // إلا للمستخدمين المسجلين.
+      const { data, error: signUpError } = await supabase.auth.signUp({ email, password });
+      if (signUpError) throw new Error(signUpError.message);
+      let userId = data.session?.user?.id || data.user?.id;
+      if (!data.session) {
+        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+        if (signInError) throw new Error('تم إنشاء الحساب. فعّل البريد الإلكتروني أولاً ثم سجّل الدخول لإكمال الإعداد.');
+        userId = signInData.user?.id;
+      }
+      if (!userId) throw new Error('لم يتم تسجيل الدخول بعد إنشاء المستخدم');
+
       const { data: companyData, error: companyError } = await supabase
         .from('companies')
         .insert({ name: companyName })
-        .select()
+        .select('id')
         .single();
       if (companyError) throw new Error(companyError.message);
-      const company_id = companyData?.id;
-      if (!company_id) throw new Error('لم يتم إنشاء الشركة بنجاح');
 
-      // 2. Create admin user
-      const { data, error: signUpError } = await supabase.auth.signUp({ email, password });
-      if (signUpError) throw new Error(signUpError.message);
-      // تسجيل الدخول مباشرة بعد التسجيل
-      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({ email, password });
-      if (signInError) throw new Error(signInError.message);
-      const userId = signInData?.user?.id;
-      if (!userId) throw new Error('لم يتم تسجيل الدخول بعد إنشاء المستخدم');
-
-      // إدراج المستخدم في app_users في الخلفية بدون انتظار
-      supabase.from('app_users').insert({
+      const { error: userError } = await supabase.from('app_users').upsert({
         id: userId,
         email,
         full_name: 'Admin',
-        company_id,
+        company_id: companyData.id,
+        role: 'admin',
       });
-
-      // تعيين الدور الإداري في الخلفية أيضاً
-      supabase.from('user_roles').insert({
-        user_id: userId,
-        role_id: 1,
-        company_id,
-      });
+      if (userError) throw new Error(userError.message);
 
       setSuccess(true);
       // الانتقال مباشرة للتطبيق بعد نجاح التسجيل والدخول
@@ -65,11 +52,11 @@ export const FirstRunSetup: React.FC = () => {
     setLoading(false);
   };
 
-  if (!needsSetup) return null;
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-900">
       <form onSubmit={handleSetup} className="bg-white p-8 rounded shadow w-96">
-        <h2 className="text-xl font-bold mb-4">إعداد أول مدير للنظام</h2>
+        <h2 className="text-xl font-bold mb-2">إعداد المزامنة السحابية</h2>
+        <p className="text-sm text-gray-600 mb-4">أنشئ حساب المدير لحفظ بيانات النظام في القاعدة الجديدة.</p>
         <input type="text" value={companyName} onChange={e => setCompanyName(e.target.value)} placeholder="اسم الشركة" className="mb-2 w-full p-2 border rounded" required />
         <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="البريد الإلكتروني" className="mb-2 w-full p-2 border rounded" required />
         <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="كلمة المرور" className="mb-2 w-full p-2 border rounded" required />

@@ -35,6 +35,8 @@ import { LoginScreen } from './components/LoginScreen.tsx';
 import { FinancialReportModule } from './components/FinancialReportModule.tsx';
 import { MaintenanceModule } from './components/MaintenanceModule.tsx';
 import { SubcontractModule } from './components/SubcontractModule.tsx';
+import { FirstRunSetup } from './components/FirstRunSetup.tsx';
+import { useSupabaseAuth } from './contexts/SupabaseAuthContext.tsx';
 
 import { SystemView } from './types.ts';
 
@@ -101,6 +103,16 @@ import { MaintenanceProvider } from './contexts/MaintenanceContext.tsx';
 import { SubcontractProvider } from './contexts/SubcontractContext.tsx';
 
 const App: React.FC = () => {
+  const { user: cloudUser, loading: cloudLoading } = useSupabaseAuth();
+
+  if (cloudLoading) {
+    return <div className="min-h-screen flex items-center justify-center bg-gray-900 text-white">جاري تجهيز المزامنة السحابية...</div>;
+  }
+
+  if (!cloudUser) {
+    return <FirstRunSetup />;
+  }
+
   return (
     <AuthProvider>
       <DataProvider>
