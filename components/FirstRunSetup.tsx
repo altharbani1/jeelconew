@@ -17,11 +17,13 @@ export const FirstRunSetup: React.FC = () => {
       // يجب إنشاء جلسة Supabase أولاً، لأن قاعدة البيانات لا تقبل الكتابة
       // إلا للمستخدمين المسجلين.
       const { data, error: signUpError } = await supabase.auth.signUp({ email, password });
-      if (signUpError) throw new Error(signUpError.message);
+      if (signUpError && !/already registered/i.test(signUpError.message)) {
+        throw new Error(signUpError.message);
+      }
       let userId = data.session?.user?.id || data.user?.id;
       if (!data.session) {
         const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({ email, password });
-        if (signInError) throw new Error('تم إنشاء الحساب. فعّل البريد الإلكتروني أولاً ثم سجّل الدخول لإكمال الإعداد.');
+        if (signInError) throw new Error('فعّل البريد الإلكتروني أولاً، ثم أعد المحاولة لإكمال الإعداد.');
         userId = signInData.user?.id;
       }
       if (!userId) throw new Error('لم يتم تسجيل الدخول بعد إنشاء المستخدم');
