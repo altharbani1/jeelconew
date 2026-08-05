@@ -10,9 +10,6 @@ interface DashboardProps {
   setView?: (view: SystemView) => void;
 }
 
-// Default Connection String (Auto-injected)
-const DEFAULT_NEON_CONN = 'postgresql://neondb_owner:npg_daR6gtonfr7V@ep-blue-butterfly-aebejil8-pooler.c-2.us-east-2.aws.neon.tech/neondb?sslmode=require';
-
 export const Dashboard: React.FC<DashboardProps> = ({ setView }) => {
   const { currentUser } = useAuth();
   const { migrateAllLocalData } = useData();
