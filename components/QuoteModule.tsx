@@ -8,6 +8,7 @@ import { useAuth } from '../contexts/AuthContext.tsx';
 import { useSales } from '../contexts/SalesContext.tsx';
 import { useData } from '../contexts/DataContext.tsx';
 import { loggerService } from '../services/loggerService.ts';
+import { printDocument } from '../lib/pdfShareService.ts';
 
 interface SavedQuote {
     id: string;
@@ -257,7 +258,7 @@ export const QuoteModule: React.FC = () => {
                                                 </svg>
                                             </button>
                                             <button onClick={() => handleEdit(quote)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-full" title="تعديل"><Edit size={16} /></button>
-                                            <button onClick={() => { handleEdit(quote); setTimeout(() => window.print(), 500); }} className="p-2 text-gray-600 hover:bg-gray-50 rounded-full" title="طباعة"><Printer size={16} /></button>
+                                            <button onClick={() => { handleEdit(quote); setTimeout(() => void printDocument('printable-area'), 500); }} className="p-2 text-gray-600 hover:bg-gray-50 rounded-full" title="طباعة"><Printer size={16} /></button>
                                             <button onClick={() => deleteQuote(quote.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-full" title="حذف"><Trash2 size={16} /></button>
                                         </td>
                                     </tr>
@@ -278,7 +279,7 @@ export const QuoteModule: React.FC = () => {
                 details={details} setDetails={setDetails}
                 techSpecs={techSpecs} setTechSpecs={setTechSpecs}
                 config={config} setConfig={setConfig}
-                onPrint={() => window.print()}
+                onPrint={() => void printDocument('printable-area')}
                 onSave={handleSaveCurrentQuote}
             />
             <QuotePreview items={items} details={details} techSpecs={techSpecs} config={config} />

@@ -20,6 +20,27 @@ export type ShareResult =
     | { status: 'whatsapp_web' }   // جاري فتح واتساب ويب
     | { status: 'error'; message: string };
 
+async function waitForDocumentAssets(element: HTMLElement): Promise<void> {
+    await document.fonts?.ready;
+    const images = Array.from(element.querySelectorAll<HTMLImageElement>('img'));
+    await Promise.all(images.map(async image => {
+        if (!image.complete) {
+            await new Promise<void>(resolve => {
+                image.addEventListener('load', () => resolve(), { once: true });
+                image.addEventListener('error', () => resolve(), { once: true });
+            });
+        }
+        try { await image.decode(); } catch { /* continue if decoding is unsupported */ }
+    }));
+}
+
+export async function printDocument(elementId: string): Promise<void> {
+    const element = document.getElementById(elementId);
+    if (!element) throw new Error(`العنصر "${elementId}" غير موجود`);
+    await waitForDocumentAssets(element);
+    window.print();
+}
+
 /**
  * توليد PDF من عنصر HTML
  */
@@ -27,7 +48,7 @@ async function generatePdfBlob(elementId: string, fileName: string): Promise<Blo
     const element = document.getElementById(elementId);
     if (!element) throw new Error(`العنصر "${elementId}" غير موجود`);
 
-    await document.fonts?.ready;
+    await waitForDocumentAssets(element);
 
     // عروض الأسعار تتكون من صفحات A4 مستقلة. تصوير كل صفحة على حدة
     // يمنع الصفحة البيضاء والملف الضخم الناتجين عن تصوير الحاوية كاملة.

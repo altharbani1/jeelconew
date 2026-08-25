@@ -45,12 +45,11 @@ export const CompanyProfileModule: React.FC = () => {
     }, [globalConfig]);
 
     // Save Data
-    const handleSave = () => {
+    const handleSave = async () => {
         // Save using DataContext which handles Supabase sync internally
-        saveConfig(config);
-
-        setShowSaved(true);
-        setTimeout(() => setShowSaved(false), 3000);
+        const success = await saveConfig(config);
+        setShowSaved(success);
+        if (success) setTimeout(() => setShowSaved(false), 3000);
     };
 
     const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'logo' | 'stamp') => {
@@ -61,12 +60,16 @@ export const CompanyProfileModule: React.FC = () => {
             reader.onload = async (ev) => {
                 if (ev.target?.result) {
                     const base64 = ev.target.result as string;
-                    setConfig(prev => ({ ...prev, [type]: base64 }));
+                    const previewConfig = { ...config, [type]: base64 };
+                    setConfig(previewConfig);
+                    await saveConfig(previewConfig);
                     // رفع لـ Supabase Storage في الخلفية
                     setUploadingImage(true);
                     const url = await cloudService.uploadImage(base64, `jilco_${type}_${Date.now()}`);
                     if (url) {
-                        setConfig(prev => ({ ...prev, [type]: url }));
+                        const uploadedConfig = { ...previewConfig, [type]: url };
+                        setConfig(uploadedConfig);
+                        await saveConfig(uploadedConfig);
                         console.log(`✅ ${type} uploaded to Supabase:`, url);
                     }
                     setUploadingImage(false);

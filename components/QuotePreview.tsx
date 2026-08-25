@@ -12,7 +12,7 @@ interface QuotePreviewProps {
 
 // --- SHARED HEADER COMPONENT ---
 const QuoteHeader: React.FC<{ config: CompanyConfig }> = ({ config }) => (
-    <header className="px-10 py-6 border-b-2 border-jilco-100 flex justify-between items-center bg-white h-[160px] relative overflow-hidden shrink-0">
+    <header className="px-10 py-4 border-b-2 border-jilco-100 flex justify-between items-center bg-white min-h-[160px] relative shrink-0">
         <div className="w-1/3 text-right">
             <h1 className="text-2xl font-black text-jilco-900 mb-0.5">{config.headerTitle || 'جيلكو للمصاعد'}</h1>
             <p className="text-[10px] font-bold text-gray-500 mb-3">{config.headerSubtitle || 'للمصاعد والسلالم الكهربائية'}</p>
@@ -23,13 +23,13 @@ const QuoteHeader: React.FC<{ config: CompanyConfig }> = ({ config }) => (
         </div>
         <div className="w-1/3 flex justify-center">
             {config.logo ? (
-                <img src={config.logo} alt="Logo" className="h-32 w-auto object-contain" />
+                <img src={config.logo} alt="شعار جيلكو" className="max-h-28 max-w-full w-auto object-contain" crossOrigin="anonymous" />
             ) : (
                 <div className="h-24 w-24 bg-gray-50 border border-dashed border-gray-200 rounded-full flex items-center justify-center text-[8px] text-gray-300 uppercase">Logo</div>
             )}
         </div>
-        <div className="w-1/3 text-left flex flex-col items-end" dir="ltr">
-            <h2 className="text-lg font-black text-jilco-900 tracking-tighter">JILCO ELEVATORS</h2>
+        <div className="w-1/3 text-left flex flex-col items-start" dir="ltr">
+            <h2 className="text-lg font-black text-jilco-900 tracking-tighter">{config.headerSubtitle || 'JILCO ELEVATORS CO.'}</h2>
             <div className="mt-3 space-y-1">
                 <div className="flex items-center gap-2 text-[10px] font-black text-gray-700 bg-gray-50 px-2 py-1 rounded-l-full border-r-2 border-jilco-600">
                     <span>{config.contactPhone}</span>
@@ -40,6 +40,9 @@ const QuoteHeader: React.FC<{ config: CompanyConfig }> = ({ config }) => (
                     <Mail size={10} className="text-gold-600" />
                 </div>
             </div>
+            {config.stamp && (
+                <img src={config.stamp} alt="ختم جيلكو" className="mt-1 h-10 w-auto object-contain opacity-90" crossOrigin="anonymous" />
+            )}
         </div>
     </header>
 );
