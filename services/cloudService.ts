@@ -32,33 +32,6 @@ const STORAGE_KEYS = [
 const IMAGE_KEYS = ['jilco_logo', 'jilco_stamp'];
 
 const BUCKET = 'jilco-assets';
-const QUOTE_PAYLOAD_PREFIX = 'JILCO_QUOTE_V1:';
-
-const getQuotePayload = (notes?: string | null) => {
-  if (!notes?.startsWith(QUOTE_PAYLOAD_PREFIX)) return null;
-  try {
-    return JSON.parse(notes.slice(QUOTE_PAYLOAD_PREFIX.length));
-  } catch {
-    return null;
-  }
-};
-
-const getCurrentOrganization = async () => {
-  const { data: { user }, error: userError } = await supabase.auth.getUser();
-  if (userError || !user) throw userError || new Error('يجب تسجيل الدخول قبل حفظ عرض السعر');
-
-  const { data: membership, error: membershipError } = await supabase
-    .from('organization_members')
-    .select('organization_id')
-    .eq('user_id', user.id)
-    .limit(1)
-    .single();
-
-  if (membershipError || !membership) {
-    throw membershipError || new Error('المستخدم غير مرتبط بمنشأة');
-  }
-  return { userId: user.id, organizationId: membership.organization_id as string };
-};
 
 // ========== مساعد: مفتاح النسخة الاحتياطية حسب المستخدم ==========
 const getBackupKey = (username?: string) =>
@@ -240,10 +213,10 @@ export const cloudService = {
       const channel = supabase.channel(`realtime_quotes`)
         .on('postgres_changes', { event: '*', schema: 'public', table: 'quotes' }, async (payload: any) => {
             if (payload.eventType === 'DELETE' && payload.old) {
-                onUpdate({ eventType: 'DELETE', old: { record_id: payload.old.id } });
-            } else if (payload.new) {
+                onUpdate({ eventType: 'DELETE', old: { record_id: payload.old.legacy_id || payload.old.id } });
+            } else if (payload.new && payload.new.legacy_id) {
                 const quoteAll = await cloudService.loadCollection('jilco_quotes_archive');
-                const fullQuoteData = quoteAll?.find((q:any) => q.data?.details?.number === payload.new.quote_number);
+                const fullQuoteData = quoteAll?.find((q:any) => q.record_id === payload.new.legacy_id);
                 if (fullQuoteData) {
                     onUpdate({ eventType: payload.eventType, new: fullQuoteData });
                 }
@@ -311,39 +284,52 @@ export const cloudService = {
       }
 
       if (collection === 'jilco_quotes_archive') {
-         const { data: quotes, error: qErr } = await supabase.from('quotes').select('*, quote_items(*)');
+         const { data: quotes, error: qErr } = await supabase.from('quotes').select('*, quote_items(*), quote_specs(*)');
          if (qErr) throw qErr;
-         return (quotes || []).map((row: any) => {
-             const savedPayload = getQuotePayload(row.notes);
-             const data = savedPayload || {
-               id: row.id,
-               details: {
-                 number: row.quote_number,
-                 date: row.issue_date,
-                 customerName: '',
-                 customerAddress: '',
-                 projectName: '',
-                 validity: '',
-                 taxRate: Number(row.tax_total) > 0 && Number(row.subtotal) > 0
-                   ? (Number(row.tax_total) / Number(row.subtotal)) * 100 : 15,
-                 paymentTerms: [],
-                 termsAndConditions: row.terms || ''
-               },
-               items: (row.quote_items || [])
-                 .sort((a: any, b: any) => a.line_number - b.line_number)
-                 .map((item: any) => ({
-                   id: item.id,
-                   description: item.description,
-                   details: '',
-                   quantity: Number(item.quantity),
-                   unitPrice: Number(item.unit_price),
-                   total: Number(item.line_subtotal)
+         return (quotes || []).map((row: any) => ({
+             record_id: row.legacy_id || row.id,
+             data: {
+                 id: row.legacy_id || row.id,
+                 ...row,
+                 details: {
+                     number: row.number,
+                     date: row.date,
+                     customerName: row.customer_name,
+                     customerAddress: row.customer_address,
+                     projectName: row.project_name,
+                     validity: row.validity,
+                     taxRate: Number(row.tax_rate),
+                     warrantyInstallation: row.warranty_installation,
+                     warrantyMotor: row.warranty_motor,
+                     paymentTerms: row.payment_terms || [],
+                     termsAndConditions: row.terms_and_conditions,
+                     features: row.features || [],
+                     handoverAndWarranty: row.handover_and_warranty,
+                     firstPartyObligations: row.first_party_obligations,
+                     secondPartyObligations: row.second_party_obligations,
+                     worksDuration: row.works_duration,
+                     showGallery: row.show_gallery,
+                     galleryImages: row.gallery_images || {}
+                 },
+                 items: (row.quote_items || []).map((item: any) => ({
+                     id: item.legacy_id || item.id,
+                     description: item.description,
+                     details: item.details,
+                     quantity: Number(item.quantity),
+                     unitPrice: Number(item.unit_price),
+                     total: Number(item.total)
                  })),
-               techSpecs: {},
-               lastModified: row.updated_at
-             };
-             return { record_id: data.id || row.id, data };
-         });
+                 techSpecs: row.quote_specs && row.quote_specs.length > 0 ? {
+                     ...row.quote_specs[0],
+                     elevatorType: row.quote_specs[0].elevator_type,
+                     driveType: row.quote_specs[0].drive_type,
+                     controlSystem: row.quote_specs[0].control_system,
+                     powerSupply: row.quote_specs[0].power_supply,
+                     externalDoors: row.quote_specs[0].external_doors,
+                     machineRoom: row.quote_specs[0].machine_room
+                 } : {}
+             }
+         }));
       }
 
       const phase3Collections: any = {
@@ -431,92 +417,79 @@ export const cloudService = {
          const qData = dataObj;
          const d = qData.details ? qData.details : qData; // Support wrapped or flat
          if (!d.number?.trim()) throw new Error('رقم عرض السعر مطلوب');
-
-         const { userId, organizationId } = await getCurrentOrganization();
-         const customerName = d.customerName?.trim() || 'عميل نقدي';
-         let { data: customer, error: customerLookupError } = await supabase
-           .from('customers')
-           .select('id')
-           .eq('organization_id', organizationId)
-           .eq('name', customerName)
-           .limit(1)
-           .maybeSingle();
-         if (customerLookupError) throw customerLookupError;
-         if (!customer) {
-           const { data: createdCustomer, error: createCustomerError } = await supabase
-             .from('customers')
-             .insert({
-               organization_id: organizationId,
-               name: customerName,
-               address: d.customerAddress || null,
-               created_by: userId
-             })
-             .select('id')
-             .single();
-           if (createCustomerError) throw createCustomerError;
-           customer = createdCustomer;
-         }
-
-         const validItems = (qData.items || []).filter((item: any) =>
-           item.description?.trim() && Number(item.quantity) > 0
-         );
-         const subtotal = validItems.reduce((sum: number, item: any) =>
-           sum + (Number(item.total) || Number(item.quantity) * Number(item.unitPrice)), 0);
-         const taxRate = Number(d.taxRate) || 0;
-         const taxTotal = subtotal * taxRate / 100;
          const quotePayload = {
-           organization_id: organizationId,
-           customer_id: customer.id,
-           quote_number: d.number.trim(),
-           issue_date: d.date || new Date().toISOString().slice(0, 10),
-           subtotal,
-           tax_total: taxTotal,
-           grand_total: subtotal + taxTotal,
-           terms: d.termsAndConditions || null,
-           notes: QUOTE_PAYLOAD_PREFIX + JSON.stringify(qData),
-           updated_at: new Date().toISOString()
+            legacy_id: qData.id || d.number,
+            number: d.number.trim(),
+            date: d.date || null,
+            customer_name: d.customerName,
+            customer_address: d.customerAddress,
+            project_name: d.projectName,
+            validity: d.validity,
+            tax_rate: Number(d.taxRate) || 0,
+            warranty_installation: d.warrantyInstallation,
+            warranty_motor: d.warrantyMotor,
+            payment_terms: d.paymentTerms,
+            terms_and_conditions: d.termsAndConditions,
+            features: d.features,
+            handover_and_warranty: d.handoverAndWarranty,
+            first_party_obligations: d.firstPartyObligations,
+            second_party_obligations: d.secondPartyObligations,
+            works_duration: d.worksDuration,
+            show_gallery: d.showGallery,
+            gallery_images: d.galleryImages,
+            total: (qData.items || []).reduce((sum: number, item: any) => sum + (Number(item.total) || 0), 0)
          };
 
-         const { data: existing, error: existingError } = await supabase
+         const { data: savedQuote, error: quoteError } = await supabase
            .from('quotes')
+           .upsert(quotePayload, { onConflict: 'legacy_id' })
            .select('id')
-           .eq('organization_id', organizationId)
-           .eq('quote_number', d.number.trim())
-           .maybeSingle();
-         if (existingError) throw existingError;
-
-         const quoteWrite = existing
-           ? supabase.from('quotes').update(quotePayload).eq('id', existing.id).select('id').single()
-           : supabase.from('quotes').insert({ ...quotePayload, created_by: userId }).select('id').single();
-         const { data: savedQuote, error: quoteError } = await quoteWrite;
+           .single();
          if (quoteError || !savedQuote) throw quoteError || new Error('تعذر حفظ عرض السعر');
+
          const qId = savedQuote.id;
-
-         const { error: deleteItemsError } = await supabase
-           .from('quote_items').delete().eq('organization_id', organizationId).eq('quote_id', qId);
+         const { error: deleteItemsError } = await supabase.from('quote_items').delete().eq('quote_id', qId);
          if (deleteItemsError) throw deleteItemsError;
+         const { error: deleteSpecsError } = await supabase.from('quote_specs').delete().eq('quote_id', qId);
+         if (deleteSpecsError) throw deleteSpecsError;
 
-         if (validItems.length > 0) {
-           const itemsPayload = validItems.map((item: any, index: number) => {
-             const quantity = Number(item.quantity);
-             const unitPrice = Number(item.unitPrice) || 0;
-             const lineSubtotal = Number(item.total) || quantity * unitPrice;
-             const lineTax = lineSubtotal * taxRate / 100;
-             return {
-               organization_id: organizationId,
-               quote_id: qId,
-               line_number: index + 1,
-               description: [item.description, item.details].filter(Boolean).join('\n'),
-               quantity,
-               unit_price: unitPrice,
-               tax_rate: taxRate,
-               line_subtotal: lineSubtotal,
-               line_tax: lineTax,
-               line_total: lineSubtotal + lineTax
-             };
-           });
-           const { error: itemsError } = await supabase.from('quote_items').insert(itemsPayload);
-           if (itemsError) throw itemsError;
+         if (qData.items?.length > 0) {
+            const itemsPayload = qData.items.map((item: any) => ({
+                legacy_id: item.id || crypto.randomUUID(),
+                quote_id: qId,
+                quote_legacy_id: qData.id,
+                description: item.description,
+                details: item.details,
+                quantity: Number(item.quantity) || 0,
+                unit_price: Number(item.unitPrice) || 0,
+                total: Number(item.total) || 0
+            }));
+            const { error: itemsError } = await supabase.from('quote_items').insert(itemsPayload);
+            if (itemsError) throw itemsError;
+         }
+
+         if (qData.techSpecs) {
+            const specsPayload = {
+                quote_id: qId,
+                quote_legacy_id: qData.id,
+                elevator_type: qData.techSpecs.elevatorType,
+                capacity: qData.techSpecs.capacity,
+                speed: qData.techSpecs.speed,
+                stops: qData.techSpecs.stops,
+                drive_type: qData.techSpecs.driveType,
+                control_system: qData.techSpecs.controlSystem,
+                power_supply: qData.techSpecs.powerSupply,
+                cabin: qData.techSpecs.cabin,
+                doors: qData.techSpecs.doors,
+                external_doors: qData.techSpecs.externalDoors,
+                machine_room: qData.techSpecs.machineRoom,
+                rails: qData.techSpecs.rails,
+                ropes: qData.techSpecs.ropes,
+                safety: qData.techSpecs.safety,
+                emergency: qData.techSpecs.emergency
+            };
+            const { error: specsError } = await supabase.from('quote_specs').insert(specsPayload);
+            if (specsError) throw specsError;
          }
 
          return true;
@@ -605,13 +578,7 @@ export const cloudService = {
       }
 
       if (collection === 'jilco_quotes_archive') {
-         const { organizationId } = await getCurrentOrganization();
-         const { data: candidates, error: findError } = await supabase
-           .from('quotes').select('id, notes').eq('organization_id', organizationId);
-         if (findError) throw findError;
-         const match = (candidates || []).find((row: any) => getQuotePayload(row.notes)?.id === recordId);
-         if (!match) return false;
-         const { error } = await supabase.from('quotes').delete().eq('id', match.id);
+         const { error } = await supabase.from('quotes').delete().eq('legacy_id', recordId);
          if (error) throw error;
          return true;
       }
