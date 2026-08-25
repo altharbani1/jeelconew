@@ -1,3 +1,6 @@
+import html2canvas from 'html2canvas';
+import { jsPDF } from 'jspdf';
+
 /**
  * 📄 خدمة PDF الاحترافية — JilcoPdfService
  * توليد PDF من عنصر HTML ومشاركته عبر واتساب أو تحميله
@@ -24,43 +27,28 @@ async function generatePdfBlob(elementId: string, fileName: string): Promise<Blo
     const element = document.getElementById(elementId);
     if (!element) throw new Error(`العنصر "${elementId}" غير موجود`);
 
-    // @ts-ignore - html2canvas عبر CDN
-    const canvas = await window.html2canvas(element, {
-        scale: 2,
-        useCORS: true,
-        allowTaint: true,
-        backgroundColor: '#ffffff',
-        logging: false,
-        foreignObjectRendering: false,
-    });
+    await document.fonts?.ready;
 
-    const imgData = canvas.toDataURL('image/png');
-    const imgWidth = canvas.width;
-    const imgHeight = canvas.height;
+    // عروض الأسعار تتكون من صفحات A4 مستقلة. تصوير كل صفحة على حدة
+    // يمنع الصفحة البيضاء والملف الضخم الناتجين عن تصوير الحاوية كاملة.
+    const pages = Array.from(element.querySelectorAll<HTMLElement>('.a4-page'));
+    const targets = pages.length > 0 ? pages : [element];
+    const pdf = new jsPDF('p', 'mm', 'a4');
 
-    // A4 بالبيكسل عند 96 DPI: 794 × 1123
-    const a4Width = 210;   // mm
-    const a4Height = 297;  // mm
+    for (let index = 0; index < targets.length; index += 1) {
+        const canvas = await html2canvas(targets[index], {
+            scale: Math.min(window.devicePixelRatio || 1, 2),
+            useCORS: true,
+            allowTaint: false,
+            backgroundColor: '#ffffff',
+            logging: false,
+            foreignObjectRendering: false,
+        });
 
-    // @ts-ignore - jsPDF عبر CDN
-    const { jsPDF } = window.jspdf;
-    const orientation = imgHeight > imgWidth ? 'p' : 'l';
-    const pdf = new jsPDF(orientation, 'mm', 'a4');
-
-    const pdfWidth = orientation === 'p' ? a4Width : a4Height;
-    const pdfHeight = orientation === 'p' ? a4Height : a4Width;
-
-    // حساب عدد الصفحات
-    const ratio = imgWidth / (pdfWidth);
-    const realImgHeight = imgHeight / ratio;
-    let remainingHeight = realImgHeight;
-    let position = 0;
-
-    while (remainingHeight > 0) {
-        if (position > 0) pdf.addPage();
-        pdf.addImage(imgData, 'PNG', 0, position === 0 ? 0 : -(position), pdfWidth, realImgHeight);
-        position += pdfHeight;
-        remainingHeight -= pdfHeight;
+        if (index > 0) pdf.addPage('a4', 'p');
+        const image = canvas.toDataURL('image/jpeg', 0.92);
+        const renderedHeight = Math.min(297, (canvas.height * 210) / canvas.width);
+        pdf.addImage(image, 'JPEG', 0, 0, 210, renderedHeight, undefined, 'FAST');
     }
 
     return pdf.output('blob');
@@ -75,8 +63,10 @@ export async function downloadPdf(elementId: string, fileName: string): Promise<
     const a = document.createElement('a');
     a.href = url;
     a.download = `${fileName}.pdf`;
+    document.body.appendChild(a);
     a.click();
-    URL.revokeObjectURL(url);
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
 /**
@@ -120,8 +110,10 @@ export async function shareDocument(options: ShareOptions): Promise<ShareResult>
         const a = document.createElement('a');
         a.href = url;
         a.download = `${fileName}.pdf`;
+        document.body.appendChild(a);
         a.click();
-        URL.revokeObjectURL(url);
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
 
         const encodedMessage = encodeURIComponent(finalMessage);
 
