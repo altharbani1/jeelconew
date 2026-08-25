@@ -46,7 +46,7 @@ export const SpecsManagerModule: React.FC = () => {
   const [db, setDb] = useState<SpecsDatabase>(DEFAULT_SPECS_DB);
   const [selectedCategory, setSelectedCategory] = useState<keyof TechnicalSpecs>('elevatorType');
   const [newItem, setNewItem] = useState('');
-  const [showSaved, setShowSaved] = useState(false);
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
 
   // Sync with context
   useEffect(() => {
@@ -58,35 +58,39 @@ export const SpecsManagerModule: React.FC = () => {
   }, [specsDb]);
 
   // Save
-  const handleSave = async () => {
-    const success = await saveSpecsDb(db);
-    setShowSaved(success);
-    if (success) setTimeout(() => setShowSaved(false), 2000);
+  const persistSpecs = async (nextDb: SpecsDatabase) => {
+    setSaveStatus('saving');
+    const success = await saveSpecsDb(nextDb);
+    setSaveStatus(success ? 'saved' : 'error');
+    if (success) setTimeout(() => setSaveStatus('idle'), 2500);
+    return success;
   };
 
-  const addItem = () => {
+  const handleSave = () => persistSpecs(db);
+
+  const addItem = async () => {
     if (!newItem.trim()) return;
-    setDb(prev => ({
-      ...prev,
-      [selectedCategory]: [...(prev[selectedCategory] || []), newItem.trim()]
-    }));
+    const nextDb = {
+      ...db,
+      [selectedCategory]: [...(db[selectedCategory] || []), newItem.trim()]
+    };
+    setDb(nextDb);
     setNewItem('');
+    await persistSpecs(nextDb);
   };
 
-  const deleteItem = (index: number) => {
-    setDb(prev => {
-      const newList = [...prev[selectedCategory]];
-      newList.splice(index, 1);
-      return { ...prev, [selectedCategory]: newList };
-    });
+  const deleteItem = async (index: number) => {
+    const newList = [...db[selectedCategory]];
+    newList.splice(index, 1);
+    const nextDb = { ...db, [selectedCategory]: newList };
+    setDb(nextDb);
+    await persistSpecs(nextDb);
   };
 
   const resetToDefaults = async () => {
     if (window.confirm('هل أنت متأكد من استعادة البيانات الافتراضية؟ سيتم حذف التعديلات.')) {
       setDb(DEFAULT_SPECS_DB);
-      const success = await saveSpecsDb(DEFAULT_SPECS_DB);
-      setShowSaved(success);
-      if (success) setTimeout(() => setShowSaved(false), 2000);
+      await persistSpecs(DEFAULT_SPECS_DB);
     }
   };
 
@@ -108,10 +112,11 @@ export const SpecsManagerModule: React.FC = () => {
             <button
               title="حفظ التغييرات"
               onClick={handleSave}
-              className={`px-6 py-2 rounded-lg font-bold flex items-center gap-2 shadow-md transition-all text-white ${showSaved ? 'bg-green-600' : 'bg-jilco-900 hover:bg-jilco-800'}`}
+              disabled={saveStatus === 'saving'}
+              className={`px-6 py-2 rounded-lg font-bold flex items-center gap-2 shadow-md transition-all text-white disabled:opacity-60 ${saveStatus === 'saved' ? 'bg-green-600' : saveStatus === 'error' ? 'bg-red-600' : 'bg-jilco-900 hover:bg-jilco-800'}`}
             >
-              {showSaved ? <CheckCircle2 size={18} /> : <Save size={18} />}
-              {showSaved ? 'تم الحفظ' : 'حفظ التغييرات'}
+              {saveStatus === 'saved' ? <CheckCircle2 size={18} /> : <Save size={18} />}
+              {saveStatus === 'saving' ? 'جاري الحفظ...' : saveStatus === 'saved' ? 'تم الحفظ في السحابة' : saveStatus === 'error' ? 'تعذر الحفظ — أعد المحاولة' : 'حفظ التغييرات'}
             </button>
           </div>
         </div>

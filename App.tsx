@@ -53,8 +53,19 @@ const MainApp: React.FC = () => {
 
   const [currentView, setCurrentView] = useState<SystemView>('dashboard');
 
-  const globalSyncStatus = [dataSync, salesSync, hrSync, projSync, invSync, purchSync, maintSync, subcSync].includes('syncing') ? 'syncing' :
-    [dataSync, salesSync, hrSync, projSync, invSync, purchSync, maintSync, subcSync].includes('error') ? 'error' : 'synced';
+  const activeSyncStatus = (() => {
+    if (currentView === 'specs_manager' || currentView === 'company_profile') return dataSync;
+    if (['quotes', 'customers', 'invoices', 'receipts'].includes(currentView)) return salesSync;
+    if (currentView === 'hr') return hrSync;
+    if (currentView === 'projects') return projSync;
+    if (currentView === 'inventory') return invSync;
+    if (currentView === 'purchases') return purchSync;
+    if (currentView === 'maintenance') return maintSync;
+    if (currentView === 'subcontracts') return subcSync;
+
+    const statuses = [dataSync, salesSync, hrSync, projSync, invSync, purchSync, maintSync, subcSync];
+    return statuses.includes('syncing') ? 'syncing' : statuses.every(status => status === 'error') ? 'error' : 'synced';
+  })();
 
   if (!currentUser) {
     return <LoginScreen />;
@@ -62,7 +73,7 @@ const MainApp: React.FC = () => {
 
   return (
     <div className="flex w-full h-screen overflow-hidden bg-gray-100 print:h-auto print:min-h-screen print:block print:overflow-visible">
-      <SystemNav currentView={currentView} setView={setCurrentView} syncStatus={globalSyncStatus} />
+      <SystemNav currentView={currentView} setView={setCurrentView} syncStatus={activeSyncStatus} />
       <main className="flex-1 relative flex flex-col h-screen overflow-hidden print:h-auto print:min-h-screen print:block print:overflow-visible">
         {currentView === 'dashboard' && <Dashboard setView={setCurrentView} />}
         {currentView === 'users' && <UserManagementModule />}
