@@ -59,9 +59,9 @@ export const SpecsManagerModule: React.FC = () => {
 
   // Save
   const handleSave = async () => {
-    await saveSpecsDb(db);
-    setShowSaved(true);
-    setTimeout(() => setShowSaved(false), 2000);
+    const success = await saveSpecsDb(db);
+    setShowSaved(success);
+    if (success) setTimeout(() => setShowSaved(false), 2000);
   };
 
   const addItem = () => {
@@ -84,9 +84,9 @@ export const SpecsManagerModule: React.FC = () => {
   const resetToDefaults = async () => {
     if (window.confirm('هل أنت متأكد من استعادة البيانات الافتراضية؟ سيتم حذف التعديلات.')) {
       setDb(DEFAULT_SPECS_DB);
-      await saveSpecsDb(DEFAULT_SPECS_DB);
-      setShowSaved(true);
-      setTimeout(() => setShowSaved(false), 2000);
+      const success = await saveSpecsDb(DEFAULT_SPECS_DB);
+      setShowSaved(success);
+      if (success) setTimeout(() => setShowSaved(false), 2000);
     }
   };
 

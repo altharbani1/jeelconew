@@ -50,7 +50,10 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             try {
                 const parsed = JSON.parse(localSpecs);
                 const singleton = parsed.find((p: any) => p.id === 'singleton_specs');
-                if (singleton) setSpecsDb(singleton);
+                if (singleton) {
+                    const { id: _id, ...cachedSpecs } = singleton;
+                    setSpecsDb(cachedSpecs);
+                }
             } catch (e) { }
         }
 
@@ -72,10 +75,11 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
             // Keep local cache fresh
             const localArray = JSON.parse(localStorage.getItem(collection) || '[]');
+            const localRecord = recordData?.id ? recordData : { id, ...recordData };
             const exists = localArray.find((q: any) => (q.id || q.number) === id);
             const updatedLocalArray = exists
-                ? localArray.map((q: any) => (q.id || q.number) === id ? recordData : q)
-                : [recordData, ...localArray];
+                ? localArray.map((q: any) => (q.id || q.number) === id ? localRecord : q)
+                : [localRecord, ...localArray];
             localStorage.setItem(collection, JSON.stringify(updatedLocalArray));
 
             setSyncStatus(success ? 'synced' : 'error');

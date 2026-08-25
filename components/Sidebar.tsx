@@ -73,9 +73,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
     useEffect(() => {
         if (globalSpecsDb && Object.keys(globalSpecsDb).length > 0) {
-            setSpecsDb(prev => ({ ...DEFAULT_SPECS_DB, ...globalSpecsDb }));
+            setSpecsDb({ ...DEFAULT_SPECS_DB, ...globalSpecsDb });
         }
+    }, [globalSpecsDb]);
 
+    useEffect(() => {
         const savedProducts = localStorage.getItem('jilco_supplier_products');
         if (savedProducts) {
             try { setProductsDb(JSON.parse(savedProducts)); } catch (e) { }

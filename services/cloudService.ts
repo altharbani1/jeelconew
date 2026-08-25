@@ -320,13 +320,21 @@ export const cloudService = {
                      total: Number(item.total)
                  })),
                  techSpecs: row.quote_specs && row.quote_specs.length > 0 ? {
-                     ...row.quote_specs[0],
-                     elevatorType: row.quote_specs[0].elevator_type,
-                     driveType: row.quote_specs[0].drive_type,
-                     controlSystem: row.quote_specs[0].control_system,
-                     powerSupply: row.quote_specs[0].power_supply,
-                     externalDoors: row.quote_specs[0].external_doors,
-                     machineRoom: row.quote_specs[0].machine_room
+                     elevatorType: row.quote_specs[0].elevator_type || '',
+                     capacity: row.quote_specs[0].capacity || '',
+                     speed: row.quote_specs[0].speed || '',
+                     stops: row.quote_specs[0].stops || '',
+                     driveType: row.quote_specs[0].drive_type || '',
+                     controlSystem: row.quote_specs[0].control_system || '',
+                     powerSupply: row.quote_specs[0].power_supply || '',
+                     cabin: row.quote_specs[0].cabin || '',
+                     doors: row.quote_specs[0].doors || '',
+                     externalDoors: row.quote_specs[0].external_doors || '',
+                     machineRoom: row.quote_specs[0].machine_room || '',
+                     rails: row.quote_specs[0].rails || '',
+                     ropes: row.quote_specs[0].ropes || '',
+                     safety: row.quote_specs[0].safety || '',
+                     emergency: row.quote_specs[0].emergency || ''
                  } : {}
              }
          }));
@@ -450,14 +458,11 @@ export const cloudService = {
          const qId = savedQuote.id;
          const { error: deleteItemsError } = await supabase.from('quote_items').delete().eq('quote_id', qId);
          if (deleteItemsError) throw deleteItemsError;
-         const { error: deleteSpecsError } = await supabase.from('quote_specs').delete().eq('quote_id', qId);
-         if (deleteSpecsError) throw deleteSpecsError;
-
          if (qData.items?.length > 0) {
             const itemsPayload = qData.items.map((item: any) => ({
                 legacy_id: item.id || crypto.randomUUID(),
                 quote_id: qId,
-                quote_legacy_id: qData.id,
+                quote_legacy_id: qData.id || d.number,
                 description: item.description,
                 details: item.details,
                 quantity: Number(item.quantity) || 0,
@@ -488,7 +493,19 @@ export const cloudService = {
                 safety: qData.techSpecs.safety,
                 emergency: qData.techSpecs.emergency
             };
-            const { error: specsError } = await supabase.from('quote_specs').insert(specsPayload);
+            // Keep the existing specification row until its replacement succeeds.
+            // This avoids losing all specs when a follow-up insert fails after a delete.
+            const { data: existingSpecs, error: existingSpecsError } = await supabase
+              .from('quote_specs')
+              .select('id')
+              .eq('quote_id', qId)
+              .limit(1);
+            if (existingSpecsError) throw existingSpecsError;
+
+            const specsQuery = existingSpecs && existingSpecs.length > 0
+              ? supabase.from('quote_specs').update(specsPayload).eq('id', existingSpecs[0].id)
+              : supabase.from('quote_specs').insert(specsPayload);
+            const { error: specsError } = await specsQuery;
             if (specsError) throw specsError;
          }
 
