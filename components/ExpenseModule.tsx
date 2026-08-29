@@ -120,19 +120,25 @@ export const ExpenseModule: React.FC = () => {
         });
 
         // Generate derived expenses from employee payments
-        const convertedHR: Expense[] = hrEmployeePayments.map(p => ({
+        const convertedHR: Expense[] = hrEmployeePayments
+          // Payroll vouchers are stored by the HR module and are projected here
+          // as read-only expenses. Normalize legacy/cloud JSON values so a
+          // string amount or a missing date cannot hide the voucher or break
+          // filtering/report totals.
+          .filter(p => p && p.id)
+          .map(p => ({
             id: `HR-${p.id}`,
             number: `HRV-${p.id.slice(-6)}`,
-            date: p.date,
+            date: p.date || new Date().toISOString().split('T')[0],
             categoryId: 'salary',
             categoryName: 'رواتب وأجور',
             paidTo: p.employeeName,
             description: p.description,
-            amount: p.amount,
+            amount: Number(p.amount) || 0,
             paymentMethod: p.paymentMethod,
             referenceNumber: p.referenceNumber,
             attachments: []
-        }));
+          }));
 
         setExpenses([...rawExpenses, ...convertedPayments, ...convertedHR]);
 
