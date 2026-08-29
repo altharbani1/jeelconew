@@ -88,6 +88,7 @@ export interface ReceiptData {
   checkNumber?: string;
   forReason: string;
   attachments?: Attachment[]; // Added attachments field
+  invoiceId?: string;
 }
 
 export interface InvoiceData {
