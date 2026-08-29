@@ -64,9 +64,15 @@ export const FinancialReportModule: React.FC = () => {
         }
     }, [period, customStart, customEnd]);
 
+    // Compare calendar dates (not UTC timestamps) so transactions on the
+    // selected end date are included in Saudi/local time zones.
     const inRange = (dateStr: string) => {
-        const d = new Date(dateStr);
-        return d >= startDate && d <= endDate;
+        if (!dateStr) return false;
+        const key = String(dateStr).slice(0, 10);
+        const localKey = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        const startKey = localKey(startDate);
+        const endKey = localKey(endDate);
+        return key >= startKey && key <= endKey;
     };
 
     // 1. الإيرادات — فواتير العملاء المدفوعة أو المستحقة في الفترة
