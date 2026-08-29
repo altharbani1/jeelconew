@@ -2,10 +2,11 @@ import { useMemo } from 'react';
 import { useSales } from '../contexts/SalesContext';
 import { usePurchase } from '../contexts/PurchaseContext';
 import { useProject } from '../contexts/ProjectContext';
+import { useHR } from '../contexts/HRContext';
 
 export interface AppNotification {
     id: string;
-    type: 'overdue_invoice' | 'overdue_purchase' | 'warranty_expiring' | 'late_phase' | 'document_expiring';
+    type: 'overdue_invoice' | 'overdue_purchase' | 'warranty_expiring' | 'late_phase' | 'document_expiring' | 'payroll_pending';
     severity: 'critical' | 'warning' | 'info';
     title: string;
     description: string;
@@ -17,11 +18,27 @@ export const useNotifications = (): { notifications: AppNotification[]; count: n
     const { invoices: salesInvoices } = useSales();
     const { purchaseInvoices, suppliers } = usePurchase();
     const { phases, projects, warranties } = useProject();
+    const { hrPayrolls } = useHR();
 
     const notifications = useMemo<AppNotification[]>(() => {
         const result: AppNotification[] = [];
         const today = new Date();
         today.setHours(0, 0, 0, 0);
+
+        // 0. مسيرات رواتب غير معتمدة
+        hrPayrolls.forEach((payroll: any) => {
+            if (payroll.status === 'draft' || payroll.status === 'pending') {
+                result.push({
+                    id: `payroll-${payroll.id}`,
+                    type: 'payroll_pending',
+                    severity: 'warning',
+                    title: 'مسير رواتب بانتظار الاعتماد',
+                    description: `${payroll.month || ''} — ${payroll.employeeName || 'موظف'}`,
+                    date: payroll.month,
+                    actionView: 'hr',
+                });
+            }
+        });
 
         // 1. فواتير العملاء المتأخرة
         salesInvoices.forEach((inv: any) => {
@@ -98,7 +115,7 @@ export const useNotifications = (): { notifications: AppNotification[]; count: n
             const order = { critical: 0, warning: 1, info: 2 };
             return order[a.severity] - order[b.severity];
         });
-    }, [salesInvoices, purchaseInvoices, suppliers, phases, projects, warranties]);
+    }, [salesInvoices, purchaseInvoices, suppliers, phases, projects, warranties, hrPayrolls]);
 
     return { notifications, count: notifications.length };
 };
