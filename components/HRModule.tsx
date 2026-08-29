@@ -97,6 +97,7 @@ export const HRModule: React.FC = () => {
     const [payrollMonth, setPayrollMonth] = useState(new Date().toISOString().slice(0, 7)); // YYYY-MM
     const [generatedPayrolls, setGeneratedPayrolls] = useState<PayrollRecord[]>([]);
     const [selectedEmployeeForPayroll, setSelectedEmployeeForPayroll] = useState<string>('all');
+    const [applyGosiDeduction, setApplyGosiDeduction] = useState(true);
 
     // Employee Statement Modals
     const [viewStatementEmployeeId, setViewStatementEmployeeId] = useState<string | null>(null);
@@ -297,7 +298,9 @@ export const HRModule: React.FC = () => {
                 .reduce((sum, c) => sum + c.commissionAmount, 0);
             
             // GOSI Calc: 9.75% of (Basic + Housing) for Saudis
-            const gosi = emp.nationalIdType === 'saudi' ? ((emp.basicSalary || 0) + (emp.housingAllowance || 0)) * 0.0975 : 0;
+            const gosi = applyGosiDeduction && emp.nationalIdType === 'saudi'
+                ? ((emp.basicSalary || 0) + (emp.housingAllowance || 0)) * 0.0975
+                : 0;
 
             // Calculate active loan deductions
             const activeLoans = loans.filter(l => l.employeeId === emp.id && l.status === 'active' && l.startDate <= payrollMonth && l.remainingAmount > 0);
@@ -1056,6 +1059,15 @@ export const HRModule: React.FC = () => {
                                         {employees.filter(e => e.status === 'active').map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
                                     </select>
                                 </div>
+                                <label className="h-[42px] flex items-center gap-2 px-3 rounded-lg border border-gray-300 bg-gray-50 text-xs font-bold text-gray-700 cursor-pointer whitespace-nowrap">
+                                    <input
+                                        type="checkbox"
+                                        checked={applyGosiDeduction}
+                                        onChange={e => setApplyGosiDeduction(e.target.checked)}
+                                        className="w-4 h-4 accent-jilco-600"
+                                    />
+                                    خصم التأمينات
+                                </label>
                                 <button 
                                     onClick={handleGeneratePayroll}
                                     className="h-[42px] px-6 bg-jilco-600 text-white rounded-lg font-bold shadow hover:bg-jilco-700 flex items-center justify-center gap-2"
