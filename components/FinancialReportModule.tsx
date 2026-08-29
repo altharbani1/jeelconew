@@ -27,7 +27,7 @@ const StatCard: React.FC<{ label: string; value: number; sub?: string; color: st
 );
 
 export const FinancialReportModule: React.FC = () => {
-    const { invoices: salesInvoices } = useSales();
+    const { invoices: salesInvoices, receipts: salesReceipts } = useSales();
     const { purchaseInvoices, supplierPayments } = usePurchase();
     const { expenses } = useProject();
     const { hrPayrolls: payrolls } = useHR();
@@ -83,6 +83,11 @@ export const FinancialReportModule: React.FC = () => {
         const discount = inv.discountAmount || 0;
         return s + subtotal * (1 + taxRate) - discount;
     }, 0);
+    // النقد المحصل فعلياً يعتمد على سندات القبض، بينما الإيراد المفوتر
+    // يعتمد على الفواتير؛ إبقاؤهما منفصلين يمنع تضخيم الربح النقدي.
+    const receiptsInPeriod = salesReceipts.filter((r: any) => inRange(r.date));
+    const collectedRevenue = receiptsInPeriod.reduce((s: number, r: any) => s + (Number(r.amount) || 0), 0);
+    const outstandingRevenue = Math.max(0, totalRevenue - collectedRevenue);
 
     // 2. تكلفة المشتريات — فواتير الشراء في الفترة
     const purchasesInPeriod = purchaseInvoices.filter((inv: any) => inRange(inv.date));
@@ -170,7 +175,9 @@ export const FinancialReportModule: React.FC = () => {
                         <StatCard label="إجمالي الإيرادات" value={totalRevenue} sub="ريال سعودي" color="border-l-blue-500" icon={<TrendingUp size={20} className="text-blue-500" />} />
                         <StatCard label="إجمالي التكاليف" value={totalCosts} sub="ريال سعودي" color="border-l-red-500" icon={<TrendingDown size={20} className="text-red-500" />} />
                         <StatCard label="صافي الربح" value={netProfit} sub={`هامش الربح ${profitMargin.toFixed(1)}%`} color={netProfit >= 0 ? 'border-l-green-500' : 'border-l-red-600'} icon={<DollarSign size={20} className={netProfit >= 0 ? 'text-green-500' : 'text-red-600'} />} />
-                        <StatCard label="الإيرادات من الفواتير" value={revenueInvoices.length} sub={`${revenueInvoices.length} فاتورة`} color="border-l-gold-500" icon={<RefreshCw size={20} className="text-gold-500" />} />
+                        <StatCard label="الإيرادات المفوترة" value={totalRevenue} sub={`${revenueInvoices.length} فاتورة`} color="border-l-gold-500" icon={<RefreshCw size={20} className="text-gold-500" />} />
+                        <StatCard label="المحصل فعلياً" value={collectedRevenue} sub={`${receiptsInPeriod.length} سند قبض`} color="border-l-emerald-500" icon={<TrendingUp size={20} className="text-emerald-500" />} />
+                        <StatCard label="المستحق على العملاء" value={outstandingRevenue} sub="مفوترة غير محصلة" color="border-l-amber-500" icon={<DollarSign size={20} className="text-amber-500" />} />
                     </div>
 
                     {/* P&L Statement Table */}
