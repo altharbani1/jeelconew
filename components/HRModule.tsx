@@ -67,6 +67,8 @@ export const HRModule: React.FC = () => {
         hrAttendance: attendance,
         hrLeaves: leaves,
         setHrPayrolls,
+        setHrEmployeePayments,
+        setHrCommissions,
         setHrLoans, setHrAttendance, setHrLeaves,
         saveHRRecord, deleteHRRecord, approveHRPayrollBatch
     } = useHR();
@@ -393,6 +395,23 @@ export const HRModule: React.FC = () => {
 
         const result = await approveHRPayrollBatch(approvedPayrolls, payments, commissionUpdates, loanUpdates);
         if (!result.success) return alert(`فشل اعتماد المسير دون حفظ أي تغييرات: ${result.error || 'خطأ غير معروف'}`);
+
+        // The RPC commits all records atomically; mirror that commit locally so
+        // the Expenses screen reflects the new salary vouchers immediately.
+        setHrPayrolls(prev => [
+            ...prev.filter(existing => !approvedPayrolls.some(saved => saved.id === existing.id)),
+            ...approvedPayrolls
+        ]);
+        setHrEmployeePayments(prev => [
+            ...prev.filter(existing => !payments.some(saved => saved.id === existing.id)),
+            ...payments
+        ]);
+        if (commissionUpdates.length > 0) {
+            setHrCommissions(prev => prev.map(existing => commissionUpdates.find(updated => updated.id === existing.id) || existing));
+        }
+        if (loanUpdates.length > 0) {
+            setHrLoans(prev => prev.map(existing => loanUpdates.find(updated => updated.id === existing.id) || existing));
+        }
         alert('تم اعتماد الرواتب وإنشاء سندات الصرف بنجاح.');
         setGeneratedPayrolls([]);
     };
