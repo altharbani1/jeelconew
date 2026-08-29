@@ -11,6 +11,7 @@ import { useSales } from '../contexts/SalesContext.tsx';
 import { useInventory } from '../contexts/InventoryContext.tsx';
 import { useProject } from '../contexts/ProjectContext.tsx';
 import { useHR } from '../contexts/HRContext.tsx';
+import { isActiveProjectAssignee } from '../lib/hrIntegration';
 
 // --- Default Phases Generator ---
 const createDefaultPhases = (projectId: string): ProjectPhase[] => [
@@ -740,7 +741,7 @@ export const ProjectModule: React.FC = () => {
                                         className="w-full p-2 border border-gray-400 rounded-lg text-xs bg-white text-black font-bold focus:ring-2 focus:ring-jilco-500 outline-none"
                                     >
                                         <option value="">-- غير مسند لأحد --</option>
-                                        {employees.filter(emp => emp.role === 'technician' || emp.role === 'manager').map(emp => (
+                                        {employees.filter(isActiveProjectAssignee).map(emp => (
                                             <option key={emp.id} value={emp.id}>{emp.name} ({emp.role === 'technician' ? 'فني' : 'مهندس/مشرف'})</option>
                                         ))}
                                     </select>

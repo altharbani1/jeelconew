@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 import { useCloudSync } from '../lib/useCloudSync';
+import { cloudService } from '../services/cloudService';
 import { PayrollRecord, EmployeePayment, EmployeeLoan, AttendanceRecord, LeaveRequest } from '../types';
 
 interface HRContextType {
@@ -21,6 +22,12 @@ interface HRContextType {
     
     saveHRRecord: (collection: string, id: string, data: any) => Promise<boolean>;
     deleteHRRecord: (collection: string, id: string) => Promise<boolean>;
+    approveHRPayrollBatch: (
+        payrolls: PayrollRecord[],
+        payments: EmployeePayment[],
+        commissionUpdates?: any[],
+        loanUpdates?: EmployeeLoan[]
+    ) => Promise<{ success: boolean; error?: string; result?: any }>;
     syncStatus: 'idle' | 'syncing' | 'synced' | 'error';
 }
 
@@ -53,6 +60,7 @@ export const HRProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
             setHrEmployees, setHrCommissions, setHrPayrolls, setHrEmployeePayments, setHrLoans, setHrAttendance, setHrLeaves,
             saveHRRecord: saveRecord,
             deleteHRRecord: deleteRecord,
+            approveHRPayrollBatch: cloudService.approveHRPayrollBatch,
             syncStatus
         }}>
             {children}

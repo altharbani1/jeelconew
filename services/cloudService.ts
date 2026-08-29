@@ -33,6 +33,21 @@ const IMAGE_KEYS = ['jilco_logo', 'jilco_stamp'];
 
 const BUCKET = 'jilco-assets';
 
+const isHRCollection = (collection: string) => collection.startsWith('jilco_hr_');
+
+async function getCurrentCompanyId(): Promise<string> {
+  const { data: authData, error: authError } = await supabase.auth.getUser();
+  if (authError || !authData.user) throw authError || new Error('Authentication required');
+
+  const { data, error } = await supabase
+    .from('app_users')
+    .select('company_id')
+    .eq('id', authData.user.id)
+    .single();
+  if (error || !data?.company_id) throw error || new Error('User has no company');
+  return data.company_id;
+}
+
 // ========== مساعد: مفتاح النسخة الاحتياطية حسب المستخدم ==========
 const getBackupKey = (username?: string) =>
   username ? `backup_${username}` : 'backup_default';
@@ -386,10 +401,16 @@ export const cloudService = {
           return (data || []).map((row: any) => ({ record_id: row.legacy_id || row.id, data: cfg.mapFn(row) }));
       }
 
-      const { data, error } = await supabase
+      let query = supabase
         .from('jilco_realtime_data')
         .select('record_id, data')
         .eq('collection', collection);
+
+      if (isHRCollection(collection)) {
+        query = query.eq('company_id', await getCurrentCompanyId());
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
       return data || [];
@@ -562,6 +583,7 @@ export const cloudService = {
           return true;
       }
 
+      const companyId = isHRCollection(collection) ? await getCurrentCompanyId() : null;
       const { error } = await supabase
         .from('jilco_realtime_data')
         .upsert(
@@ -569,6 +591,7 @@ export const cloudService = {
             collection,
             record_id: recordId,
             data: dataObj,
+            ...(companyId ? { company_id: companyId } : {}),
             updated_at: new Date().toISOString()
           },
           { onConflict: 'collection, record_id' }
@@ -600,17 +623,44 @@ export const cloudService = {
          return true;
       }
 
-      const { error } = await supabase
+      let query = supabase
         .from('jilco_realtime_data')
         .delete()
         .eq('collection', collection)
         .eq('record_id', recordId);
+
+      if (isHRCollection(collection)) {
+        query = query.eq('company_id', await getCurrentCompanyId());
+      }
+
+      const { error } = await query;
 
       if (error) throw error;
       return true;
     } catch (e) {
       console.error(`Failed to delete record ${recordId} in ${collection}:`, e);
       return false;
+    }
+  },
+
+  async approveHRPayrollBatch(
+    payrolls: any[],
+    payments: any[],
+    commissionUpdates: any[] = [],
+    loanUpdates: any[] = []
+  ): Promise<{ success: boolean; error?: string; result?: any }> {
+    try {
+      const { data, error } = await supabase.rpc('approve_hr_payroll_batch', {
+        p_payrolls: payrolls,
+        p_payments: payments,
+        p_commission_updates: commissionUpdates,
+        p_loan_updates: loanUpdates
+      });
+      if (error) throw error;
+      return { success: data?.success === true, result: data };
+    } catch (error: any) {
+      console.error('Atomic payroll approval failed:', error);
+      return { success: false, error: error?.message || 'Payroll approval failed' };
     }
   },
 

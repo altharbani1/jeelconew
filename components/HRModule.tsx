@@ -5,6 +5,7 @@ import { Employee, Commission, EmployeeRole, EmployeeStatus, ContractData, Payro
 import { useData } from '../contexts/DataContext.tsx';
 import { useHR } from '../contexts/HRContext.tsx';
 import { useProject } from '../contexts/ProjectContext.tsx';
+import { useAuth } from '../contexts/AuthContext.tsx';
 
 const ROLES: Record<EmployeeRole, string> = {
     sales: 'مبيعات وتسويق',
@@ -55,6 +56,7 @@ const calculateEOS = (joinDate: string, totalSalary: number) => {
 };
 
 export const HRModule: React.FC = () => {
+    const { hasPermission } = useAuth();
     const { contracts } = useProject();
     const {
         hrEmployees: employees,
@@ -66,7 +68,7 @@ export const HRModule: React.FC = () => {
         hrLeaves: leaves,
         setHrPayrolls,
         setHrLoans, setHrAttendance, setHrLeaves,
-        saveHRRecord, deleteHRRecord
+        saveHRRecord, deleteHRRecord, approveHRPayrollBatch
     } = useHR();
 
     const [activeTab, setActiveTab] = useState<'employees' | 'commissions' | 'payrolls' | 'loans' | 'attendance' | 'leaves'>('employees');
@@ -113,6 +115,11 @@ export const HRModule: React.FC = () => {
 
     // --- ACTIONS ---
 
+    const ensureSaved = (saved: boolean, message = 'تعذر حفظ البيانات. تحقق من الاتصال ثم أعد المحاولة.') => {
+        if (!saved) alert(message);
+        return saved;
+    };
+
     const handleSaveEmployee = async () => {
         if (!currentEmployee.name || !currentEmployee.role) return alert('الاسم والوظيفة مطلوبان');
 
@@ -132,7 +139,8 @@ export const HRModule: React.FC = () => {
             custodyItems: currentEmployee.custodyItems || []
         };
 
-        await saveHRRecord('jilco_hr_employees', empData.id, empData);
+        const saved = await saveHRRecord('jilco_hr_employees', empData.id, empData);
+        if (!ensureSaved(saved)) return;
 
         setShowEmployeeForm(false);
         setCurrentEmployee({ role: 'technician', custodyItems: [], status: 'active', nationalIdType: 'saudi', annualLeaveBalance: 21 });
@@ -152,7 +160,8 @@ export const HRModule: React.FC = () => {
             status: currentCommission.status || 'pending'
         };
 
-        await saveHRRecord('jilco_hr_commissions', commData.id, commData);
+        const saved = await saveHRRecord('jilco_hr_commissions', commData.id, commData);
+        if (!ensureSaved(saved)) return;
 
         setShowCommissionForm(false);
         setCurrentCommission({ status: 'pending', date: new Date().toISOString().split('T')[0] });
@@ -167,7 +176,8 @@ export const HRModule: React.FC = () => {
             remainingAmount: currentLoan.amount,
             status: 'active'
         };
-        await saveHRRecord('jilco_hr_loans', loanData.id, loanData);
+        const saved = await saveHRRecord('jilco_hr_loans', loanData.id, loanData);
+        if (!ensureSaved(saved)) return;
         setShowLoanForm(false);
         setCurrentLoan({ status: 'active', startDate: new Date().toISOString().slice(0, 7) });
     };
@@ -178,24 +188,30 @@ export const HRModule: React.FC = () => {
             ...currentAttendance as AttendanceRecord,
             id: currentAttendance.id || `ATT-${currentAttendance.employeeId}-${currentAttendance.month}`,
         };
-        await saveHRRecord('jilco_hr_attendance', attData.id, attData);
+        const saved = await saveHRRecord('jilco_hr_attendance', attData.id, attData);
+        if (!ensureSaved(saved)) return;
         setShowAttendanceForm(false);
         setCurrentAttendance({ month: new Date().toISOString().slice(0, 7), absenceDays: 0, delayHours: 0 });
     };
 
     const handleSaveLeave = async () => {
         if (!currentLeave.employeeId || !currentLeave.startDate || !currentLeave.endDate) return alert('أكمل بيانات الإجازة');
+        if (currentLeave.endDate < currentLeave.startDate) return alert('تاريخ نهاية الإجازة يجب أن يكون بعد تاريخ البداية.');
+        const hasOverlap = leaves.some(l => l.employeeId === currentLeave.employeeId && l.id !== currentLeave.id && l.status !== 'rejected' && l.startDate <= currentLeave.endDate! && l.endDate >= currentLeave.startDate!);
+        if (hasOverlap) return alert('يوجد طلب إجازة آخر متداخل مع هذه الفترة.');
         const leaveData: LeaveRequest = {
             ...currentLeave as LeaveRequest,
             id: currentLeave.id || `LEAVE-${Date.now()}`,
             status: 'pending' // Force pending initially
         };
-        await saveHRRecord('jilco_hr_leaves', leaveData.id, leaveData);
+        const saved = await saveHRRecord('jilco_hr_leaves', leaveData.id, leaveData);
+        if (!ensureSaved(saved)) return;
         setShowLeaveForm(false);
         setCurrentLeave({ status: 'pending', type: 'annual' });
     };
 
     const updateCommissionStatus = async (id: string, newStatus: 'approved' | 'paid') => {
+        if (!hasPermission('approve_payments')) return alert('ليس لديك صلاحية اعتماد العمولات أو صرفها.');
         const c = commissions.find(comm => comm.id === id);
         if (!c) return;
 
@@ -204,7 +220,43 @@ export const HRModule: React.FC = () => {
         if (newStatus === 'paid') updates.paymentDate = new Date().toISOString().split('T')[0];
 
         const updatedComm = { ...c, ...updates };
-        await saveHRRecord('jilco_hr_commissions', id, updatedComm);
+        const saved = await saveHRRecord('jilco_hr_commissions', id, updatedComm);
+        ensureSaved(saved);
+    };
+
+    const handleDeleteRecord = async (collection: string, id: string, label: string) => {
+        if (!hasPermission('delete_records')) return alert('ليس لديك صلاحية حذف السجلات.');
+        if (!window.confirm(`هل أنت متأكد من حذف ${label}؟ لا يمكن التراجع عن هذا الإجراء.`)) return;
+        const deleted = await deleteHRRecord(collection, id);
+        ensureSaved(deleted, `تعذر حذف ${label}. تحقق من الاتصال ثم أعد المحاولة.`);
+    };
+
+    const updateLeaveStatus = async (leave: LeaveRequest, status: 'approved' | 'rejected') => {
+        if (!hasPermission('approve_payments')) return alert('ليس لديك صلاحية اعتماد طلبات الإجازة.');
+        if (status === 'rejected') {
+            const saved = await saveHRRecord('jilco_hr_leaves', leave.id, { ...leave, status });
+            ensureSaved(saved);
+            return;
+        }
+
+        const employee = employees.find(e => e.id === leave.employeeId);
+        if (!employee) return alert('تعذر العثور على الموظف المرتبط بالطلب.');
+        const overlapping = leaves.some(l => l.id !== leave.id && l.employeeId === leave.employeeId && l.status === 'approved' && l.startDate <= leave.endDate && l.endDate >= leave.startDate);
+        if (overlapping) return alert('لا يمكن اعتماد الطلب لوجود إجازة معتمدة متداخلة.');
+        const days = Math.floor((new Date(leave.endDate).getTime() - new Date(leave.startDate).getTime()) / 86400000) + 1;
+        if (!Number.isFinite(days) || days <= 0) return alert('مدة الإجازة غير صحيحة.');
+        const oldBalance = employee.annualLeaveBalance ?? 0;
+        if (leave.type === 'annual' && oldBalance < days) return alert(`رصيد الإجازة غير كافٍ. الرصيد الحالي ${oldBalance} يوم.`);
+
+        if (leave.type === 'annual') {
+            const employeeSaved = await saveHRRecord('jilco_hr_employees', employee.id, { ...employee, annualLeaveBalance: oldBalance - days });
+            if (!ensureSaved(employeeSaved, 'تعذر تحديث رصيد الإجازة؛ لم يتم اعتماد الطلب.')) return;
+        }
+        const leaveSaved = await saveHRRecord('jilco_hr_leaves', leave.id, { ...leave, status });
+        if (!leaveSaved) {
+            if (leave.type === 'annual') await saveHRRecord('jilco_hr_employees', employee.id, employee);
+            ensureSaved(false, 'تعذر اعتماد الطلب، وتمت محاولة استعادة رصيد الموظف.');
+        }
     };
 
     const handleContractSelect = (contractNumber: string) => {
@@ -296,52 +348,48 @@ export const HRModule: React.FC = () => {
     };
 
     const handleApprovePayroll = async () => {
-        if (generatedPayrolls.length === 0) return alert('No payroll to approve.');
+        if (!hasPermission('approve_payments')) return alert('ليس لديك صلاحية اعتماد الرواتب أو الصرف.');
+        const pendingRecords = generatedPayrolls.filter(record => record.status === 'pending');
+        if (pendingRecords.length === 0) return alert('لا يوجد مسير معلق للاعتماد.');
+        const duplicate = pendingRecords.find(record => payrolls.some(p => p.employeeId === record.employeeId && p.month === record.month && p.status === 'paid'));
+        if (duplicate) return alert(`راتب ${duplicate.employeeName} للشهر ${duplicate.month} مصروف مسبقاً.`);
         if (!window.confirm(`هل أنت متأكد من اعتماد رواتب شهر ${payrollMonth} وإصدار سندات الصرف تلقائياً؟`)) return;
 
-        for (const record of generatedPayrolls) {
-            if (record.status === 'pending') {
-                const finalRecord = { ...record, status: 'paid' as const };
-                // 1. Save Payroll Record
-                await saveHRRecord('jilco_hr_payrolls', finalRecord.id, finalRecord);
-
-                const totalDed = record.gosiDeduction + record.loanDeduction + record.absenceDeduction + record.otherDeductions;
-
-                // 2. Create Employee Payment
-                const payment: EmployeePayment = {
-                    id: `EP-${Date.now()}-${record.employeeId}`,
-                    employeeId: record.employeeId,
-                    employeeName: record.employeeName,
-                    date: new Date().toISOString().split('T')[0],
-                    amount: finalRecord.netSalary,
-                    paymentMethod: 'transfer', 
-                    description: `راتب شهر ${record.month}` + (record.bonuses > 0 ? ' مكافأة' : '') + (totalDed > 0 ? ' استقطاع' : ''),
-                    payrollId: finalRecord.id,
-                    status: 'completed'
-                };
-                await saveHRRecord('jilco_hr_payments', payment.id, payment);
-                
-                // 3. Mark approved commissions as paid
-                const empCommissions = commissions.filter(c => c.employeeId === record.employeeId && c.status === 'approved' && c.approvalDate?.startsWith(payrollMonth));
-                for(const c of empCommissions) {
-                  await updateCommissionStatus(c.id, 'paid');
-                }
-
-                // 4. Update loans remaining amount
-                if (record.loanDeduction > 0) {
-                    const activeLoans = loans.filter(l => l.employeeId === record.employeeId && l.status === 'active' && l.startDate <= record.month && l.remainingAmount > 0);
-                    let toDeduct = record.loanDeduction;
-                    for (const loan of activeLoans) {
-                        if (toDeduct <= 0) break;
-                        const deduction = Math.min(loan.monthlyInstallment, loan.remainingAmount, toDeduct);
-                        const newRemaining = loan.remainingAmount - deduction;
-                        const newStatus = newRemaining <= 0 ? 'paid' : 'active';
-                        await saveHRRecord('jilco_hr_loans', loan.id, { ...loan, remainingAmount: newRemaining, status: newStatus as 'active' | 'paid' });
-                        toDeduct -= deduction;
-                    }
-                }
+        const approvedPayrolls: PayrollRecord[] = pendingRecords.map(record => ({ ...record, status: 'paid' as const }));
+        const payments: EmployeePayment[] = approvedPayrolls.map(record => {
+            const totalDed = record.gosiDeduction + record.loanDeduction + record.absenceDeduction + record.otherDeductions;
+            return {
+                id: `EP-${record.month}-${record.employeeId}`,
+                employeeId: record.employeeId,
+                employeeName: record.employeeName,
+                date: new Date().toISOString().split('T')[0],
+                amount: record.netSalary,
+                paymentMethod: 'transfer',
+                description: `راتب شهر ${record.month}` + (record.bonuses > 0 ? ' مكافأة' : '') + (totalDed > 0 ? ' استقطاع' : ''),
+                payrollId: record.id,
+                status: 'completed'
+            };
+        });
+        const employeeIds = new Set(approvedPayrolls.map(record => record.employeeId));
+        const paymentDate = new Date().toISOString().split('T')[0];
+        const commissionUpdates = commissions
+            .filter(c => employeeIds.has(c.employeeId) && c.status === 'approved' && c.approvalDate?.startsWith(payrollMonth))
+            .map(c => ({ ...c, status: 'paid' as const, paymentDate }));
+        const loanUpdates: EmployeeLoan[] = [];
+        for (const record of approvedPayrolls) {
+            let toDeduct = record.loanDeduction;
+            const activeLoans = loans.filter(l => l.employeeId === record.employeeId && l.status === 'active' && l.startDate <= record.month && l.remainingAmount > 0);
+            for (const loan of activeLoans) {
+                if (toDeduct <= 0) break;
+                const deduction = Math.min(loan.monthlyInstallment, loan.remainingAmount, toDeduct);
+                const remainingAmount = Math.max(0, loan.remainingAmount - deduction);
+                loanUpdates.push({ ...loan, remainingAmount, status: remainingAmount === 0 ? 'paid' : 'active' });
+                toDeduct -= deduction;
             }
         }
+
+        const result = await approveHRPayrollBatch(approvedPayrolls, payments, commissionUpdates, loanUpdates);
+        if (!result.success) return alert(`فشل اعتماد المسير دون حفظ أي تغييرات: ${result.error || 'خطأ غير معروف'}`);
         alert('تم اعتماد الرواتب وإنشاء سندات الصرف بنجاح.');
         setGeneratedPayrolls([]);
     };
@@ -896,7 +944,7 @@ export const HRModule: React.FC = () => {
                                         
                                         <div className="flex gap-1 ml-auto">
                                             <button title="تعديل الموظف" onClick={() => { setCurrentEmployee(emp); setShowEmployeeForm(true); }} className="p-1.5 text-blue-600 hover:bg-blue-100 rounded-lg"><Edit size={16} /></button>
-                                            <button title="حذف الموظف" onClick={async () => await deleteHRRecord('jilco_hr_employees', emp.id)} className="p-1.5 text-red-600 hover:bg-red-100 rounded-lg"><Trash2 size={16} /></button>
+                                            {hasPermission('delete_records') && <button title="حذف الموظف" onClick={() => handleDeleteRecord('jilco_hr_employees', emp.id, `الموظف ${emp.name}`)} className="p-1.5 text-red-600 hover:bg-red-100 rounded-lg"><Trash2 size={16} /></button>}
                                         </div>
                                     </div>
                                 </div>
@@ -965,7 +1013,7 @@ export const HRModule: React.FC = () => {
                                                     </button>
                                                 )}
                                                 <button title="طباعة العمولة" onClick={() => window.print()} className="p-1.5 text-gray-400 hover:text-jilco-600 rounded"><Printer size={16} /></button>
-                                                <button title="حذف العمولة" onClick={async () => await deleteHRRecord('jilco_hr_commissions', comm.id)} className="p-1.5 text-red-400 hover:text-red-600 rounded opacity-0 group-hover:opacity-100"><Trash2 size={16} /></button>
+                                                {hasPermission('delete_records') && <button title="حذف العمولة" onClick={() => handleDeleteRecord('jilco_hr_commissions', comm.id, `عمولة ${comm.employeeName}`)} className="p-1.5 text-red-400 hover:text-red-600 rounded opacity-0 group-hover:opacity-100"><Trash2 size={16} /></button>}
                                             </div>
                                         </td>
                                     </tr>
@@ -1230,12 +1278,8 @@ export const HRModule: React.FC = () => {
                                                 <td className="p-4">
                                                     {lv.status === 'pending' && (
                                                         <div className="flex gap-2">
-                                                            <button onClick={async () => {
-                                                                await saveHRRecord('jilco_hr_leaves', lv.id, { ...lv, status: 'approved' });
-                                                            }} className="p-1.5 text-green-600 hover:bg-green-100 rounded" title="قبول الطلب"><Check size={16} /></button>
-                                                            <button onClick={async () => {
-                                                                await saveHRRecord('jilco_hr_leaves', lv.id, { ...lv, status: 'rejected' });
-                                                            }} className="p-1.5 text-red-600 hover:bg-red-100 rounded" title="رفض الطلب"><XCircle size={16} /></button>
+                                                            <button onClick={() => updateLeaveStatus(lv, 'approved')} className="p-1.5 text-green-600 hover:bg-green-100 rounded" title="قبول الطلب"><Check size={16} /></button>
+                                                            <button onClick={() => updateLeaveStatus(lv, 'rejected')} className="p-1.5 text-red-600 hover:bg-red-100 rounded" title="رفض الطلب"><XCircle size={16} /></button>
                                                         </div>
                                                     )}
                                                 </td>

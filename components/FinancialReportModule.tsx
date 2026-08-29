@@ -4,6 +4,7 @@ import { useSales } from '../contexts/SalesContext';
 import { usePurchase } from '../contexts/PurchaseContext';
 import { useProject } from '../contexts/ProjectContext';
 import { useHR } from '../contexts/HRContext';
+import { getPaidPayrollsInRange, sumNetPayroll } from '../lib/hrIntegration';
 
 type Period = 'this_month' | 'last_month' | 'this_quarter' | 'this_year' | 'custom';
 
@@ -29,7 +30,7 @@ export const FinancialReportModule: React.FC = () => {
     const { invoices: salesInvoices } = useSales();
     const { purchaseInvoices, supplierPayments } = usePurchase();
     const { expenses } = useProject();
-    const { hrEmployees: employees } = useHR();
+    const { hrPayrolls: payrolls } = useHR();
 
     const [period, setPeriod] = useState<Period>('this_month');
     const [customStart, setCustomStart] = useState('');
@@ -85,11 +86,9 @@ export const FinancialReportModule: React.FC = () => {
     const expensesInPeriod = expenses.filter((e: any) => inRange(e.date));
     const totalExpenses = expensesInPeriod.reduce((s: number, e: any) => s + (e.amount || 0), 0);
 
-    // 4. الرواتب — مجموع رواتب الموظفين النشطين × عدد الأشهر في الفترة
-    const activeEmployees = employees.filter((e: any) => e.status === 'active');
-    const monthsInPeriod = Math.max(1, Math.round((endDate.getTime() - startDate.getTime()) / (30 * 86400000)));
-    // نحسب الرواتب من basicSalary مباشرة (لا يوجد جدول رواتب منفصل)
-    const paidSalaries = activeEmployees.reduce((s: number, e: any) => s + (e.basicSalary || 0), 0) * monthsInPeriod;
+    // 4. الرواتب — المسيرات المدفوعة فعلياً في الفترة، بما فيها البدلات والعمولات والخصومات
+    const paidPayrolls = getPaidPayrollsInRange(payrolls, startDate, endDate);
+    const paidSalaries = sumNetPayroll(paidPayrolls);
 
     // المجاميع
     const totalCosts = totalPurchases + totalExpenses + paidSalaries;
@@ -248,13 +247,13 @@ export const FinancialReportModule: React.FC = () => {
                                         الرواتب والأجور
                                     </td>
                                     <td className="p-4 text-center font-bold text-purple-900 font-mono">({fmt(paidSalaries)})</td>
-                                    <td className="p-4 text-center text-xs text-purple-700">{activeEmployees.length} موظف</td>
+                                    <td className="p-4 text-center text-xs text-purple-700">{paidPayrolls.length} مسير مدفوع</td>
                                 </tr>
-                                {expandedSection === 'salaries' && activeEmployees.map((e: any) => (
-                                    <tr key={e.id} className="bg-purple-50/20 text-xs">
-                                        <td className="pr-12 py-2 text-gray-600">{e.name} — {e.role}</td>
-                                        <td className="p-2 text-center font-mono text-gray-700">({fmt(e.basicSalary * monthsInPeriod)})</td>
-                                        <td className="p-2 text-center text-gray-400">{e.basicSalary.toLocaleString()} / شهر</td>
+                                {expandedSection === 'salaries' && paidPayrolls.map(payroll => (
+                                    <tr key={payroll.id} className="bg-purple-50/20 text-xs">
+                                        <td className="pr-12 py-2 text-gray-600">{payroll.employeeName} — {payroll.month}</td>
+                                        <td className="p-2 text-center font-mono text-gray-700">({fmt(payroll.netSalary)})</td>
+                                        <td className="p-2 text-center text-gray-400">مسير مدفوع</td>
                                     </tr>
                                 ))}
 

@@ -4,6 +4,7 @@ import { useMaintenance } from '../contexts/MaintenanceContext';
 import { useSales } from '../contexts/SalesContext';
 import { useHR } from '../contexts/HRContext';
 import { MaintenanceContract, MaintenanceTicket, TicketStatus, TicketPriority, TicketType } from '../types';
+import { isMaintenanceTechnician } from '../lib/hrIntegration';
 
 export const MaintenanceModule: React.FC = () => {
     const { contracts, tickets, visits, addContract, updateContract, deleteContract, addTicket, updateTicket, deleteTicket, updateVisit } = useMaintenance();
@@ -174,7 +175,7 @@ export const MaintenanceModule: React.FC = () => {
     });
 
     // Technicians for Assignment
-    const technicians = employees.filter(emp => emp.department === 'الصيانة والتركيب');
+    const technicians = employees.filter(isMaintenanceTechnician);
 
     const handleSaveContract = () => {
         if (!currentContract.customerId || !currentContract.amount) return alert('يرجى تعبئة العميل والتكلفة');
@@ -197,7 +198,8 @@ export const MaintenanceModule: React.FC = () => {
     };
 
     const getCustomerName = (id: string) => customers.find(c => c.id === id)?.fullName || 'عميل غير معروف';
-    const getTechName = (id?: string) => technicians.find(t => t.id === id)?.name || 'غير مُعيّن';
+    // Keep historical assignments readable even after a technician becomes inactive.
+    const getTechName = (id?: string) => employees.find(t => t.id === id)?.name || 'غير مُعيّن';
 
     const renderDashboard = () => {
         const activeContractsCount = contracts.filter(c => c.status === 'active').length;

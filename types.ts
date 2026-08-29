@@ -404,6 +404,7 @@ export interface Employee {
   id: string;
   name: string;
   role: EmployeeRole;
+  department?: string; // Optional for compatibility with legacy HR records
   phone: string;
   email?: string;
   nationalId?: string; // New: IQAMA or ID
