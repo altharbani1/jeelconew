@@ -120,19 +120,20 @@ export const CustomerModule: React.FC<{ statementOnly?: boolean }> = ({ statemen
     const invoices = allInvoices.filter(i => i.customerId ? i.customerId === selectedCustomer.id : i.customerName === selectedCustomer.fullName).map(i => {
       const debit = getSalesInvoiceTotal(i);
       return {
-        date: i.date, type: 'invoice' as const, number: i.number, description: 'فاتورة ضريبية',
+        date: i.date, type: 'invoice' as const, number: i.number, description: 'فاتورة مبيعات ضريبية',
         debit, credit: 0
       };
     });
 
     const receipts = allReceipts.filter(r => r.customerId ? r.customerId === selectedCustomer.id : r.receivedFrom === selectedCustomer.fullName).map(r => ({
-      date: r.date, type: 'receipt' as const, number: r.number, description: r.forReason || 'سند قبض',
+      date: r.date, type: 'receipt' as const, number: r.number,
+      description: `${r.invoiceId ? `دفعة على الفاتورة ${r.invoiceId}` : (r.forReason || 'دفعة غير مخصصة')} — ${r.paymentMethod === 'cash' ? 'نقداً' : r.paymentMethod === 'check' ? 'شيك' : 'تحويل بنكي'}`,
       debit: 0, credit: r.amount
     }));
 
     let runningBalance = 0;
     const transactions: Transaction[] = [...invoices, ...receipts]
-      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+      .sort((a, b) => a.date.localeCompare(b.date) || (a.type === b.type ? a.number.localeCompare(b.number) : a.type === 'invoice' ? -1 : 1))
       .map(transaction => ({ ...transaction, balance: runningBalance += transaction.debit - transaction.credit }));
 
     const totalDebit = transactions.reduce((s, t) => s + t.debit, 0);
@@ -141,6 +142,9 @@ export const CustomerModule: React.FC<{ statementOnly?: boolean }> = ({ statemen
 
     return { transactions, totalDebit, totalCredit, balance };
   }, [selectedCustomer, allInvoices, allReceipts]);
+
+  const formatStatementAmount = (amount: number) => amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const balanceLabel = (balance: number) => balance > 0 ? 'مدين' : balance < 0 ? 'دائن' : 'مسدد';
 
   // --- Views ---
 
@@ -188,46 +192,48 @@ export const CustomerModule: React.FC<{ statementOnly?: boolean }> = ({ statemen
                 </div>
                 <div className="text-left flex flex-col items-end justify-center">
                   <div className="bg-white px-6 py-3 rounded-xl border-2 border-jilco-900 text-center">
-                    <p className="text-[10px] font-black text-gray-400 uppercase mb-1">الرصيد المستحق / Balance</p>
-                    <span className="text-2xl font-black text-jilco-900 font-mono">{customerStatement.balance.toLocaleString()}</span>
-                    <p className="text-[8px] text-gold-600 font-black">SAR ريال سعودي</p>
+                    <p className="text-[10px] font-black text-gray-500 uppercase mb-1">الرصيد الختامي / Closing Balance</p>
+                    <span className="text-2xl font-black text-jilco-900 font-mono tabular-nums" dir="ltr">{formatStatementAmount(Math.abs(customerStatement.balance))}</span>
+                    <p className="text-[9px] text-gray-700 font-black">{customerStatement.balance > 0 ? 'مستحق على العميل' : customerStatement.balance < 0 ? 'رصيد دائن للعميل' : 'الحساب مسدد'} — SAR</p>
                   </div>
                 </div>
               </div>
 
-              <table className="w-full text-xs text-right border-collapse mb-8 flex-1">
-                <thead>
+              <table className="w-full table-fixed text-[10px] text-right border-collapse mb-5 print:text-[9px]">
+                <thead className="print:table-header-group">
                   <tr className="bg-jilco-900 text-white font-black uppercase">
-                    <th className="p-2 border border-jilco-900 w-24">التاريخ</th>
-                    <th className="p-2 border border-jilco-900 w-24">رقم المرجع</th>
-                    <th className="p-2 border border-jilco-900">البيان / الوصف</th>
-                    <th className="p-2 border border-jilco-900 w-24 text-center">مدين (+)</th>
-                    <th className="p-2 border border-jilco-900 w-24 text-center">دائن (-)</th>
-                    <th className="p-2 border border-jilco-900 w-24 text-center">الرصيد</th>
+                    <th className="p-2 border border-gray-500 w-[4%] text-center">م</th>
+                    <th className="p-2 border border-gray-500 w-[11%]">التاريخ</th>
+                    <th className="p-2 border border-gray-500 w-[11%] text-center">الحركة</th>
+                    <th className="p-2 border border-gray-500 w-[14%]">رقم المستند</th>
+                    <th className="p-2 border border-gray-500 w-[24%]">البيان</th>
+                    <th className="p-2 border border-gray-500 w-[12%] text-center">مدين</th>
+                    <th className="p-2 border border-gray-500 w-[12%] text-center">دائن</th>
+                    <th className="p-2 border border-gray-500 w-[12%] text-center">الرصيد</th>
                   </tr>
                 </thead>
                 <tbody>
                   {customerStatement.transactions.map((t, idx) => (
-                    <tr key={idx} className="border-b border-gray-200 h-10">
-                      <td className="p-2 border border-gray-100 font-mono text-gray-500">{t.date}</td>
-                      <td className="p-2 border border-gray-100 font-mono font-bold text-jilco-900">{t.number}</td>
-                      <td className="p-2 border border-gray-100 font-bold text-gray-800">{t.description}</td>
-                      <td className="p-2 border border-gray-100 text-center font-mono font-black text-red-600">{t.debit > 0 ? t.debit.toLocaleString() : '-'}</td>
-                      <td className="p-2 border border-gray-100 text-center font-mono font-black text-green-700">{t.credit > 0 ? t.credit.toLocaleString() : '-'}</td>
-                      <td className={`p-2 border border-gray-100 text-center font-mono font-black ${(t.balance || 0) > 0 ? 'text-red-600' : 'text-green-700'}`}>{Math.abs(t.balance || 0).toLocaleString()}</td>
+                    <tr key={`${t.type}-${t.number}`} className="border-b border-gray-400 even:bg-slate-50 break-inside-avoid">
+                      <td className="p-2 border border-gray-400 text-center font-bold">{idx + 1}</td>
+                      <td className="p-2 border border-gray-400 font-mono whitespace-nowrap" dir="ltr">{t.date}</td>
+                      <td className="p-2 border border-gray-400 text-center"><span className={`inline-block px-1.5 py-0.5 rounded font-black ${t.type === 'invoice' ? 'bg-blue-100 text-blue-900' : 'bg-emerald-100 text-emerald-900'} print:bg-transparent print:text-black`}>{t.type === 'invoice' ? 'فاتورة' : 'سند قبض'}</span></td>
+                      <td className="p-2 border border-gray-400 font-mono font-bold text-jilco-900 whitespace-nowrap" dir="ltr">{t.number}</td>
+                      <td className="p-2 border border-gray-400 font-bold text-gray-800 leading-4">{t.description}</td>
+                      <td className="p-2 border border-gray-400 text-center font-mono font-black tabular-nums whitespace-nowrap print:text-black" dir="ltr">{t.debit > 0 ? formatStatementAmount(t.debit) : '-'}</td>
+                      <td className="p-2 border border-gray-400 text-center font-mono font-black tabular-nums whitespace-nowrap text-green-800 print:text-black" dir="ltr">{t.credit > 0 ? formatStatementAmount(t.credit) : '-'}</td>
+                      <td className="p-2 border border-gray-400 text-center font-mono font-black tabular-nums whitespace-nowrap" dir="ltr"><span>{formatStatementAmount(Math.abs(t.balance || 0))}</span><span className="block text-[8px] font-bold text-gray-600">{balanceLabel(t.balance || 0)}</span></td>
                     </tr>
                   ))}
-                  {customerStatement.transactions.length === 0 && <tr><td colSpan={6} className="p-12 text-center text-gray-300 font-bold italic">لا توجد عمليات مسجلة لهذا العميل</td></tr>}
+                  {customerStatement.transactions.length === 0 && <tr><td colSpan={8} className="p-12 text-center text-gray-400 font-bold italic border border-gray-400">لا توجد عمليات مسجلة لهذا العميل</td></tr>}
                 </tbody>
-                <tfoot className="bg-gray-50 font-black text-sm">
-                  <tr>
-                    <td colSpan={3} className="p-3 border text-left pl-4">الإجماليات:</td>
-                    <td className="p-3 border text-center font-mono text-red-600">{customerStatement.totalDebit.toLocaleString()}</td>
-                    <td className="p-3 border text-center font-mono text-green-700">{customerStatement.totalCredit.toLocaleString()}</td>
-                    <td className="p-3 border text-center font-mono text-jilco-900">{Math.abs(customerStatement.balance).toLocaleString()}</td>
-                  </tr>
-                </tfoot>
               </table>
+
+              <div className="grid grid-cols-3 gap-3 mb-5 break-inside-avoid">
+                <div className="border border-gray-400 bg-gray-50 p-3 text-center"><p className="text-[9px] font-bold text-gray-500">إجمالي الفواتير</p><p className="font-mono font-black tabular-nums" dir="ltr">{formatStatementAmount(customerStatement.totalDebit)} SAR</p></div>
+                <div className="border border-gray-400 bg-gray-50 p-3 text-center"><p className="text-[9px] font-bold text-gray-500">إجمالي المقبوضات</p><p className="font-mono font-black tabular-nums" dir="ltr">{formatStatementAmount(customerStatement.totalCredit)} SAR</p></div>
+                <div className="border-2 border-jilco-900 bg-white p-3 text-center"><p className="text-[9px] font-bold text-gray-500">الرصيد الختامي</p><p className="font-mono font-black tabular-nums" dir="ltr">{formatStatementAmount(Math.abs(customerStatement.balance))} SAR</p><p className="text-[8px] font-black">{balanceLabel(customerStatement.balance)}</p></div>
+              </div>
 
               {/* Signature & Stamp */}
               <div className="mt-8 pb-4 flex justify-between items-end px-4">
