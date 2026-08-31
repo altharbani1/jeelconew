@@ -206,7 +206,7 @@ export const ReceiptModule: React.FC<{ initialView?: 'list' | 'editor' | 'statem
 
         return (
             <div className="flex-1 bg-gray-200 p-8 overflow-auto flex justify-center items-start print:p-0 print:m-0 print:bg-white print:w-full">
-                <div className="bg-white shadow-2xl w-[210mm] min-h-[297mm] p-0 relative flex flex-col print:shadow-none print:w-full">
+                <div className="print-document bg-white shadow-2xl w-[210mm] min-h-[297mm] p-0 relative flex flex-col print:shadow-none print:w-full">
                     <div className="px-10 py-6 border-b-2 border-jilco-900 flex justify-between items-center">
                         <div className="w-1/3 text-right"><h1 className="text-xl font-black text-jilco-900">{config.headerTitle}</h1><p className="text-xs font-bold text-gray-500">{config.headerSubtitle}</p></div>
                         <div className="w-1/3 text-center"><h2 className="text-2xl font-black text-jilco-900 border-2 border-jilco-900 px-4 py-1 inline-block rounded-lg uppercase">كشف حساب مقبوضات</h2></div>

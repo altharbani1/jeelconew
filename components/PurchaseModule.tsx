@@ -380,7 +380,7 @@ export const PurchaseModule: React.FC<{ initialTab?: PurchaseTab; reportOnly?: b
 
     return (
       <div className="fixed inset-0 bg-gray-200 z-[200] overflow-auto flex justify-center items-start print:static print:bg-white print:p-0 print:h-full">
-        <div id="printable-area" className="bg-white shadow-2xl w-[210mm] min-h-[297mm] p-0 relative flex flex-col print:shadow-none print:w-full my-8 print:my-0">
+        <div id="printable-area" className="print-document bg-white shadow-2xl w-[210mm] min-h-[297mm] p-0 relative flex flex-col print:shadow-none print:w-full my-8 print:my-0">
           {/* Close Button */}
           <button title="Close Print Invoice" onClick={() => setPrintingInvoice(null)} className="absolute top-4 right-4 bg-gray-200 hover:bg-gray-300 p-2 rounded-full print:hidden z-50"><X size={20} /></button>
           <button title="Print Invoice" onClick={() => window.print()} className="absolute top-4 right-16 bg-jilco-900 text-white px-4 py-2 rounded-lg font-bold print:hidden z-50 flex items-center gap-2"><Printer size={18} /> طباعة</button>
@@ -725,7 +725,7 @@ export const PurchaseModule: React.FC<{ initialTab?: PurchaseTab; reportOnly?: b
           <div><label className="block text-xs font-bold text-gray-500 mb-1">إلى تاريخ</label><input type="date" title="نهاية التقرير" value={reportEndDate} onChange={e => setReportEndDate(e.target.value)} className="p-2 border rounded-lg font-bold" /></div>
           <button onClick={() => window.print()} className="bg-jilco-900 text-white px-5 py-2 rounded-lg font-bold flex items-center gap-2"><Printer size={18} /> طباعة التقرير</button>
         </div>
-        <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden print:border-0 print:shadow-none">
+        <div className="print-document bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden print:border-0 print:shadow-none">
           <div className="px-8 py-5 border-b-2 border-jilco-900 flex justify-between items-center">
             <div><h1 className="text-xl font-black text-jilco-900">{config.headerTitle}</h1><p className="text-xs text-gray-500 font-bold">{config.headerSubtitle || 'Jilco Elevators Co.'}</p></div>
             <div className="text-center"><h2 className="text-2xl font-black text-jilco-900 border-2 border-jilco-900 px-5 py-1 rounded-lg">تقرير المشتريات</h2><p className="text-[10px] text-gray-400 mt-1">PURCHASES MANAGEMENT REPORT</p></div>
@@ -823,7 +823,7 @@ export const PurchaseModule: React.FC<{ initialTab?: PurchaseTab; reportOnly?: b
             </div>
 
             {/* ===== PRINTABLE A4 STATEMENT ===== */}
-            <div id="supplier-statement-print" className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden print:shadow-none print:border-0 print:rounded-none">
+            <div id="supplier-statement-print" className="print-document bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden print:shadow-none print:border-0 print:rounded-none">
 
               {/* Header */}
               <div className="px-8 py-5 border-b-2 border-jilco-900 flex justify-between items-center">

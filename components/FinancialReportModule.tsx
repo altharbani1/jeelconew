@@ -175,7 +175,7 @@ export const FinancialReportModule: React.FC = () => {
                 </div>
 
                 {/* ===== PRINTABLE REPORT ===== */}
-                <div id="pl-report" className="space-y-6 print:space-y-0 print:block">
+                <div id="pl-report" className="print-document space-y-6 print:space-y-0 print:block">
 
                     {/* Print Header */}
                     <div className="hidden print:flex justify-between items-center pb-4 border-b-2 border-jilco-900 mb-4">

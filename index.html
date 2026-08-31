@@ -160,7 +160,8 @@
       }
 
       /* 4. General a4-page support for other modules - MULTI-PAGE FIX */
-      #printable-area {
+      #printable-area,
+      .print-document {
         visibility: visible !important;
         position: static !important;
         width: 210mm !important;
@@ -171,7 +172,8 @@
         print-color-adjust: exact !important;
       }
 
-      #printable-area * {
+      #printable-area *,
+      .print-document * {
         visibility: visible !important;
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;

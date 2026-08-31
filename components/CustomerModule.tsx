@@ -166,7 +166,7 @@ export const CustomerModule: React.FC<{ statementOnly?: boolean }> = ({ statemen
           <button onClick={() => window.print()} className="bg-jilco-900 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2"><Printer size={18} /> طباعة الكشف</button>
         </div>
 
-        <div id="printable-area" className="bg-white shadow-2xl w-[210mm] min-h-[297mm] relative flex flex-col p-0 print:shadow-none print:w-full print:m-0">
+        <div id="printable-area" className="print-document bg-white shadow-2xl w-[210mm] min-h-[297mm] relative flex flex-col p-0 print:shadow-none print:w-full print:m-0">
           <div className="flex flex-col flex-1 bg-white">
             <header className="px-10 py-6 border-b-2 border-jilco-900 flex justify-between items-center bg-white shrink-0">
               <div className="w-1/3 text-right">

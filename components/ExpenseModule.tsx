@@ -293,7 +293,7 @@ export const ExpenseModule: React.FC<{ initialView?: 'list' | 'editor' | 'report
 
     const renderReportView = () => (
         <div className="flex-1 bg-gray-200 p-8 overflow-auto flex justify-center items-start print:p-0 print:m-0 print:bg-white print:w-full print:h-full print:absolute print:top-0 print:left-0 print:z-[200]">
-            <div className="bg-white shadow-2xl w-[210mm] min-h-[297mm] p-0 relative flex flex-col print:shadow-none print:w-full">
+            <div className="print-document bg-white shadow-2xl w-[210mm] min-h-[297mm] p-0 relative flex flex-col print:shadow-none print:w-full">
                 {/* Header */}
                 <div className="px-10 py-6 border-b-2 border-jilco-900 flex justify-between items-center">
                     <div className="w-1/3 text-right">
