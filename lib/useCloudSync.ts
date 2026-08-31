@@ -123,6 +123,12 @@ export const useCloudSync = (modules: SyncModule[]) => {
     const deleteRecord = async (collection: string, id: string): Promise<boolean> => {
         setSyncStatus('syncing');
         try {
+            const success = await cloudService.deleteRecord(collection, id);
+            if (!success) {
+                setSyncStatus('error');
+                return false;
+            }
+
             const mod = modulesRef.current.find(m => m.collection === collection);
             if (mod) {
                 mod.stateSetter(prev => prev.filter((q: any) => (q.id || q.number) !== id));
@@ -133,7 +139,6 @@ export const useCloudSync = (modules: SyncModule[]) => {
                 localArr.filter((q: any) => (q.id || q.number) !== id)
             ));
 
-            const success = await cloudService.deleteRecord(collection, id);
             setSyncStatus(success ? 'synced' : 'error');
             return success;
         } catch (e) {

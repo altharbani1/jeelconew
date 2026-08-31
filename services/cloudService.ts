@@ -623,6 +623,29 @@ export const cloudService = {
          return true;
       }
 
+      // Phase 3 archives are stored in dedicated relational tables, not in
+      // jilco_realtime_data. Require a returned row so deleting zero records
+      // is treated as a failure instead of silently succeeding.
+      const dedicatedTableMap: Record<string, string> = {
+        jilco_contracts_archive: 'contracts',
+        jilco_invoices_archive: 'invoices',
+        jilco_receipts_archive: 'receipts'
+      };
+      const dedicatedTable = dedicatedTableMap[collection];
+      if (dedicatedTable) {
+        const { data: deletedRows, error } = await supabase
+          .from(dedicatedTable)
+          .delete()
+          .eq('legacy_id', recordId)
+          .select('id, legacy_id');
+        if (error) throw error;
+        if (!deletedRows || deletedRows.length === 0) {
+          console.error(`No ${dedicatedTable} row matched legacy_id ${recordId}`);
+          return false;
+        }
+        return true;
+      }
+
       let query = supabase
         .from('jilco_realtime_data')
         .delete()

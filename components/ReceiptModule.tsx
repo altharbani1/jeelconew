@@ -175,7 +175,11 @@ export const ReceiptModule: React.FC<{ initialView?: 'list' | 'editor' | 'statem
     const handleDelete = async (number: string) => {
         if (window.confirm("هل أنت متأكد من حذف هذا السند؟")) {
             const deletedReceipt = receipts.find(r => r.number === number);
-            await deleteSalesRecord('jilco_receipts_archive', number);
+            const deleted = await deleteSalesRecord('jilco_receipts_archive', number);
+            if (!deleted) {
+                alert('تعذر حذف سند القبض من السحابة. لم يتم حذف السند، يرجى المحاولة مرة أخرى.');
+                return;
+            }
             if (deletedReceipt?.invoiceId) {
                 const invoice = invoices.find(i => i.number === deletedReceipt.invoiceId);
                 if (invoice) {
