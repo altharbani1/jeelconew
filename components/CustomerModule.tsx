@@ -163,24 +163,23 @@ export const CustomerModule: React.FC<{ statementOnly?: boolean }> = ({ statemen
         </div>
 
         <div id="printable-area" className="bg-white shadow-2xl w-[210mm] min-h-[297mm] relative flex flex-col p-0 print:shadow-none print:w-full print:m-0">
-          <div className="absolute inset-3 border-[6px] border-jilco-900 pointer-events-none z-0"></div>
-          <div className="relative z-10 flex flex-col flex-1 m-[28px] bg-white">
-            <header className="px-10 py-6 border-b-2 border-jilco-100 flex justify-between items-center bg-white h-[140px] shrink-0">
+          <div className="flex flex-col flex-1 bg-white">
+            <header className="px-10 py-6 border-b-2 border-jilco-900 flex justify-between items-center bg-white shrink-0">
               <div className="w-1/3 text-right">
                 <h1 className="text-2xl font-black text-jilco-900 mb-0.5">{config?.headerTitle || 'جيلكو للمصاعد'}</h1>
                 <p className="text-[10px] font-bold text-gray-500">{config?.headerSubtitle || 'JILCO ELEVATORS'}</p>
               </div>
               <div className="w-1/3 flex justify-center">
-                {config?.logo && <img src={config.logo} alt="Logo" className="h-28 w-auto object-contain" />}
+                {config?.logo && <img src={config.logo} alt="Logo" className="h-20 w-auto object-contain" />}
               </div>
               <div className="w-1/3 text-left">
-                <h2 className="text-xl font-black text-jilco-900 border-2 border-jilco-900 px-4 py-1 inline-block rounded-lg uppercase">كشف حساب عميل</h2>
-                <p className="text-[10px] text-gray-400 font-bold mt-1">Customer Statement</p>
+                <h2 className="text-2xl font-black text-jilco-900 border-2 border-jilco-900 px-4 py-1 inline-block rounded-lg">كشف حساب عميل</h2>
+                <p className="text-[10px] text-gray-400 font-bold mt-1">CUSTOMER ACCOUNT STATEMENT</p>
               </div>
             </header>
 
             <div className="px-10 py-6 flex-1 flex flex-col">
-              <div className="grid grid-cols-2 gap-6 mb-6 bg-gray-50 p-5 rounded-xl border border-gray-200">
+              <div className="grid grid-cols-2 gap-6 mb-6 bg-gray-50 p-5 border-b border-gray-200">
                 <div>
                   <p className="text-xs font-bold text-gray-400 mb-1 uppercase tracking-widest">بيانات العميل</p>
                   <h3 className="text-xl font-black text-black mb-1">{selectedCustomer.fullName}</h3>
@@ -188,7 +187,7 @@ export const CustomerModule: React.FC<{ statementOnly?: boolean }> = ({ statemen
                   <p className="text-xs text-gray-500 mt-1">{selectedCustomer.address}</p>
                 </div>
                 <div className="text-left flex flex-col items-end justify-center">
-                  <div className="bg-white px-6 py-3 rounded-2xl border-4 border-jilco-900 text-center shadow-lg">
+                  <div className="bg-white px-6 py-3 rounded-xl border-2 border-jilco-900 text-center">
                     <p className="text-[10px] font-black text-gray-400 uppercase mb-1">الرصيد المستحق / Balance</p>
                     <span className="text-2xl font-black text-jilco-900 font-mono">{customerStatement.balance.toLocaleString()}</span>
                     <p className="text-[8px] text-gold-600 font-black">SAR ريال سعودي</p>
