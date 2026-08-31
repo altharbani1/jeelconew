@@ -77,7 +77,7 @@ const INITIAL_CONFIG: CompanyConfig = {
     bankAccounts: []
 };
 
-export const ReceiptModule: React.FC = () => {
+export const ReceiptModule: React.FC<{ initialView?: 'list' | 'editor' | 'statement' }> = ({ initialView = 'list' }) => {
     const { currentUser } = useAuth();
     const {
         receipts, customers, invoices,
@@ -85,7 +85,7 @@ export const ReceiptModule: React.FC = () => {
     } = useSales();
     const { contracts, tickets } = useMaintenance();
 
-    const [viewMode, setViewMode] = useState<'list' | 'editor' | 'statement'>('list');
+    const [viewMode, setViewMode] = useState<'list' | 'editor' | 'statement'>(initialView);
     const [searchTerm, setSearchTerm] = useState('');
     const [startDate, setStartDate] = useState(new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0]);
     const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
@@ -273,7 +273,6 @@ export const ReceiptModule: React.FC = () => {
                     <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
                         <div className="p-4 border-b border-gray-100 flex flex-wrap gap-4 items-center">
                             <div className="relative flex-1 max-w-md"><Search className="absolute right-3 top-2.5 text-gray-400" size={18} /><input title="بحث السندات" type="text" placeholder="بحث..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pr-10 pl-4 py-2 border rounded-lg text-sm bg-white font-bold" /></div>
-                            <button title="كشف الحساب" onClick={() => setViewMode('statement')} className="bg-green-50 text-green-700 border border-green-200 px-4 py-2 rounded-lg font-bold text-sm hover:bg-green-100 flex items-center gap-2"><PieChart size={16} /> كشف الحساب</button>
                         </div>
                         <table className="w-full text-sm text-right">
                             <thead className="bg-gray-50 text-gray-500">

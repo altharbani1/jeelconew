@@ -26,7 +26,7 @@ interface Transaction {
   balance?: number;
 }
 
-export const CustomerModule: React.FC = () => {
+export const CustomerModule: React.FC<{ statementOnly?: boolean }> = ({ statementOnly = false }) => {
   const {
     customers, invoices: allInvoices, receipts: allReceipts,
     saveSalesRecord, deleteSalesRecord
@@ -144,11 +144,21 @@ export const CustomerModule: React.FC = () => {
 
   // --- Views ---
 
+  if (statementOnly && viewMode !== 'statement') {
+    const reportCustomers = customers.filter(c => c.fullName.toLowerCase().includes(searchTerm.toLowerCase()) || c.phone.includes(searchTerm));
+    return (
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+        <div className="flex justify-between items-center mb-5"><div><h2 className="text-xl font-black text-jilco-900">كشوف حساب العملاء</h2><p className="text-xs text-gray-500 mt-1">اختر العميل لعرض الفواتير والمقبوضات والرصيد التراكمي</p></div><input title="بحث عن عميل" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="بحث بالاسم أو الهاتف" className="p-2 border rounded-lg text-sm font-bold w-72" /></div>
+        <div className="overflow-hidden rounded-lg border"><table className="w-full text-sm text-right"><thead className="bg-jilco-900 text-white"><tr><th className="p-3">العميل</th><th className="p-3">الهاتف</th><th className="p-3">الرقم الضريبي</th><th className="p-3 text-center">التقرير</th></tr></thead><tbody>{reportCustomers.map(customer => <tr key={customer.id} className="border-b hover:bg-gray-50"><td className="p-3 font-bold">{customer.fullName}</td><td className="p-3 font-mono">{customer.phone}</td><td className="p-3 font-mono">{customer.vatNumber || '-'}</td><td className="p-3 text-center"><button onClick={() => { setSelectedCustomer(customer); setViewMode('statement'); }} className="bg-jilco-50 text-jilco-800 px-4 py-2 rounded-lg font-bold">عرض كشف الحساب</button></td></tr>)}</tbody></table></div>
+      </div>
+    );
+  }
+
   if (viewMode === 'statement' && selectedCustomer) {
     return (
       <div className="flex-1 bg-gray-200 p-8 overflow-auto flex flex-col items-center print:bg-white print:p-0 print:block">
         <div className="mb-6 flex justify-between w-[210mm] print:hidden">
-          <button onClick={() => setViewMode('details')} className="bg-white px-4 py-2 rounded-lg font-bold border border-gray-300 flex items-center gap-2"><ArrowLeft size={18} /> رجوع</button>
+          <button onClick={() => { if (statementOnly) { setSelectedCustomer(null); setViewMode('list'); } else setViewMode('details'); }} className="bg-white px-4 py-2 rounded-lg font-bold border border-gray-300 flex items-center gap-2"><ArrowLeft size={18} /> رجوع</button>
           <button onClick={() => window.print()} className="bg-jilco-900 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2"><Printer size={18} /> طباعة الكشف</button>
         </div>
 
@@ -315,7 +325,6 @@ export const CustomerModule: React.FC = () => {
                     <td className="p-4">
                       <div className="flex justify-center gap-2">
                         <button onClick={() => handleViewDetails(customer)} className="p-2 text-jilco-600 hover:bg-jilco-50 rounded-full" title="عرض التفاصيل"><UserCheck size={16} /></button>
-                        <button onClick={() => { setSelectedCustomer(customer); setViewMode('statement'); }} className="p-2 text-gold-600 hover:bg-gold-50 rounded-full" title="كشف الحساب"><PieChart size={16} /></button>
                         <button title="تعديل" onClick={() => handleEdit(customer)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-full"><Edit size={16} /></button>
                         <button title="حذف" onClick={async () => { if (window.confirm('حذف العميل؟')) await deleteSalesRecord('jilco_customers', customer.id) }} className="p-2 text-red-500 hover:bg-red-50 rounded-full"><Trash2 size={16} /></button>
                       </div>
@@ -338,7 +347,6 @@ export const CustomerModule: React.FC = () => {
             <button title="رجوع" onClick={() => setViewMode('list')} className="p-2 bg-white rounded-full shadow-sm hover:bg-gray-50 text-gray-600"><ArrowLeft size={20} /></button>
             <div><h1 className="text-2xl font-bold text-jilco-900">{selectedCustomer.fullName}</h1><p className="text-sm text-gray-500">{selectedCustomer.phone}</p></div>
           </div>
-          <button onClick={() => setViewMode('statement')} className="bg-jilco-900 text-white px-6 py-2 rounded-xl font-bold flex items-center gap-2 hover:bg-black shadow-lg"><PieChart size={20} /> عرض كشف الحساب المالي</button>
         </div>
 
         <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-6 overflow-hidden pb-8">

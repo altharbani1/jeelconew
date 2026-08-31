@@ -36,7 +36,7 @@ const tafqit = (number: number): string => {
   return text + " ريال سعودي فقط لا غير";
 };
 
-export const PurchaseModule: React.FC = () => {
+export const PurchaseModule: React.FC<{ initialTab?: PurchaseTab; reportOnly?: boolean }> = ({ initialTab = 'invoices', reportOnly = false }) => {
   const {
     suppliers,
     purchaseInvoices: invoices,
@@ -48,7 +48,7 @@ export const PurchaseModule: React.FC = () => {
   const { projects } = useProject();
   const { supplierProducts: products, saveInventoryRecord } = useInventory();
 
-  const [activeTab, setActiveTab] = useState<PurchaseTab>('invoices');
+  const [activeTab, setActiveTab] = useState<PurchaseTab>(initialTab);
 
   // --- STATE ---
   const [config, setConfig] = useState<CompanyConfig>(INITIAL_CONFIG);
@@ -955,24 +955,22 @@ export const PurchaseModule: React.FC = () => {
   return (
     <div className="flex-1 bg-gray-100 p-8 overflow-auto h-full animate-fade-in">
       <div className="max-w-7xl mx-auto">
-        <div className="flex justify-between items-center mb-8">
+        {!reportOnly && <div className="flex justify-between items-center mb-8">
           <div>
             <h1 className="text-2xl font-bold text-jilco-900 flex items-center gap-2">
               <ShoppingBag className="text-gold-500" /> إدارة المشتريات والموردين
             </h1>
             <p className="text-gray-500 text-sm mt-1">متابعة فواتير الشراء، حسابات الموردين، والمدفوعات</p>
           </div>
-        </div>
+        </div>}
 
         {/* Tabs */}
-        <div className="flex bg-white rounded-xl shadow-sm border border-gray-200 mb-6 overflow-hidden">
+        {!reportOnly && <div className="flex bg-white rounded-xl shadow-sm border border-gray-200 mb-6 overflow-hidden">
           <button onClick={() => setActiveTab('invoices')} className={`flex-1 py-3 text-sm font-bold flex justify-center items-center gap-2 transition-colors ${activeTab === 'invoices' ? 'bg-jilco-50 text-jilco-800 border-b-4 border-jilco-600' : 'text-gray-500 hover:bg-gray-50'}`}><FileText size={16} /> فواتير الشراء</button>
           <button onClick={() => setActiveTab('payments')} className={`flex-1 py-3 text-sm font-bold flex justify-center items-center gap-2 transition-colors ${activeTab === 'payments' ? 'bg-jilco-50 text-jilco-800 border-b-4 border-jilco-600' : 'text-gray-500 hover:bg-gray-50'}`}><Banknote size={16} /> المدفوعات</button>
-          <button onClick={() => setActiveTab('statement')} className={`flex-1 py-3 text-sm font-bold flex justify-center items-center gap-2 transition-colors ${activeTab === 'statement' ? 'bg-jilco-50 text-jilco-800 border-b-4 border-jilco-600' : 'text-gray-500 hover:bg-gray-50'}`}><CreditCard size={16} /> كشف الحساب</button>
-          <button onClick={() => setActiveTab('reports')} className={`flex-1 py-3 text-sm font-bold flex justify-center items-center gap-2 transition-colors ${activeTab === 'reports' ? 'bg-jilco-50 text-jilco-800 border-b-4 border-jilco-600' : 'text-gray-500 hover:bg-gray-50'}`}><BarChart3 size={16} /> التقارير</button>
           <button onClick={() => setActiveTab('suppliers')} className={`flex-1 py-3 text-sm font-bold flex justify-center items-center gap-2 transition-colors ${activeTab === 'suppliers' ? 'bg-jilco-50 text-jilco-800 border-b-4 border-jilco-600' : 'text-gray-500 hover:bg-gray-50'}`}><Users size={16} /> الموردين</button>
           <button onClick={() => setActiveTab('products')} className={`flex-1 py-3 text-sm font-bold flex justify-center items-center gap-2 transition-colors ${activeTab === 'products' ? 'bg-jilco-50 text-jilco-800 border-b-4 border-jilco-600' : 'text-gray-500 hover:bg-gray-50'}`}><Package size={16} /> المنتجات</button>
-        </div>
+        </div>}
 
         {/* Content */}
         {activeTab === 'suppliers' && renderSuppliers()}

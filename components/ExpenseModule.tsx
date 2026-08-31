@@ -60,7 +60,7 @@ const DEFAULT_CATEGORIES: ExpenseCategory[] = [
     { id: 'other', name: 'نثريات ومصروفات أخرى' }
 ];
 
-export const ExpenseModule: React.FC = () => {
+export const ExpenseModule: React.FC<{ initialView?: 'list' | 'editor' | 'report' }> = ({ initialView = 'list' }) => {
     const {
         suppliers,
         supplierPayments
@@ -72,7 +72,7 @@ export const ExpenseModule: React.FC = () => {
     } = useProject();
     const { hrEmployeePayments } = useHR();
 
-    const [viewMode, setViewMode] = useState<'list' | 'editor' | 'report'>('list');
+    const [viewMode, setViewMode] = useState<'list' | 'editor' | 'report'>(initialView);
     const [expenses, setExpenses] = useState<Expense[]>([]);
     const [categories, setCategories] = useState<ExpenseCategory[]>(DEFAULT_CATEGORIES);
     const [config, setConfig] = useState<CompanyConfig>(INITIAL_CONFIG);
@@ -396,12 +396,6 @@ export const ExpenseModule: React.FC = () => {
                                 {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                             </select>
                         </div>
-                        <button
-                            onClick={() => setViewMode('report')}
-                            className="bg-red-50 text-red-600 border border-red-200 px-4 py-2 rounded-lg font-bold text-sm hover:bg-red-100 flex items-center gap-2 h-[38px]"
-                        >
-                            <PieChart size={16} /> تقرير مفصل
-                        </button>
                     </div>
 
                     {/* Stats Bar */}

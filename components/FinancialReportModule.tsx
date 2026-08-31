@@ -1,13 +1,18 @@
 import React, { useState, useMemo } from 'react';
-import { TrendingUp, TrendingDown, DollarSign, Printer, ChevronDown, ChevronUp, BarChart3, RefreshCw } from 'lucide-react';
+import { TrendingUp, TrendingDown, DollarSign, Printer, ChevronDown, ChevronUp, BarChart3, RefreshCw, ShoppingBag, Users, Wallet, Banknote, CreditCard } from 'lucide-react';
 import { useSales } from '../contexts/SalesContext';
 import { usePurchase } from '../contexts/PurchaseContext';
 import { useProject } from '../contexts/ProjectContext';
 import { useHR } from '../contexts/HRContext';
 import { getPaidPayrollsInRange, sumNetPayroll } from '../lib/hrIntegration';
 import { getSalesInvoiceTotal } from '../lib/financialCalculations';
+import { PurchaseModule } from './PurchaseModule';
+import { CustomerModule } from './CustomerModule';
+import { ReceiptModule } from './ReceiptModule';
+import { ExpenseModule } from './ExpenseModule';
 
 type Period = 'this_month' | 'last_month' | 'this_quarter' | 'this_year' | 'custom';
+type ReportSection = 'summary' | 'purchases' | 'suppliers' | 'customers' | 'receipts' | 'expenses';
 
 const fmt = (n: number) => n.toLocaleString('ar-SA', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 
@@ -37,6 +42,7 @@ export const FinancialReportModule: React.FC = () => {
     const [customStart, setCustomStart] = useState('');
     const [customEnd, setCustomEnd] = useState('');
     const [expandedSection, setExpandedSection] = useState<string | null>(null);
+    const [reportSection, setReportSection] = useState<ReportSection>('summary');
 
     // حساب نطاق التاريخ
     const { startDate, endDate } = useMemo(() => {
@@ -114,6 +120,20 @@ export const FinancialReportModule: React.FC = () => {
 
     const toggle = (s: string) => setExpandedSection(prev => prev === s ? null : s);
 
+    const reportTabs: { id: ReportSection; label: string; icon: React.ReactNode }[] = [
+        { id: 'summary', label: 'الملخص المالي', icon: <BarChart3 size={16} /> },
+        { id: 'purchases', label: 'تقرير المشتريات', icon: <ShoppingBag size={16} /> },
+        { id: 'suppliers', label: 'كشف المورد', icon: <CreditCard size={16} /> },
+        { id: 'customers', label: 'كشف العميل', icon: <Users size={16} /> },
+        { id: 'receipts', label: 'سندات القبض', icon: <Banknote size={16} /> },
+        { id: 'expenses', label: 'المصاريف والصرف', icon: <Wallet size={16} /> },
+    ];
+    const reportNav = <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-2 mb-6 flex flex-wrap gap-2 print:hidden">{reportTabs.map(tab => <button key={tab.id} onClick={() => setReportSection(tab.id)} className={`px-4 py-2.5 rounded-lg text-sm font-bold flex items-center gap-2 transition-colors ${reportSection === tab.id ? 'bg-jilco-900 text-white shadow' : 'bg-gray-50 text-gray-600 hover:bg-gray-100'}`}>{tab.icon}{tab.label}</button>)}</div>;
+
+    if (reportSection !== 'summary') {
+        return <div className="flex-1 bg-gray-100 p-8 overflow-auto h-full animate-fade-in"><div className="max-w-7xl mx-auto"><div className="mb-6"><h1 className="text-2xl font-bold text-jilco-900 flex items-center gap-2"><BarChart3 className="text-gold-500" /> مركز التقارير المالية</h1><p className="text-gray-500 text-sm mt-1">تقارير المبيعات والمشتريات والعملاء والموردين والسندات</p></div>{reportNav}{reportSection === 'purchases' && <PurchaseModule initialTab="reports" reportOnly />}{reportSection === 'suppliers' && <PurchaseModule initialTab="statement" reportOnly />}{reportSection === 'customers' && <CustomerModule statementOnly />}{reportSection === 'receipts' && <ReceiptModule initialView="statement" />}{reportSection === 'expenses' && <ExpenseModule initialView="report" />}</div></div>;
+    }
+
     return (
         <div className="flex-1 bg-gray-100 p-8 overflow-auto h-full animate-fade-in print:bg-white print:p-0 print:overflow-visible print:h-auto print:block">
             <div className="max-w-6xl mx-auto print:max-w-none print:w-full">
@@ -130,6 +150,8 @@ export const FinancialReportModule: React.FC = () => {
                         <Printer size={18} /> طباعة
                     </button>
                 </div>
+
+                {reportNav}
 
                 {/* Period Selector */}
                 <div className="bg-white rounded-xl border border-gray-200 p-4 mb-6 flex flex-wrap items-center gap-3 print:hidden shadow-sm">
