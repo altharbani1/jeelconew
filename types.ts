@@ -89,6 +89,7 @@ export interface ReceiptData {
   forReason: string;
   attachments?: Attachment[]; // Added attachments field
   invoiceId?: string;
+  customerId?: string;
 }
 
 export interface InvoiceData {
@@ -98,7 +99,12 @@ export interface InvoiceData {
   customerName: string;
   customerVatNumber: string;
   items: QuoteItem[];
-  status: 'paid' | 'pending' | 'overdue';
+  status: 'paid' | 'partial' | 'pending' | 'overdue';
+  customerId?: string;
+  paidAmount?: number;
+  subtotal?: number;
+  taxAmount?: number;
+  grandTotal?: number;
   discountAmount?: number;
   isTaxInclusive?: boolean; // خيار شامل الضريبة
 }

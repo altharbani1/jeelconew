@@ -8,6 +8,7 @@ import { useAuth } from '../contexts/AuthContext.tsx';
 import { useData } from '../contexts/DataContext.tsx';
 import { useSales } from '../contexts/SalesContext.tsx';
 import { useMaintenance } from '../contexts/MaintenanceContext.tsx';
+import { getInvoicePaymentStatus, getSalesInvoiceTotal } from '../lib/financialCalculations';
 
 // --- Helper: Arabic Number to Words (Tafqit) ---
 const tafqit = (number: number): string => {
@@ -143,6 +144,13 @@ export const ReceiptModule: React.FC = () => {
     const handleSaveReceipt = async () => {
         if (!currentReceipt.receivedFrom || currentReceipt.amount <= 0) return alert('الرجاء تعبئة بيانات العميل والمبلغ');
 
+        const linkedInvoice = currentReceipt.invoiceId ? invoices.find(i => i.number === currentReceipt.invoiceId) : undefined;
+        if (linkedInvoice) {
+            const priorPaid = receipts.filter(r => r.invoiceId === linkedInvoice.number && r.number !== currentReceipt.number).reduce((s, r) => s + (Number(r.amount) || 0), 0);
+            const remaining = Math.max(0, getSalesInvoiceTotal(linkedInvoice) - priorPaid);
+            if (Number(currentReceipt.amount) > remaining + 0.01) return alert(`مبلغ السداد يتجاوز المتبقي على الفاتورة (${remaining.toLocaleString()} ريال)`);
+        }
+
         await saveSalesRecord('jilco_receipts_archive', currentReceipt.number, currentReceipt);
         if (currentReceipt.invoiceId) {
             const invoice = invoices.find(i => i.number === currentReceipt.invoiceId || i.number === currentReceipt.invoiceId);
@@ -150,8 +158,8 @@ export const ReceiptModule: React.FC = () => {
                 const prior = receipts.filter(r => r.invoiceId === invoice.number && r.number !== currentReceipt.number)
                     .reduce((s, r) => s + (Number(r.amount) || 0), 0);
                 const paidAmount = prior + Number(currentReceipt.amount);
-                const invoiceTotal = Number((invoice as any).grandTotal) || (invoice.items || []).reduce((s, i) => s + (Number(i.total) || 0), 0);
-                await saveSalesRecord('jilco_invoices_archive', invoice.number, { ...invoice, paidAmount, status: paidAmount >= invoiceTotal ? 'paid' : 'pending' });
+                const invoiceTotal = getSalesInvoiceTotal(invoice);
+                await saveSalesRecord('jilco_invoices_archive', invoice.number, { ...invoice, paidAmount, status: getInvoicePaymentStatus(paidAmount, invoiceTotal) });
             }
         }
 
@@ -166,7 +174,16 @@ export const ReceiptModule: React.FC = () => {
 
     const handleDelete = async (number: string) => {
         if (window.confirm("هل أنت متأكد من حذف هذا السند؟")) {
+            const deletedReceipt = receipts.find(r => r.number === number);
             await deleteSalesRecord('jilco_receipts_archive', number);
+            if (deletedReceipt?.invoiceId) {
+                const invoice = invoices.find(i => i.number === deletedReceipt.invoiceId);
+                if (invoice) {
+                    const paidAmount = receipts.filter(r => r.invoiceId === invoice.number && r.number !== number).reduce((s, r) => s + (Number(r.amount) || 0), 0);
+                    const invoiceTotal = getSalesInvoiceTotal(invoice);
+                    await saveSalesRecord('jilco_invoices_archive', invoice.number, { ...invoice, paidAmount, status: getInvoicePaymentStatus(paidAmount, invoiceTotal) });
+                }
+            }
             loggerService.addLog(currentUser, 'حذف سند قبض', `رقم السند: ${number}`, 'المحاسبة');
         }
     };
@@ -174,7 +191,7 @@ export const ReceiptModule: React.FC = () => {
     const handleCustomerSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
         const customer = customers.find(c => c.id === e.target.value);
         if (customer) {
-            setCurrentReceipt(prev => ({ ...prev, receivedFrom: customer.fullName }));
+            setCurrentReceipt(prev => ({ ...prev, customerId: customer.id, receivedFrom: customer.fullName }));
         }
     };
 
@@ -359,7 +376,7 @@ export const ReceiptModule: React.FC = () => {
                             <div><label className="block text-[10px] font-bold text-gray-700 mb-1">التاريخ</label><input title="التاريخ" type="date" value={currentReceipt.date} onChange={(e) => setCurrentReceipt({ ...currentReceipt, date: e.target.value })} className="w-full p-2 border rounded bg-white text-sm font-bold" /></div>
                         </div>
                         <div><label className="block text-xs font-bold text-gray-700 mb-1">استلمنا من</label><input title="استلمنا من" type="text" value={currentReceipt.receivedFrom} onChange={(e) => setCurrentReceipt({ ...currentReceipt, receivedFrom: e.target.value })} className="w-full p-2 border rounded bg-white font-bold" placeholder="اسم العميل" /></div>
-                        <div><label className="block text-xs font-bold text-gray-700 mb-1">ربط بالفاتورة (اختياري)</label><select title="الفاتورة المرتبطة" value={currentReceipt.invoiceId || ''} onChange={e => { const inv = invoices.find(i => i.number === e.target.value); setCurrentReceipt(prev => ({ ...prev, invoiceId: e.target.value || undefined, receivedFrom: inv?.customerName || prev.receivedFrom, forReason: e.target.value ? `سداد الفاتورة رقم ${e.target.value}` : prev.forReason })); }} className="w-full p-2 border rounded bg-white font-bold"><option value="">بدون ربط</option>{invoices.filter(i => i.status !== 'paid').map(i => <option key={i.number} value={i.number}>{i.number} — {i.customerName}</option>)}</select></div>
+                        <div><label className="block text-xs font-bold text-gray-700 mb-1">ربط بالفاتورة (اختياري)</label><select title="الفاتورة المرتبطة" value={currentReceipt.invoiceId || ''} onChange={e => { const inv = invoices.find(i => i.number === e.target.value); setCurrentReceipt(prev => ({ ...prev, invoiceId: e.target.value || undefined, customerId: inv?.customerId || prev.customerId, receivedFrom: inv?.customerName || prev.receivedFrom, forReason: e.target.value ? `سداد الفاتورة رقم ${e.target.value}` : prev.forReason })); }} className="w-full p-2 border rounded bg-white font-bold"><option value="">بدون ربط</option>{invoices.filter(i => i.status !== 'paid').map(i => <option key={i.number} value={i.number}>{i.number} — {i.customerName}</option>)}</select></div>
                     </div>
                     <div className="bg-green-50 p-4 rounded border border-green-400 space-y-3">
                         <div><label className="block text-xs font-bold text-gray-700 mb-1">المبلغ (ر.س)</label><input title="المبلغ" type="number" placeholder="المبلغ" value={currentReceipt.amount} onChange={(e) => setCurrentReceipt({ ...currentReceipt, amount: parseFloat(e.target.value) })} className="w-full p-2 border rounded font-black text-black bg-white" /></div>

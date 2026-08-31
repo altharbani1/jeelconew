@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Users, Search, Plus, Phone, Mail, MapPin, Calendar, Edit, Trash2, Save, ArrowLeft, Clock, MessageSquare, UserCheck, Building, MoreVertical, PhoneCall, Filter, CheckCircle2, XCircle, FileText, PieChart, Printer, DollarSign, Wallet, FileCheck, X } from 'lucide-react';
 import { Customer, CustomerStatus, CustomerNote, InvoiceData, ReceiptData, CompanyConfig } from '../types';
 import { useSales } from '../contexts/SalesContext.tsx';
+import { getSalesInvoiceTotal } from '../lib/financialCalculations';
 
 const STATUS_LABELS: Record<CustomerStatus, { label: string, color: string }> = {
   new: { label: 'عميل جديد', color: 'bg-blue-100 text-blue-700' },
@@ -22,6 +23,7 @@ interface Transaction {
   description: string;
   debit: number;  // المبلغ المستحق (الفواتير)
   credit: number; // المبلغ المقبوض (السندات)
+  balance?: number;
 }
 
 export const CustomerModule: React.FC = () => {
@@ -115,34 +117,23 @@ export const CustomerModule: React.FC = () => {
   const customerStatement = useMemo(() => {
     if (!selectedCustomer) return { transactions: [], totalDebit: 0, totalCredit: 0, balance: 0 };
 
-    const invoices = allInvoices.filter(i => i.customerName === selectedCustomer.fullName).map(i => {
-      let debit = 0;
-      if (i.grandTotal !== undefined) {
-        debit = i.grandTotal;
-      } else {
-        const subtotal = i.items.reduce((s: number, it: any) => s + it.total, 0);
-        const discount = i.discountAmount || 0;
-        const afterDiscount = Math.max(0, subtotal - discount);
-        if (i.isTaxInclusive) {
-          debit = afterDiscount; // السعر بالفعل شامل الضريبة، لا نضيف ضريبة أخرى
-        } else {
-          const tax = afterDiscount * 0.15;
-          debit = afterDiscount + tax;
-        }
-      }
-
+    const invoices = allInvoices.filter(i => i.customerId ? i.customerId === selectedCustomer.id : i.customerName === selectedCustomer.fullName).map(i => {
+      const debit = getSalesInvoiceTotal(i);
       return {
         date: i.date, type: 'invoice' as const, number: i.number, description: 'فاتورة ضريبية',
         debit, credit: 0
       };
     });
 
-    const receipts = allReceipts.filter(r => r.receivedFrom === selectedCustomer.fullName).map(r => ({
+    const receipts = allReceipts.filter(r => r.customerId ? r.customerId === selectedCustomer.id : r.receivedFrom === selectedCustomer.fullName).map(r => ({
       date: r.date, type: 'receipt' as const, number: r.number, description: r.forReason || 'سند قبض',
       debit: 0, credit: r.amount
     }));
 
-    const transactions: Transaction[] = [...invoices, ...receipts].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    let runningBalance = 0;
+    const transactions: Transaction[] = [...invoices, ...receipts]
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+      .map(transaction => ({ ...transaction, balance: runningBalance += transaction.debit - transaction.credit }));
 
     const totalDebit = transactions.reduce((s, t) => s + t.debit, 0);
     const totalCredit = transactions.reduce((s, t) => s + t.credit, 0);
@@ -203,6 +194,7 @@ export const CustomerModule: React.FC = () => {
                     <th className="p-2 border border-jilco-900">البيان / الوصف</th>
                     <th className="p-2 border border-jilco-900 w-24 text-center">مدين (+)</th>
                     <th className="p-2 border border-jilco-900 w-24 text-center">دائن (-)</th>
+                    <th className="p-2 border border-jilco-900 w-24 text-center">الرصيد</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -213,15 +205,17 @@ export const CustomerModule: React.FC = () => {
                       <td className="p-2 border border-gray-100 font-bold text-gray-800">{t.description}</td>
                       <td className="p-2 border border-gray-100 text-center font-mono font-black text-red-600">{t.debit > 0 ? t.debit.toLocaleString() : '-'}</td>
                       <td className="p-2 border border-gray-100 text-center font-mono font-black text-green-700">{t.credit > 0 ? t.credit.toLocaleString() : '-'}</td>
+                      <td className={`p-2 border border-gray-100 text-center font-mono font-black ${(t.balance || 0) > 0 ? 'text-red-600' : 'text-green-700'}`}>{Math.abs(t.balance || 0).toLocaleString()}</td>
                     </tr>
                   ))}
-                  {customerStatement.transactions.length === 0 && <tr><td colSpan={5} className="p-12 text-center text-gray-300 font-bold italic">لا توجد عمليات مسجلة لهذا العميل</td></tr>}
+                  {customerStatement.transactions.length === 0 && <tr><td colSpan={6} className="p-12 text-center text-gray-300 font-bold italic">لا توجد عمليات مسجلة لهذا العميل</td></tr>}
                 </tbody>
                 <tfoot className="bg-gray-50 font-black text-sm">
                   <tr>
                     <td colSpan={3} className="p-3 border text-left pl-4">الإجماليات:</td>
                     <td className="p-3 border text-center font-mono text-red-600">{customerStatement.totalDebit.toLocaleString()}</td>
                     <td className="p-3 border text-center font-mono text-green-700">{customerStatement.totalCredit.toLocaleString()}</td>
+                    <td className="p-3 border text-center font-mono text-jilco-900">{Math.abs(customerStatement.balance).toLocaleString()}</td>
                   </tr>
                 </tfoot>
               </table>

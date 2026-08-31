@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import {
   ShoppingBag, Users, Package, FileText, Banknote,
   Plus, Search, Edit, Trash2, Save, X, Filter,
-  ArrowLeft, ArrowDown, ArrowUp, Calendar, Truck, Upload, ImageIcon, Paperclip, Download, Briefcase, Printer, MapPin, Phone, Mail, Globe, CreditCard
+  ArrowLeft, ArrowDown, ArrowUp, Calendar, Truck, Upload, ImageIcon, Paperclip, Download, Briefcase, Printer, MapPin, Phone, Mail, Globe, CreditCard, BarChart3
 } from 'lucide-react';
 import { Supplier, SupplierProduct, PurchaseInvoice, SupplierPayment, QuoteItem, Attachment, Project, CompanyConfig } from '../types';
 import { useData } from '../contexts/DataContext.tsx';
@@ -10,7 +10,7 @@ import { useInventory } from '../contexts/InventoryContext.tsx';
 import { usePurchase } from '../contexts/PurchaseContext.tsx';
 import { useProject } from '../contexts/ProjectContext.tsx';
 
-type PurchaseTab = 'suppliers' | 'products' | 'invoices' | 'payments' | 'statement';
+type PurchaseTab = 'suppliers' | 'products' | 'invoices' | 'payments' | 'statement' | 'reports';
 
 const INITIAL_CONFIG: CompanyConfig = {
   logo: null, stamp: null, headerTitle: 'جيلكو للمصاعد', headerSubtitle: '', footerText: '', contactPhone: '', contactEmail: '', bankAccounts: []
@@ -76,6 +76,8 @@ export const PurchaseModule: React.FC = () => {
 
   // Statement State
   const [statementSupplierId, setStatementSupplierId] = useState<string>('');
+  const [reportStartDate, setReportStartDate] = useState(new Date(new Date().getFullYear(), new Date().getMonth(), 1).toLocaleDateString('en-CA'));
+  const [reportEndDate, setReportEndDate] = useState(new Date().toLocaleDateString('en-CA'));
 
   // --- PERSISTENCE ---
   useEffect(() => {
@@ -703,6 +705,50 @@ export const PurchaseModule: React.FC = () => {
     </div>
   );
 
+  const renderPurchaseReport = () => {
+    const periodInvoices = invoices.filter(i => i.date >= reportStartDate && i.date <= reportEndDate);
+    const periodPayments = payments.filter(p => p.date >= reportStartDate && p.date <= reportEndDate);
+    const totalPurchases = periodInvoices.reduce((s, i) => s + (Number(i.grandTotal) || 0), 0);
+    const totalPaid = periodPayments.reduce((s, p) => s + (Number(p.amount) || 0), 0);
+    const supplierRows = suppliers.map(supplier => {
+      const supplierInvoices = periodInvoices.filter(i => i.supplierId === supplier.id);
+      const supplierPayments = periodPayments.filter(p => p.supplierId === supplier.id);
+      const invoiced = supplierInvoices.reduce((s, i) => s + (Number(i.grandTotal) || 0), 0);
+      const paid = supplierPayments.reduce((s, p) => s + (Number(p.amount) || 0), 0);
+      return { supplier, invoices: supplierInvoices.length, invoiced, paid, balance: invoiced - paid };
+    }).filter(row => row.invoices > 0 || row.paid > 0).sort((a, b) => b.invoiced - a.invoiced);
+
+    return (
+      <div className="space-y-5 text-right">
+        <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex flex-wrap items-end gap-4 print:hidden">
+          <div><label className="block text-xs font-bold text-gray-500 mb-1">من تاريخ</label><input type="date" title="بداية التقرير" value={reportStartDate} onChange={e => setReportStartDate(e.target.value)} className="p-2 border rounded-lg font-bold" /></div>
+          <div><label className="block text-xs font-bold text-gray-500 mb-1">إلى تاريخ</label><input type="date" title="نهاية التقرير" value={reportEndDate} onChange={e => setReportEndDate(e.target.value)} className="p-2 border rounded-lg font-bold" /></div>
+          <button onClick={() => window.print()} className="bg-jilco-900 text-white px-5 py-2 rounded-lg font-bold flex items-center gap-2"><Printer size={18} /> طباعة التقرير</button>
+        </div>
+        <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden print:border-0 print:shadow-none">
+          <div className="px-8 py-5 border-b-2 border-jilco-900 flex justify-between items-center">
+            <div><h1 className="text-xl font-black text-jilco-900">{config.headerTitle}</h1><p className="text-xs text-gray-500 font-bold">{config.headerSubtitle || 'Jilco Elevators Co.'}</p></div>
+            <div className="text-center"><h2 className="text-2xl font-black text-jilco-900 border-2 border-jilco-900 px-5 py-1 rounded-lg">تقرير المشتريات</h2><p className="text-[10px] text-gray-400 mt-1">PURCHASES MANAGEMENT REPORT</p></div>
+            <div className="text-left text-xs font-bold text-gray-500">{reportStartDate}<br />{reportEndDate}</div>
+          </div>
+          <div className="grid grid-cols-3 gap-4 p-6 bg-gray-50 border-b">
+            <div className="bg-white border rounded-xl p-4 text-center"><p className="text-xs text-gray-500 font-bold">إجمالي المشتريات</p><p className="text-2xl font-black text-jilco-900">{totalPurchases.toLocaleString()}</p></div>
+            <div className="bg-white border rounded-xl p-4 text-center"><p className="text-xs text-gray-500 font-bold">المدفوع خلال الفترة</p><p className="text-2xl font-black text-green-700">{totalPaid.toLocaleString()}</p></div>
+            <div className="bg-white border rounded-xl p-4 text-center"><p className="text-xs text-gray-500 font-bold">صافي حركة الفترة</p><p className={`text-2xl font-black ${totalPurchases - totalPaid > 0 ? 'text-red-600' : 'text-green-700'}`}>{Math.abs(totalPurchases - totalPaid).toLocaleString()}</p></div>
+          </div>
+          <div className="p-6">
+            <table className="w-full text-xs text-right border-collapse">
+              <thead><tr className="bg-jilco-900 text-white"><th className="p-3 border">#</th><th className="p-3 border">المورد</th><th className="p-3 border text-center">عدد الفواتير</th><th className="p-3 border text-center">المشتريات</th><th className="p-3 border text-center">المدفوع</th><th className="p-3 border text-center">الرصيد</th></tr></thead>
+              <tbody>{supplierRows.map((row, idx) => <tr key={row.supplier.id} className="border-b"><td className="p-3 border text-center">{idx + 1}</td><td className="p-3 border font-bold">{row.supplier.name}</td><td className="p-3 border text-center">{row.invoices}</td><td className="p-3 border text-center font-mono font-bold">{row.invoiced.toLocaleString()}</td><td className="p-3 border text-center font-mono text-green-700 font-bold">{row.paid.toLocaleString()}</td><td className={`p-3 border text-center font-mono font-black ${row.balance > 0 ? 'text-red-600' : 'text-green-700'}`}>{Math.abs(row.balance).toLocaleString()}</td></tr>)}</tbody>
+              <tfoot><tr className="bg-gray-100 font-black"><td colSpan={3} className="p-3 border">الإجمالي</td><td className="p-3 border text-center">{totalPurchases.toLocaleString()}</td><td className="p-3 border text-center">{totalPaid.toLocaleString()}</td><td className="p-3 border text-center">{Math.abs(totalPurchases - totalPaid).toLocaleString()}</td></tr></tfoot>
+            </table>
+          </div>
+          <div className="px-8 py-6 border-t flex justify-between text-center text-xs font-bold"><div>إعداد المحاسب<br /><span className="inline-block w-32 border-b mt-8" /></div><div>اعتماد المدير المالي<br /><span className="inline-block w-32 border-b mt-8" /></div><div>اعتماد المدير العام<br /><span className="inline-block w-32 border-b mt-8" /></div></div>
+        </div>
+      </div>
+    );
+  };
+
   const renderStatement = () => {
     const supplier = suppliers.find(s => s.id === statementSupplierId);
     const supplierInvoices = invoices.filter(i => i.supplierId === statementSupplierId);
@@ -923,6 +969,7 @@ export const PurchaseModule: React.FC = () => {
           <button onClick={() => setActiveTab('invoices')} className={`flex-1 py-3 text-sm font-bold flex justify-center items-center gap-2 transition-colors ${activeTab === 'invoices' ? 'bg-jilco-50 text-jilco-800 border-b-4 border-jilco-600' : 'text-gray-500 hover:bg-gray-50'}`}><FileText size={16} /> فواتير الشراء</button>
           <button onClick={() => setActiveTab('payments')} className={`flex-1 py-3 text-sm font-bold flex justify-center items-center gap-2 transition-colors ${activeTab === 'payments' ? 'bg-jilco-50 text-jilco-800 border-b-4 border-jilco-600' : 'text-gray-500 hover:bg-gray-50'}`}><Banknote size={16} /> المدفوعات</button>
           <button onClick={() => setActiveTab('statement')} className={`flex-1 py-3 text-sm font-bold flex justify-center items-center gap-2 transition-colors ${activeTab === 'statement' ? 'bg-jilco-50 text-jilco-800 border-b-4 border-jilco-600' : 'text-gray-500 hover:bg-gray-50'}`}><CreditCard size={16} /> كشف الحساب</button>
+          <button onClick={() => setActiveTab('reports')} className={`flex-1 py-3 text-sm font-bold flex justify-center items-center gap-2 transition-colors ${activeTab === 'reports' ? 'bg-jilco-50 text-jilco-800 border-b-4 border-jilco-600' : 'text-gray-500 hover:bg-gray-50'}`}><BarChart3 size={16} /> التقارير</button>
           <button onClick={() => setActiveTab('suppliers')} className={`flex-1 py-3 text-sm font-bold flex justify-center items-center gap-2 transition-colors ${activeTab === 'suppliers' ? 'bg-jilco-50 text-jilco-800 border-b-4 border-jilco-600' : 'text-gray-500 hover:bg-gray-50'}`}><Users size={16} /> الموردين</button>
           <button onClick={() => setActiveTab('products')} className={`flex-1 py-3 text-sm font-bold flex justify-center items-center gap-2 transition-colors ${activeTab === 'products' ? 'bg-jilco-50 text-jilco-800 border-b-4 border-jilco-600' : 'text-gray-500 hover:bg-gray-50'}`}><Package size={16} /> المنتجات</button>
         </div>
@@ -933,6 +980,7 @@ export const PurchaseModule: React.FC = () => {
         {activeTab === 'invoices' && renderInvoices()}
         {activeTab === 'payments' && renderPayments()}
         {activeTab === 'statement' && renderStatement()}
+        {activeTab === 'reports' && renderPurchaseReport()}
       </div>
 
       {/* Modals */}

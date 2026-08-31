@@ -150,6 +150,7 @@ export const InvoiceModule: React.FC = () => {
         if (customer) {
             setCurrentInvoice(prev => ({
                 ...prev,
+                customerId: customer.id,
                 customerName: customer.fullName,
                 customerVatNumber: customer.vatNumber || ''
             }));
@@ -248,8 +249,8 @@ export const InvoiceModule: React.FC = () => {
                                             })()}
                                         </td>
                                         <td className="p-4">
-                                            <span className={`px-2 py-1 rounded text-[10px] font-bold ${inv.status === 'paid' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'}`}>
-                                                {inv.status === 'paid' ? 'مدفوعة' : 'بانتظار الدفع'}
+                                            <span className={`px-2 py-1 rounded text-[10px] font-bold ${inv.status === 'paid' ? 'bg-green-100 text-green-700' : inv.status === 'partial' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'}`}>
+                                                {inv.status === 'paid' ? 'مدفوعة' : inv.status === 'partial' ? 'مدفوعة جزئياً' : 'بانتظار الدفع'}
                                             </span>
                                         </td>
                                         <td className="p-4 flex justify-center gap-2">

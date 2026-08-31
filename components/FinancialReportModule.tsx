@@ -5,6 +5,7 @@ import { usePurchase } from '../contexts/PurchaseContext';
 import { useProject } from '../contexts/ProjectContext';
 import { useHR } from '../contexts/HRContext';
 import { getPaidPayrollsInRange, sumNetPayroll } from '../lib/hrIntegration';
+import { getSalesInvoiceTotal } from '../lib/financialCalculations';
 
 type Period = 'this_month' | 'last_month' | 'this_quarter' | 'this_year' | 'custom';
 
@@ -77,17 +78,12 @@ export const FinancialReportModule: React.FC = () => {
 
     // 1. الإيرادات — فواتير العملاء المدفوعة أو المستحقة في الفترة
     const revenueInvoices = salesInvoices.filter((inv: any) => inRange(inv.date));
-    const totalRevenue = revenueInvoices.reduce((s: number, inv: any) => {
-        const subtotal = (inv.items || []).reduce((ss: number, item: any) => ss + (item.total || 0), 0);
-        const taxRate = inv.taxRate ?? 0.15;
-        const discount = inv.discountAmount || 0;
-        return s + subtotal * (1 + taxRate) - discount;
-    }, 0);
+    const totalRevenue = revenueInvoices.reduce((s: number, inv: any) => s + getSalesInvoiceTotal(inv), 0);
     // النقد المحصل فعلياً يعتمد على سندات القبض، بينما الإيراد المفوتر
     // يعتمد على الفواتير؛ إبقاؤهما منفصلين يمنع تضخيم الربح النقدي.
     const receiptsInPeriod = salesReceipts.filter((r: any) => inRange(r.date));
     const collectedRevenue = receiptsInPeriod.reduce((s: number, r: any) => s + (Number(r.amount) || 0), 0);
-    const outstandingRevenue = Math.max(0, totalRevenue - collectedRevenue);
+    const outstandingRevenue = revenueInvoices.reduce((s: number, inv: any) => s + Math.max(0, getSalesInvoiceTotal(inv) - (Number(inv.paidAmount) || 0)), 0);
 
     // 2. تكلفة المشتريات — فواتير الشراء في الفترة
     const purchasesInPeriod = purchaseInvoices.filter((inv: any) => inRange(inv.date));
@@ -203,7 +199,7 @@ export const FinancialReportModule: React.FC = () => {
                                     <tr key={inv.id} className="bg-blue-50/30 text-xs">
                                         <td className="pr-12 py-2 text-gray-600">فاتورة {inv.number} — {inv.customerName}</td>
                                         <td className="p-2 text-center font-mono text-gray-700">
-                                            {fmt((inv.items || []).reduce((s: number, i: any) => s + (i.total || 0), 0) * (1 + (inv.taxRate ?? 0.15)) - (inv.discountAmount || 0))}
+                                            {fmt(getSalesInvoiceTotal(inv))}
                                         </td>
                                         <td className="p-2 text-center text-gray-400">{inv.date}</td>
                                     </tr>
