@@ -3,7 +3,6 @@ import { FileText, Printer, ArrowLeft, CheckSquare, AlertTriangle, CheckCircle2,
 import { CompanyConfig } from '../types';
 
 const INITIAL_CONFIG: CompanyConfig = {
-    taxNumber: '',
     logo: null,
     stamp: null,
     headerTitle: 'جيلكو للمصاعد',

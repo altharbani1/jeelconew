@@ -34,7 +34,6 @@ const DEFAULT_OPTIONS: SpecsDatabase = {
 };
 
 const INITIAL_CONFIG: CompanyConfig = {
-    taxNumber: '',
     logo: null, stamp: null, headerTitle: 'جيلكو للمصاعد', headerSubtitle: 'JILCO ELEVATORS', footerText: 'الرياض - المملكة العربية السعودية', contactPhone: '', contactEmail: '', bankAccounts: []
 };
 

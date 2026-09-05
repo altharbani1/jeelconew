@@ -7,7 +7,6 @@ import { usePurchase } from '../contexts/PurchaseContext.tsx';
 import { useHR } from '../contexts/HRContext.tsx';
 
 const INITIAL_CONFIG: CompanyConfig = {
-    taxNumber: '',
     logo: null,
     stamp: null,
     headerTitle: 'جيلكو للمصاعد',
@@ -169,7 +168,7 @@ export const ExpenseModule: React.FC<{ initialView?: 'list' | 'editor' | 'report
     };
 
     const handleEdit = (expense: Expense) => {
-        if (expense.id.startsWith('SP-') || expense.id.startsWith('HR-') || expense.id.startsWith('SUB-')) {
+        if (expense.id.startsWith('SP-') || expense.id.startsWith('HR-')) {
             alert('هذا السند تم إنشاؤه تلقائياً من نظام المشتريات أو الموارد البشرية. لا يمكن تعديله من هنا.');
             return;
         }
@@ -178,7 +177,7 @@ export const ExpenseModule: React.FC<{ initialView?: 'list' | 'editor' | 'report
     };
 
     const handleDelete = async (id: string) => {
-        if (id.startsWith('SP-') || id.startsWith('HR-') || id.startsWith('SUB-')) {
+        if (id.startsWith('SP-') || id.startsWith('HR-')) {
             alert('لا يمكن حذف هذا السند المولد تلقائياً.');
             return;
         }
@@ -200,8 +199,7 @@ export const ExpenseModule: React.FC<{ initialView?: 'list' | 'editor' | 'report
             projectName: proj ? proj.name : undefined
         };
 
-        if (expenseToSave.id.startsWith('SUB-')) { alert('سند الباطن المصروف محمي من التعديل'); return; }
-        if (!await saveProjectRecord('jilco_expenses_archive', expenseToSave.id, expenseToSave)) { alert('تعذر حفظ السند'); return; }
+        await saveProjectRecord('jilco_expenses_archive', expenseToSave.id, expenseToSave);
 
         setViewMode('list');
     };
@@ -433,7 +431,7 @@ export const ExpenseModule: React.FC<{ initialView?: 'list' | 'editor' | 'report
                             </thead>
                             <tbody className="divide-y divide-gray-100">
                                 {filteredExpenses.map(exp => (
-                                    <tr key={exp.id} className={`hover:bg-gray-50 ${exp.id.startsWith('SP-') ? 'bg-blue-50/30' : exp.id.startsWith('HR-') || exp.id.startsWith('SUB-') ? 'bg-green-50/30' : ''}`}>
+                                    <tr key={exp.id} className={`hover:bg-gray-50 ${exp.id.startsWith('SP-') ? 'bg-blue-50/30' : exp.id.startsWith('HR-') ? 'bg-green-50/30' : ''}`}>
                                         <td className="p-4 font-mono font-bold text-gray-800">{exp.number}</td>
                                         <td className="p-4 font-mono text-gray-500 text-xs font-bold">{exp.date}</td>
                                         <td className="p-4 font-bold text-jilco-900">
@@ -454,7 +452,7 @@ export const ExpenseModule: React.FC<{ initialView?: 'list' | 'editor' | 'report
                                             ) : <span className="text-gray-300 text-xs">-</span>}
                                         </td>
                                         <td className="p-4 flex justify-center gap-2">
-                                            {(!exp.id.startsWith('SP-') && !exp.id.startsWith('HR-') && !exp.id.startsWith('SUB-')) && (
+                                            {(!exp.id.startsWith('SP-') && !exp.id.startsWith('HR-')) && (
                                               <>
                                                 <button title="تعديل" onClick={() => handleEdit(exp)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-full"><Edit size={16} /></button>
                                                 <button title="حذف" onClick={() => handleDelete(exp.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-full"><Trash2 size={16} /></button>

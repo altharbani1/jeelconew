@@ -166,7 +166,6 @@ export interface WarrantyData {
 // --- PURCHASE SYSTEM TYPES ---
 
 export interface Attachment {
-  storagePath?: string;
   id: string;
   name: string;
   url: string;
@@ -308,7 +307,6 @@ export interface Project {
 }
 
 export interface ProjectPhase {
-  notes?: string;
   id: string;
   projectId: string;
   name: string;
@@ -325,7 +323,6 @@ export interface ProjectPhase {
 
 // --- SUBCONTRACTING SYSTEM TYPES ---
 export interface Subcontractor {
-  revision?: number;
   id: string;
   name: string;
   contactPerson: string;
@@ -361,7 +358,6 @@ export interface SubcontractPayment {
 }
 
 export interface Subcontract {
-  revision?: number;
   id: string;
   number: string; // e.g., SUB-2024-001
   subcontractorId: string;
