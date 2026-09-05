@@ -14,6 +14,7 @@ const CATEGORIES: { id: DocumentCategory; label: string; color: string }[] = [
 ];
 
 const INITIAL_CONFIG: CompanyConfig = {
+    taxNumber: '',
     logo: null, stamp: null, headerTitle: 'جيلكو للمصاعد', headerSubtitle: '', footerText: '', contactPhone: '', contactEmail: '', bankAccounts: []
 };
 

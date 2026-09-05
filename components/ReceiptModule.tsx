@@ -67,6 +67,7 @@ const tafqit = (number: number): string => {
 };
 
 const INITIAL_CONFIG: CompanyConfig = {
+    taxNumber: '',
     logo: null,
     stamp: null,
     headerTitle: 'جيلكو للمصاعد',

@@ -13,6 +13,7 @@ import { useProject } from '../contexts/ProjectContext.tsx';
 type PurchaseTab = 'suppliers' | 'products' | 'invoices' | 'payments' | 'statement' | 'reports';
 
 const INITIAL_CONFIG: CompanyConfig = {
+    taxNumber: '',
   logo: null, stamp: null, headerTitle: 'جيلكو للمصاعد', headerSubtitle: '', footerText: '', contactPhone: '', contactEmail: '', bankAccounts: []
 };
 

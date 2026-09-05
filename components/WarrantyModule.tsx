@@ -7,6 +7,7 @@ import { useSales } from '../contexts/SalesContext.tsx';
 import { useProject } from '../contexts/ProjectContext.tsx';
 
 const INITIAL_CONFIG: CompanyConfig = {
+    taxNumber: '',
     logo: null,
     stamp: null,
     headerTitle: 'جيلكو للمصاعد',

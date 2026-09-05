@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, Dispatch, SetStateAction } from 'react';
-import { cloudService } from '../services/cloudService';
+import { cloudService, getCurrentCompanyId, isCompanyScopedCollection } from '../services/cloudService';
 
 interface SyncModule {
     collection: string;
@@ -58,14 +58,15 @@ export const useCloudSync = (modules: SyncModule[]) => {
         try {
             await Promise.all(mods.map(async ({ collection, stateSetter }) => {
                 // 1. محلي أولاً للسرعة
-                const localData = localStorage.getItem(collection);
+                const cacheKey = isCompanyScopedCollection(collection) ? `${collection}:${await getCurrentCompanyId()}` : collection;
+                const localData = localStorage.getItem(cacheKey);
                 if (localData) {
                     try { stateSetter(sortNewestFirst(JSON.parse(localData))); } catch (e) { }
                 }
 
                 // 2. السحابة
                 const cloudData = await cloudService.loadCollection(collection);
-                if (cloudData && cloudData.length > 0) {
+                if (cloudData && (cloudData.length > 0 || isCompanyScopedCollection(collection))) {
                     const parsed = cloudData.map((row: any) => {
                         const item = row.data;
                         // Self-healing
@@ -78,7 +79,7 @@ export const useCloudSync = (modules: SyncModule[]) => {
                         return item;
                     });
                     stateSetter(sortNewestFirst(parsed));
-                    localStorage.setItem(collection, JSON.stringify(parsed));
+                    localStorage.setItem(cacheKey, JSON.stringify(parsed));
                 }
                 // ⚠️ SAFETY: Never wipe local data if cloud returns empty.
                 // Cloud may return empty due to network issues or Supabase downtime.
@@ -94,6 +95,9 @@ export const useCloudSync = (modules: SyncModule[]) => {
     const saveRecord = async (collection: string, id: string, data: any): Promise<boolean> => {
         setSyncStatus('syncing');
         try {
+            const cacheKey = isCompanyScopedCollection(collection) ? `${collection}:${await getCurrentCompanyId()}` : collection;
+            const success = await cloudService.saveRecord(collection, id, data);
+            if (!success) { setSyncStatus('error'); return false; }
             const mod = modulesRef.current.find(m => m.collection === collection);
             if (mod) {
                 mod.stateSetter(prev => {
@@ -103,14 +107,12 @@ export const useCloudSync = (modules: SyncModule[]) => {
                 });
             }
 
-            const localArr = JSON.parse(localStorage.getItem(collection) || '[]');
+            const localArr = JSON.parse(localStorage.getItem(cacheKey) || '[]');
             const exists = localArr.find((q: any) => (q.id || q.number) === id);
             const updated = exists
                 ? localArr.map((q: any) => (q.id || q.number) === id ? data : q)
                 : [data, ...localArr];
-            localStorage.setItem(collection, JSON.stringify(updated));
-
-            const success = await cloudService.saveRecord(collection, id, data);
+            localStorage.setItem(cacheKey, JSON.stringify(updated));
 
             setSyncStatus(success ? 'synced' : 'error');
             return success;
@@ -123,6 +125,7 @@ export const useCloudSync = (modules: SyncModule[]) => {
     const deleteRecord = async (collection: string, id: string): Promise<boolean> => {
         setSyncStatus('syncing');
         try {
+            const cacheKey = isCompanyScopedCollection(collection) ? `${collection}:${await getCurrentCompanyId()}` : collection;
             const success = await cloudService.deleteRecord(collection, id);
             if (!success) {
                 setSyncStatus('error');
@@ -134,8 +137,8 @@ export const useCloudSync = (modules: SyncModule[]) => {
                 mod.stateSetter(prev => prev.filter((q: any) => (q.id || q.number) !== id));
             }
 
-            const localArr = JSON.parse(localStorage.getItem(collection) || '[]');
-            localStorage.setItem(collection, JSON.stringify(
+            const localArr = JSON.parse(localStorage.getItem(cacheKey) || '[]');
+            localStorage.setItem(cacheKey, JSON.stringify(
                 localArr.filter((q: any) => (q.id || q.number) !== id)
             ));
 

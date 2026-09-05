@@ -4,6 +4,8 @@ import LZString from 'lz-string';
 
 // القائمة الشاملة لجميع مفاتيح التخزين
 const STORAGE_KEYS = [
+  'subcontractors',
+  'subcontracts',
   'jilco_quote_data',
   'jilco_quotes_archive',
   'jilco_invoices_archive',
@@ -33,9 +35,11 @@ const IMAGE_KEYS = ['jilco_logo', 'jilco_stamp'];
 
 const BUCKET = 'jilco-assets';
 
+export const isCompanyScopedCollection = (collection: string) => ['subcontractors','subcontracts','jilco_projects','jilco_expenses_archive'].includes(collection) || collection.startsWith('jilco_hr_');
+
 const isHRCollection = (collection: string) => collection.startsWith('jilco_hr_');
 
-async function getCurrentCompanyId(): Promise<string> {
+export async function getCurrentCompanyId(): Promise<string> {
   const { data: authData, error: authError } = await supabase.auth.getUser();
   if (authError || !authData.user) throw authError || new Error('Authentication required');
 
@@ -70,10 +74,11 @@ export const cloudService = {
   },
 
   // 3. جمع البيانات المحلية (بدون الصور)
-  getLocalData() {
+  async getLocalData() {
+    const companyId = await getCurrentCompanyId();
     const data: Record<string, any> = {};
     STORAGE_KEYS.forEach(key => {
-      const val = localStorage.getItem(key);
+      const val = localStorage.getItem(isCompanyScopedCollection(key) ? `${key}:${companyId}` : key);
       if (val) data[key] = val;
     });
     return data;
@@ -406,7 +411,7 @@ export const cloudService = {
         .select('record_id, data')
         .eq('collection', collection);
 
-      if (isHRCollection(collection)) {
+      if (isCompanyScopedCollection(collection)) {
         query = query.eq('company_id', await getCurrentCompanyId());
       }
 
@@ -416,6 +421,7 @@ export const cloudService = {
       return data || [];
     } catch (e) {
       console.error(`Failed to load collection ${collection}:`, e);
+      if (isCompanyScopedCollection(collection)) throw e;
       return [];
     }
   },
@@ -583,7 +589,7 @@ export const cloudService = {
           return true;
       }
 
-      const companyId = isHRCollection(collection) ? await getCurrentCompanyId() : null;
+      const companyId = isCompanyScopedCollection(collection) ? await getCurrentCompanyId() : null;
       const { error } = await supabase
         .from('jilco_realtime_data')
         .upsert(
@@ -652,7 +658,7 @@ export const cloudService = {
         .eq('collection', collection)
         .eq('record_id', recordId);
 
-      if (isHRCollection(collection)) {
+      if (isCompanyScopedCollection(collection)) {
         query = query.eq('company_id', await getCurrentCompanyId());
       }
 
