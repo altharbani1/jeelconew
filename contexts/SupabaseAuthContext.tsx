@@ -58,28 +58,7 @@ export const SupabaseAuthProvider: React.FC<{ children: ReactNode }> = ({ childr
       const userPromise = supabase.from('app_users').select('id, email, company_id, role').eq('id', id).single();
       const { data, error } = await Promise.race([userPromise, timeoutPromise]) as any;
       clearTimeout(timeoutId);
-      if (error && error.code === 'PGRST116') { // Not found
-        // جلب أول شركة أو إنشاء واحدة افتراضية
-        let companyId = null;
-        const { data: companies } = await supabase.from('companies').select('id').limit(1);
-        if (companies && companies.length > 0) companyId = companies[0].id;
-        else {
-          const { data: newCompany } = await supabase.from('companies').insert({ name: 'Jeelco' }).select().single();
-          companyId = newCompany?.id;
-        }
-        // تحقق هل هو أول مستخدم
-        const { count } = await supabase.from('app_users').select('id', { count: 'exact', head: true });
-        const role = (count === 0) ? 'admin' : 'staff';
-        // upsert صف المستخدم
-        await supabase.from('app_users').upsert({
-          id,
-          email: '',
-          company_id: companyId,
-          role
-        });
-        // أعد جلبه
-        return await fetchAppUser(id);
-      }
+      if (error && error.code === 'PGRST116') throw new Error('حسابك غير مرتبط بشركة. اطلب من مسؤول النظام تهيئة الحساب.');
       if (error) throw error;
       if (!data) throw new Error('تعذر تحميل بيانات المستخدم.');
       setUser({

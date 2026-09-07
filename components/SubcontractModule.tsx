@@ -3,6 +3,7 @@ import { Users, FileText, CheckCircle2, DollarSign, Plus, Search, Edit, Trash2, 
 import { Subcontractor, Subcontract, SubcontractPayment, Project } from '../types';
 import { useSubcontract } from '../contexts/SubcontractContext';
 import { useProject } from '../contexts/ProjectContext';
+import { subcontractService } from '../services/subcontractService';
 
 export const SubcontractModule: React.FC = () => {
     const {
@@ -14,10 +15,11 @@ export const SubcontractModule: React.FC = () => {
         addSubcontract,
         updateSubcontract,
         deleteSubcontract,
-        uploadSubcontractAttachment
+        uploadSubcontractAttachment, savePayment, deletePayment, approvePayment, payPayment,
+        busy, error, canManage, canEngineer, canFinance, refresh
     } = useSubcontract();
 
-    const { projects, saveProjectRecord, deleteProjectRecord, expenses } = useProject();
+    const { projects } = useProject();
 
     const [activeTab, setActiveTab] = useState<'dashboard' | 'subcontractors' | 'contracts'>('dashboard');
     const [statementSubcontractor, setStatementSubcontractor] = useState<Subcontractor | null>(null);
@@ -25,7 +27,7 @@ export const SubcontractModule: React.FC = () => {
 
     // --- SEARCH / FILTERS ---
     const [searchTerm, setSearchTerm] = useState('');
-    const [contractStatusFilter, setContractStatusFilter] = useState<'all' | 'active' | 'completed' | 'draft'>('all');
+    const [contractStatusFilter, setContractStatusFilter] = useState<'all' | 'active' | 'completed' | 'draft' | 'cancelled'>('all');
 
     // --- FORM STATES ---
     const [showSubcontractorForm, setShowSubcontractorForm] = useState(false);
@@ -53,7 +55,7 @@ export const SubcontractModule: React.FC = () => {
     // --- STATS ---
     const stats = useMemo(() => {
         const activeContracts = subcontracts.filter(c => c.status === 'active').length;
-        const totalCommitted = subcontracts.reduce((sum, c) => sum + (c.totalAmount || 0), 0);
+        const totalCommitted = subcontracts.filter(c => c.status === 'active' || c.status === 'completed').reduce((sum, c) => sum + (c.totalAmount || 0), 0);
 
         let totalPaid = 0;
         let totalPending = 0;
@@ -75,9 +77,9 @@ export const SubcontractModule: React.FC = () => {
         }
 
         if (currentSubcontractor.id) {
-            await updateSubcontractor(currentSubcontractor.id, currentSubcontractor as Partial<Subcontractor>);
+            if (!await updateSubcontractor(currentSubcontractor.id, currentSubcontractor as Partial<Subcontractor>)) return;
         } else {
-            await addSubcontractor(currentSubcontractor as Omit<Subcontractor, 'id' | 'createdAt'>);
+            if (!await addSubcontractor(currentSubcontractor as Omit<Subcontractor, 'id' | 'createdAt'>)) return;
         }
 
         setShowSubcontractorForm(false);
@@ -86,10 +88,13 @@ export const SubcontractModule: React.FC = () => {
 
     // --- CONTRACT ACTIONS ---
     const handleSaveSubcontract = async () => {
-        if (!currentSubcontract.subcontractorId || !currentSubcontract.projectId || !currentSubcontract.totalAmount) {
+        if (!currentSubcontract.subcontractorId || !currentSubcontract.projectId || !Number.isFinite(currentSubcontract.totalAmount) || currentSubcontract.totalAmount! <= 0) {
             return alert('يجب اختيار المقاول، المشروع، وإدخال القيمة الإجمالية');
         }
 
+        if (!currentSubcontract.startDate || !currentSubcontract.endDate || currentSubcontract.endDate <= currentSubcontract.startDate) {
+            alert('يجب أن يكون تاريخ الانتهاء بعد تاريخ البدء'); return;
+        }
         const subc = subcontractors.find(s => s.id === currentSubcontract.subcontractorId);
         const proj = projects.find(p => p.id === currentSubcontract.projectId);
 
@@ -101,9 +106,9 @@ export const SubcontractModule: React.FC = () => {
         } as Omit<Subcontract, 'id'> | Subcontract;
 
         if ((currentSubcontract as any).id) {
-            await updateSubcontract((currentSubcontract as Subcontract).id, newContractData);
+            if (!await updateSubcontract((currentSubcontract as Subcontract).id, newContractData)) return;
         } else {
-            await addSubcontract(newContractData as Omit<Subcontract, 'id'>);
+            if (!await addSubcontract(newContractData as Omit<Subcontract, 'id'>)) return;
         }
 
         setShowSubcontractForm(false);
@@ -119,21 +124,10 @@ export const SubcontractModule: React.FC = () => {
         const contract = subcontracts.find(c => c.id === selectedContractId);
         if (!contract) return;
 
-        const payments = contract.payments || [];
-        const newPayment: SubcontractPayment = {
-            ...currentPayment,
-            id: currentPayment.id || `PAY-${Date.now()}`,
-            subcontractId: selectedContractId
-        } as SubcontractPayment;
-
-        let updatedPayments = [...payments];
-        if (currentPayment.id) {
-            updatedPayments = payments.map(p => p.id === currentPayment.id ? newPayment : p);
-        } else {
-            updatedPayments.push(newPayment);
+        if (!Number.isFinite(currentPayment.amount) || currentPayment.amount! <= 0 || !currentPayment.dueDate) {
+            alert('أدخل مبلغاً موجباً وتاريخ استحقاق صحيحاً'); return;
         }
-
-        await updateSubcontract(selectedContractId, { payments: updatedPayments });
+        if (!await savePayment(selectedContractId, currentPayment)) return;
         setShowPaymentForm(false);
         setCurrentPayment({ status: 'pending', dueDate: new Date().toISOString().split('T')[0] });
         setSelectedContractId('');
@@ -148,67 +142,15 @@ export const SubcontractModule: React.FC = () => {
         const payment = contract.payments?.find(p => p.id === paymentId);
         if (!payment) return;
 
-        const updatedPayments = (contract.payments || []).filter(p => p.id !== paymentId);
-        await updateSubcontract(contractId, { payments: updatedPayments });
-
-        // If it was already converted to an expense, prompt or automatically delete from expenses
-        if (payment.status === 'paid') {
-            const confirmedExpenseDelete = window.confirm('هذه الدفعة مرتبطة بسند صرف. هل تريد حذف السند من قسم المصروفات أيضاً؟');
-            if (confirmedExpenseDelete) {
-                await deleteProjectRecord('jilco_expenses_archive', `SUB-${payment.id}`);
-            }
-        }
+        if (payment.status !== 'pending' || payment.engineerApprovedAt) { alert('لا يمكن حذف مستخلص معتمد أو مصروف'); return; }
+        await deletePayment(paymentId);
     };
 
-    const updatePaymentStatus = async (contractId: string, paymentId: string, newStatus: SubcontractPayment['status'], extraData?: { paymentMethod?: 'cash' | 'transfer' | 'check', referenceNumber?: string, paymentDate?: string }) => {
-        const contract = subcontracts.find(c => c.id === contractId);
-        if (!contract) return;
-        const payment = contract.payments?.find(p => p.id === paymentId);
-        if (!payment) return;
-
-        const finalPaymentDate = extraData?.paymentDate || (newStatus === 'paid' ? new Date().toISOString().split('T')[0] : payment.paymentDate);
-
-        const updatedPayments = (contract.payments || []).map(p => {
-            if (p.id === paymentId) {
-                return {
-                    ...p,
-                    status: newStatus,
-                    paymentDate: finalPaymentDate,
-                    paymentMethod: extraData?.paymentMethod || p.paymentMethod,
-                    referenceNumber: extraData?.referenceNumber || p.referenceNumber
-                };
-            }
-            return p;
-        });
-
-        await updateSubcontract(contractId, { payments: updatedPayments });
-
-        if (newStatus === 'paid' && payment.status !== 'paid') {
-            const expenseId = `SUB-${payment.id}`;
-            const subc = subcontractors.find(s => s.id === contract.subcontractorId);
-            const expenseRecord = {
-                id: expenseId,
-                number: `PV-${new Date().getFullYear()}-${String(expenses.length + 1).padStart(3, '0')}`,
-                date: finalPaymentDate,
-                categoryId: 'subcontract_payment',
-                categoryName: 'عقود باطن',
-                paidTo: subc ? subc.name : contract.subcontractorName,
-                description: `دفعة مقاول باطن - ${contract.projectName} - ${payment.description || ''} ${extraData?.referenceNumber ? `(مرجع: ${extraData.referenceNumber})` : ''}`,
-                amount: parseFloat(payment.amount?.toString() || '0'),
-                paymentMethod: extraData?.paymentMethod || 'transfer',
-                bankName: subc?.bankName || '',
-                referenceNumber: extraData?.referenceNumber || '',
-                projectId: contract.projectId,
-                projectName: contract.projectName,
-                attachments: []
-            };
-            await saveProjectRecord('jilco_expenses_archive', expenseId, expenseRecord);
-            alert('تم تحويل الدفعة إلى منصرف وإضافتها إلى قسم المصروفات.');
-        }
+    const updatePaymentStatus = async (contractId: string, paymentId: string, newStatus: SubcontractPayment['status'], extraData?: any) => {
+        const payment = subcontracts.find(c => c.id === contractId)?.payments.find(p => p.id === paymentId);
+        if (!payment) return false;
+        return newStatus === 'paid' ? payPayment(payment, extraData) : approvePayment(payment);
     };
-
-
-
 
     // --- RENDER MODALS ---
     const renderSubcontractorForm = () => (
@@ -305,7 +247,7 @@ export const SubcontractModule: React.FC = () => {
                 </div>
                 <div className="flex justify-end gap-2 mt-6 pt-4 border-t border-gray-100">
                     <button onClick={() => setShowSubcontractorForm(false)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded font-bold text-sm">إلغاء</button>
-                    <button onClick={handleSaveSubcontractor} className="px-6 py-2 bg-jilco-600 text-white rounded hover:bg-jilco-700 font-bold text-sm shadow-md">حفظ المقاول</button>
+                    <button disabled={busy || !canManage} onClick={handleSaveSubcontractor} className="px-6 py-2 bg-jilco-600 text-white rounded hover:bg-jilco-700 font-bold text-sm shadow-md">حفظ المقاول</button>
                 </div>
             </div>
         </div>
@@ -388,6 +330,16 @@ export const SubcontractModule: React.FC = () => {
                         </div>
                     </div>
 
+                    <div className="grid grid-cols-2 gap-4">
+                        <label>حالة العقد
+                            <select title="حالة العقد" className="w-full p-2 border rounded" value={currentSubcontract.status || 'draft'} onChange={e => setCurrentSubcontract({ ...currentSubcontract, status: e.target.value as Subcontract['status'] })}>
+                                <option value="draft">مسودة</option><option value="active">نشط</option><option value="completed">مكتمل</option><option value="cancelled">ملغي</option>
+                            </select>
+                        </label>
+                        <label>نسبة الإنجاز %
+                            <input title="نسبة إنجاز العقد" className="w-full p-2 border rounded" type="number" min="0" max="100" value={currentSubcontract.progressPercentage ?? 0} onChange={e => setCurrentSubcontract({ ...currentSubcontract, progressPercentage: Number(e.target.value) })} />
+                        </label>
+                    </div>
                     <div>
                         <label className="block text-xs font-bold mb-1">نطاق العمل (Scope of Work)</label>
                         <textarea title="نطاق العمل" className="w-full p-2 border border-gray-400 rounded h-24 text-sm text-black bg-white font-bold"
@@ -400,7 +352,7 @@ export const SubcontractModule: React.FC = () => {
 
                 <div className="flex justify-end gap-2 mt-6 pt-4 border-t border-gray-100">
                     <button onClick={() => setShowSubcontractForm(false)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded font-bold text-sm">إلغاء</button>
-                    <button onClick={handleSaveSubcontract} className="px-6 py-2 bg-jilco-600 text-white rounded hover:bg-jilco-700 font-bold text-sm shadow-md">حفظ العقد</button>
+                    <button disabled={busy || !canManage} onClick={handleSaveSubcontract} className="px-6 py-2 bg-jilco-600 text-white rounded hover:bg-jilco-700 font-bold text-sm shadow-md">حفظ العقد</button>
                 </div>
             </div>
         </div>
@@ -449,7 +401,7 @@ export const SubcontractModule: React.FC = () => {
                 </div>
                 <div className="flex justify-end gap-2 mt-6 pt-4 border-t border-gray-100">
                     <button onClick={() => setShowPaymentForm(false)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded font-bold text-sm">إلغاء</button>
-                    <button onClick={handleSavePayment} className="px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700 font-bold text-sm shadow-md">حفظ الدفعة</button>
+                    <button disabled={busy || !canManage} onClick={handleSavePayment} className="px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700 font-bold text-sm shadow-md">حفظ الدفعة</button>
                 </div>
             </div>
         </div>
@@ -505,13 +457,13 @@ export const SubcontractModule: React.FC = () => {
                     </div>
                     <div className="flex justify-end gap-2 mt-6 pt-4 border-t border-gray-100">
                         <button onClick={() => setPayingPayment(null)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded font-bold text-sm">إلغاء</button>
-                        <button onClick={async () => {
-                            await updatePaymentStatus(payingPayment.contractId, payingPayment.paymentId, 'paid', {
+                        <button disabled={busy || !canFinance} onClick={async () => {
+                            const saved = await updatePaymentStatus(payingPayment.contractId, payingPayment.paymentId, 'paid', {
                                 paymentMethod: payingPayment.paymentMethod,
                                 referenceNumber: payingPayment.referenceNumber,
                                 paymentDate: payingPayment.paymentDate
                             });
-                            setPayingPayment(null);
+                            if (saved) setPayingPayment(null);
                         }} className="px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700 font-bold text-sm shadow-md">
                             تأكيد الدفع وإصدار السند
                         </button>
@@ -523,6 +475,16 @@ export const SubcontractModule: React.FC = () => {
 
     return (
         <div className="flex-1 bg-gray-100 p-8 overflow-auto h-full animate-fade-in text-right print:block print:bg-white print:p-0 print:overflow-visible print:absolute print:inset-0 print:z-50 print:h-auto" dir="rtl">
+            <div className="print:hidden mb-4 flex gap-3 items-center">
+                <input aria-label="بحث في عقود الباطن" placeholder="بحث بالاسم أو رقم العقد" className="border rounded p-2" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+                <select aria-label="تصفية حالة العقد" className="border rounded p-2" value={contractStatusFilter} onChange={e => setContractStatusFilter(e.target.value as any)}>
+                    <option value="all">كل الحالات</option><option value="draft">مسودة</option><option value="active">نشط</option><option value="completed">مكتمل</option><option value="cancelled">ملغي</option>
+                </select>
+                <button onClick={() => { void refresh().catch(() => {}); }}>تحديث</button>
+                {busy && <span>جارٍ الحفظ…</span>}
+            </div>
+            {error && <div role="alert" className="print:hidden fixed top-4 right-4 max-w-lg z-[10000] p-3 mb-4 bg-red-50 text-red-800 border border-red-300 rounded">{error}</div>}
+
             <div className={`max-w-6xl mx-auto transition-opacity ${statementSubcontractor || printingPayment ? 'print:hidden' : ''}`}>
 
                 {/* Header */}
@@ -641,7 +603,7 @@ export const SubcontractModule: React.FC = () => {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100 font-bold text-gray-700">
-                                {subcontractors.map(sub => (
+                                {subcontractors.filter(s => [s.name, s.specialty, s.contactPerson].some(v => v?.toLowerCase().includes(searchTerm.trim().toLowerCase()))).map(sub => (
                                     <tr key={sub.id} className="hover:bg-gray-50 transition-colors">
                                         <td className="p-4">
                                             <p className="text-jilco-900 border-r-2 border-jilco-500 pr-2">{sub.name}</p>
@@ -667,7 +629,7 @@ export const SubcontractModule: React.FC = () => {
                                             <div className="flex justify-center gap-2">
                                                 <button title="تعديل المقاول" onClick={() => { setCurrentSubcontractor(sub); setShowSubcontractorForm(true); }} className="text-blue-500 hover:text-blue-700 p-1 bg-blue-50 rounded"><Edit size={16} /></button>
                                                 <button title="كشف حساب" onClick={() => setStatementSubcontractor(sub)} className="text-purple-500 hover:text-purple-700 p-1 bg-purple-50 rounded"><FileText size={16} /></button>
-                                                <button title="حذف المقاول" onClick={() => deleteSubcontractor(sub.id)} className="text-red-500 hover:text-red-700 p-1 bg-red-50 rounded"><Trash2 size={16} /></button>
+                                                <button disabled={busy || !canManage} title="حذف المقاول" onClick={() => deleteSubcontractor(sub.id)} className="text-red-500 hover:text-red-700 p-1 bg-red-50 rounded"><Trash2 size={16} /></button>
                                             </div>
                                         </td>
                                     </tr>
@@ -683,7 +645,7 @@ export const SubcontractModule: React.FC = () => {
                 {/* Contracts Tab */}
                 {activeTab === 'contracts' && (
                     <div className="animate-fade-in space-y-4">
-                        {subcontracts.map(contract => (
+                        {subcontracts.filter(c => (contractStatusFilter === 'all' || c.status === contractStatusFilter) && [c.number, c.subcontractorName, c.projectName].some(v => v?.toLowerCase().includes(searchTerm.trim().toLowerCase()))).map(contract => (
                             <div key={contract.id} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
                                 <div className="p-4 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
                                     <div className="flex items-center gap-4">
@@ -697,7 +659,7 @@ export const SubcontractModule: React.FC = () => {
                                     </div>
                                     <div className="flex gap-2">
                                         <button onClick={() => { setCurrentSubcontract(contract); setShowSubcontractForm(true); }} className="text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1 hover:bg-blue-100"><Edit size={14} /> تعديل</button>
-                                        <button onClick={() => { if (window.confirm('هل أنت متأكد من حذف هذا العقد؟')) deleteSubcontract(contract.id); }} className="text-red-600 bg-red-50 px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1 hover:bg-red-100"><Trash2 size={14} /> حذف</button>
+                                        <button disabled={busy || !canManage} onClick={() => { if (window.confirm('هل أنت متأكد من حذف هذا العقد؟')) deleteSubcontract(contract.id); }} className="text-red-600 bg-red-50 px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1 hover:bg-red-100"><Trash2 size={14} /> حذف</button>
                                     </div>
                                 </div>
 
@@ -743,6 +705,17 @@ export const SubcontractModule: React.FC = () => {
                                     </div>
                                 </div>
 
+                                <div className="p-4 border-t print:hidden">
+                                    <label className="font-bold">مرفقات العقد
+                                        <input type="file" disabled={busy || !canManage} accept="application/pdf,image/png,image/jpeg,image/webp" onChange={async e => {
+                                            const file = e.target.files?.[0]; if (file) await uploadSubcontractAttachment(contract.id, file, file.type === 'application/pdf' ? 'pdf' : 'image'); e.target.value = '';
+                                        }} />
+                                    </label>
+                                    {contract.attachments?.map(a => <button key={a.id} className="m-2 text-blue-700 underline" onClick={async () => {
+                                        try { if (a.storagePath) window.open(await subcontractService.attachmentUrl(a.storagePath), '_blank', 'noopener,noreferrer'); }
+                                        catch (e: any) { alert(e.message); }
+                                    }}>{a.name}</button>)}
+                                </div>
                                 {/* Payments / المستخلصات */}
                                 <div className="p-4 border-t border-gray-100 bg-white">
                                     <div className="flex justify-between items-center mb-3">
@@ -783,10 +756,10 @@ export const SubcontractModule: React.FC = () => {
                                                             </td>
                                                             <td className="p-2 text-center flex justify-center gap-1">
                                                                 <button title="طباعة" onClick={() => { setPrintingPayment({ contract, payment }); setTimeout(() => window.print(), 300); }} className="bg-gray-50 text-gray-600 px-2 py-1 rounded hover:bg-gray-100 border border-gray-200"><Printer size={16} /></button>
-                                                                {payment.status === 'pending' && (
-                                                                    <button title="اعتماد" onClick={() => updatePaymentStatus(contract.id, payment.id, 'approved')} className="bg-blue-50 text-blue-600 px-2 py-1 rounded hover:bg-blue-100 border border-blue-100">اعتماد</button>
+                                                                {payment.status === 'pending' && (payment.engineerApprovedAt ? canFinance : canEngineer) && (
+                                                                    <button title="اعتماد" onClick={() => updatePaymentStatus(contract.id, payment.id, 'approved')} className="bg-blue-50 text-blue-600 px-2 py-1 rounded hover:bg-blue-100 border border-blue-100">{payment.engineerApprovedAt ? 'اعتماد مالي' : 'اعتماد هندسي'}</button>
                                                                 )}
-                                                                {payment.status === 'approved' && (
+                                                                {payment.status === 'approved' && canFinance && (
                                                                     <button title="تحويل كمنصرف" onClick={() => setPayingPayment({
                                                                         contractId: contract.id,
                                                                         paymentId: payment.id,
@@ -796,7 +769,7 @@ export const SubcontractModule: React.FC = () => {
                                                                         paymentDate: new Date().toISOString().split('T')[0]
                                                                     })} className="bg-green-50 text-green-600 px-2 py-1 rounded hover:bg-green-100 border border-green-100">تحويل كمنصرف</button>
                                                                 )}
-                                                                <button title="حذف الدفعة" onClick={() => handleDeletePayment(contract.id, payment.id)} className="bg-red-50 text-red-600 px-2 py-1 rounded hover:bg-red-100 border border-red-100"><Trash2 size={16} /></button>
+                                                                <button disabled={busy || !canManage || payment.status !== 'pending' || !!payment.engineerApprovedAt} title="حذف الدفعة" onClick={() => handleDeletePayment(contract.id, payment.id)} className="bg-red-50 text-red-600 px-2 py-1 rounded hover:bg-red-100 border border-red-100"><Trash2 size={16} /></button>
                                                             </td>
                                                         </tr>
                                                     ))}
@@ -856,15 +829,15 @@ export const SubcontractModule: React.FC = () => {
                                     </div>
                                     <div>
                                         <p className="text-gray-500 mb-1">إجمالي التزامات العقود</p>
-                                        <p className="text-lg text-blue-700 font-mono">{subcontracts.filter(c => c.subcontractorId === statementSubcontractor.id).reduce((sum, c) => sum + c.totalAmount, 0).toLocaleString()} ر.س</p>
+                                        <p className="text-lg text-blue-700 font-mono">{subcontracts.filter(c => c.subcontractorId === statementSubcontractor.id && (c.status === 'active' || c.status === 'completed')).reduce((sum, c) => sum + c.totalAmount, 0).toLocaleString()} ر.س</p>
                                     </div>
                                     <div>
                                         <p className="text-gray-500 mb-1">إجمالي المنصرف</p>
-                                        <p className="text-lg text-green-700 font-mono">{subcontracts.filter(c => c.subcontractorId === statementSubcontractor.id).flatMap(c => c.payments || []).filter(p => p.status === 'paid').reduce((sum, p) => sum + p.amount, 0).toLocaleString()} ر.س</p>
+                                        <p className="text-lg text-green-700 font-mono">{subcontracts.filter(c => c.subcontractorId === statementSubcontractor.id && (c.status === 'active' || c.status === 'completed')).flatMap(c => c.payments || []).filter(p => p.status === 'paid').reduce((sum, p) => sum + p.amount, 0).toLocaleString()} ر.س</p>
                                     </div>
                                     <div>
                                         <p className="text-gray-500 mb-1">الرصيد المتبقي</p>
-                                        <p className="text-lg text-red-700 font-mono">{(subcontracts.filter(c => c.subcontractorId === statementSubcontractor.id).reduce((sum, c) => sum + c.totalAmount, 0) - subcontracts.filter(c => c.subcontractorId === statementSubcontractor.id).flatMap(c => c.payments || []).filter(p => p.status === 'paid').reduce((sum, p) => sum + p.amount, 0)).toLocaleString()} ر.س</p>
+                                        <p className="text-lg text-red-700 font-mono">{(subcontracts.filter(c => c.subcontractorId === statementSubcontractor.id && (c.status === 'active' || c.status === 'completed')).reduce((sum, c) => sum + c.totalAmount, 0) - subcontracts.filter(c => c.subcontractorId === statementSubcontractor.id && (c.status === 'active' || c.status === 'completed')).flatMap(c => c.payments || []).filter(p => p.status === 'paid').reduce((sum, p) => sum + p.amount, 0)).toLocaleString()} ر.س</p>
                                     </div>
                                 </div>
                             </div>
@@ -882,7 +855,7 @@ export const SubcontractModule: React.FC = () => {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-100 font-bold">
-                                    {subcontracts.filter(c => c.subcontractorId === statementSubcontractor.id).map(c => {
+                                    {subcontracts.filter(c => c.subcontractorId === statementSubcontractor.id && (c.status === 'active' || c.status === 'completed')).map(c => {
                                         const cPaid = (c.payments || []).filter(p => p.status === 'paid').reduce((s, p) => s + p.amount, 0);
                                         return (
                                             <tr key={c.id}>
@@ -914,7 +887,7 @@ export const SubcontractModule: React.FC = () => {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-100 font-bold">
-                                    {subcontracts.filter(c => c.subcontractorId === statementSubcontractor.id).flatMap(c => (c.payments || []).map(p => ({ ...p, contractNumber: c.number }))).sort((a, b) => new Date(b.dueDate).getTime() - new Date(a.dueDate).getTime()).map((p: any) => (
+                                    {subcontracts.filter(c => c.subcontractorId === statementSubcontractor.id && (c.status === 'active' || c.status === 'completed')).flatMap(c => (c.payments || []).map(p => ({ ...p, contractNumber: c.number }))).sort((a, b) => new Date(b.dueDate).getTime() - new Date(a.dueDate).getTime()).map((p: any) => (
                                         <tr key={p.id}>
                                             <td className="p-3 font-mono border text-gray-600">{p.paymentDate || p.dueDate}</td>
                                             <td className="p-3 border font-mono">{p.contractNumber}</td>

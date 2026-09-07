@@ -29,21 +29,8 @@ export const FirstRunSetup: React.FC = () => {
       }
       if (!userId) throw new Error('لم يتم تسجيل الدخول بعد إنشاء المستخدم');
 
-      const { data: companyData, error: companyError } = await supabase
-        .from('companies')
-        .insert({ name: companyName })
-        .select('id')
-        .single();
+      const { error: companyError } = await supabase.rpc('bootstrap_company', { p_name: companyName });
       if (companyError) throw new Error(companyError.message);
-
-      const { error: userError } = await supabase.from('app_users').upsert({
-        id: userId,
-        email,
-        full_name: 'Admin',
-        company_id: companyData.id,
-        role: 'admin',
-      });
-      if (userError) throw new Error(userError.message);
 
       setSuccess(true);
       // الانتقال مباشرة للتطبيق بعد نجاح التسجيل والدخول

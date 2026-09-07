@@ -7,6 +7,7 @@ import { usePurchase } from '../contexts/PurchaseContext.tsx';
 import { useHR } from '../contexts/HRContext.tsx';
 
 const INITIAL_CONFIG: CompanyConfig = {
+  taxNumber: '',
     logo: null,
     stamp: null,
     headerTitle: 'جيلكو للمصاعد',
@@ -168,7 +169,7 @@ export const ExpenseModule: React.FC<{ initialView?: 'list' | 'editor' | 'report
     };
 
     const handleEdit = (expense: Expense) => {
-        if (expense.id.startsWith('SP-') || expense.id.startsWith('HR-')) {
+        if (expense.id.startsWith('SP-') || expense.id.startsWith('HR-') || expense.id.startsWith('SUB-')) {
             alert('هذا السند تم إنشاؤه تلقائياً من نظام المشتريات أو الموارد البشرية. لا يمكن تعديله من هنا.');
             return;
         }
@@ -177,7 +178,7 @@ export const ExpenseModule: React.FC<{ initialView?: 'list' | 'editor' | 'report
     };
 
     const handleDelete = async (id: string) => {
-        if (id.startsWith('SP-') || id.startsWith('HR-')) {
+        if (id.startsWith('SP-') || id.startsWith('HR-') || id.startsWith('SUB-')) {
             alert('لا يمكن حذف هذا السند المولد تلقائياً.');
             return;
         }
@@ -187,6 +188,7 @@ export const ExpenseModule: React.FC<{ initialView?: 'list' | 'editor' | 'report
     };
 
     const handleSave = async () => {
+        if (currentExpense.id.startsWith('SUB-')) return alert('سند مقاول الباطن المصروف محفوظ للقراءة فقط.');
         if (!currentExpense.amount || !currentExpense.paidTo) return alert('الرجاء إدخال المبلغ واسم المستفيد');
 
         // Auto-set category name
@@ -452,7 +454,7 @@ export const ExpenseModule: React.FC<{ initialView?: 'list' | 'editor' | 'report
                                             ) : <span className="text-gray-300 text-xs">-</span>}
                                         </td>
                                         <td className="p-4 flex justify-center gap-2">
-                                            {(!exp.id.startsWith('SP-') && !exp.id.startsWith('HR-')) && (
+                                            {(!exp.id.startsWith('SP-') && !exp.id.startsWith('HR-') && !exp.id.startsWith('SUB-')) && (
                                               <>
                                                 <button title="تعديل" onClick={() => handleEdit(exp)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-full"><Edit size={16} /></button>
                                                 <button title="حذف" onClick={() => handleDelete(exp.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-full"><Trash2 size={16} /></button>

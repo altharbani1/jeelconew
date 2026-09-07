@@ -50,7 +50,12 @@ export const useCloudSync = (modules: SyncModule[]) => {
             })
         );
 
-        return () => unsubscribes.forEach(unsub => unsub());
+        const refreshSubcontractCosts = () => { void loadAllInternal(modulesRef.current); };
+        window.addEventListener('subcontract-data-changed', refreshSubcontractCosts);
+        return () => {
+            unsubscribes.forEach(unsub => unsub());
+            window.removeEventListener('subcontract-data-changed', refreshSubcontractCosts);
+        };
     }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
     const loadAllInternal = async (mods: SyncModule[]) => {

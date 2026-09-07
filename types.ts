@@ -166,6 +166,7 @@ export interface WarrantyData {
 // --- PURCHASE SYSTEM TYPES ---
 
 export interface Attachment {
+  storagePath?: string;
   id: string;
   name: string;
   url: string;
@@ -307,6 +308,7 @@ export interface Project {
 }
 
 export interface ProjectPhase {
+  notes?: string;
   id: string;
   projectId: string;
   name: string;
@@ -323,6 +325,7 @@ export interface ProjectPhase {
 
 // --- SUBCONTRACTING SYSTEM TYPES ---
 export interface Subcontractor {
+  updatedAt?: string;
   id: string;
   name: string;
   contactPerson: string;
@@ -344,6 +347,9 @@ export type SubcontractStatus = 'draft' | 'active' | 'completed' | 'cancelled';
 export type SubcontractPaymentStatus = 'pending' | 'approved' | 'paid';
 
 export interface SubcontractPayment {
+  engineerApprovedAt?: string;
+  financeApprovedAt?: string;
+  updatedAt?: string;
   id: string;
   subcontractId: string;
   amount: number;
@@ -358,6 +364,7 @@ export interface SubcontractPayment {
 }
 
 export interface Subcontract {
+  updatedAt?: string;
   id: string;
   number: string; // e.g., SUB-2024-001
   subcontractorId: string;

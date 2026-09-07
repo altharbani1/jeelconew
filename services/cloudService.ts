@@ -33,7 +33,8 @@ const IMAGE_KEYS = ['jilco_logo', 'jilco_stamp'];
 
 const BUCKET = 'jilco-assets';
 
-const isHRCollection = (collection: string) => collection.startsWith('jilco_hr_');
+const isHRCollection = (collection: string) => collection.startsWith('jilco_hr_') ||
+  ['subcontractors', 'subcontracts', 'jilco_projects', 'jilco_expenses_archive'].includes(collection);
 
 async function getCurrentCompanyId(): Promise<string> {
   const { data: authData, error: authError } = await supabase.auth.getUser();
