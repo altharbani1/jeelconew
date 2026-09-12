@@ -124,6 +124,7 @@ export interface ContractData {
   externalDoorsCount?: number; // عدد الأبواب الخارجية
   accessControl?: string; // نظام التحكم بالوصول (اختياري)
   durationMonths: number;
+  paymentTerms: PaymentTerm[];
   firstPartyObligations?: string;
   secondPartyObligations?: string;
   handoverAndWarranty?: string;

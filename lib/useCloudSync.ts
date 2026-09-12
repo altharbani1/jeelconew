@@ -64,8 +64,13 @@ export const useCloudSync = (modules: SyncModule[]) => {
             await Promise.all(mods.map(async ({ collection, stateSetter }) => {
                 // 1. محلي أولاً للسرعة
                 const localData = localStorage.getItem(collection);
+                let localRecords: any[] = [];
                 if (localData) {
-                    try { stateSetter(sortNewestFirst(JSON.parse(localData))); } catch (e) { }
+                    try {
+                        const parsedLocal = JSON.parse(localData);
+                        localRecords = Array.isArray(parsedLocal) ? parsedLocal : [];
+                        stateSetter(sortNewestFirst(localRecords));
+                    } catch (e) { }
                 }
 
                 // 2. السحابة
@@ -80,7 +85,32 @@ export const useCloudSync = (modules: SyncModule[]) => {
                                 cloudService.saveRecord(collection, localId, item);
                             });
                         }
-                        return item;
+                        if (collection !== 'jilco_contracts_archive') return item;
+
+                        // Old relational rows did not persist payment terms or technical specs.
+                        // Recover only fields that are still empty in the cloud from this browser's
+                        // last full copy. Once saved, the cloud values become authoritative.
+                        const local = localRecords.find((record: any) => {
+                            const recordId = record.id || record.data?.id;
+                            const itemId = item.id || item.data?.id;
+                            const recordNumber = record.number || record.data?.number;
+                            const itemNumber = item.number || item.data?.number;
+                            return (recordId && itemId && recordId === itemId)
+                                || (recordNumber && itemNumber && recordNumber === itemNumber);
+                        });
+                        if (!local) return item;
+                        return {
+                            ...local,
+                            ...item,
+                            data: {
+                                ...local.data,
+                                ...item.data,
+                                paymentTerms: item.data?.paymentTerms?.length
+                                    ? item.data.paymentTerms
+                                    : (local.data?.paymentTerms || [])
+                            },
+                            specs: { ...(local.specs || {}), ...(item.specs || {}) }
+                        };
                     });
                     stateSetter(sortNewestFirst(parsed));
                     localStorage.setItem(collection, JSON.stringify(parsed));

@@ -77,6 +77,19 @@ const DEFAULT_HANDOVER = `1. تقوم المؤسسة بإخطار العميل �
 
 const DEFAULT_DURATION = '60 يوماً';
 
+const DEFAULT_PAYMENT_TERMS = [
+    { name: 'الدفعة الأولى (توقيع العقد)', percentage: 40 },
+    { name: 'الدفعة الثانية (عند توريد السكك)', percentage: 30 },
+    { name: 'الدفعة الثالثة (عند توريد الماكينة)', percentage: 20 },
+    { name: 'الدفعة الرابعة (التسليم والتشغيل)', percentage: 10 }
+];
+
+const EMPTY_TECHNICAL_SPECS: TechnicalSpecs = {
+    elevatorType: '', capacity: '', speed: '', stops: '', driveType: '', controlSystem: '',
+    powerSupply: '', cabin: '', doors: '', externalDoors: '', machineRoom: '', rails: '',
+    ropes: '', safety: '', emergency: ''
+};
+
 // --- Helper Components for Preview ---
 const QuoteHeader: React.FC<{ config: CompanyConfig }> = ({ config }) => (
     <header className="px-10 py-6 border-b-2 border-jilco-100 flex justify-between items-center h-[160px] shrink-0">
@@ -148,21 +161,14 @@ export const ContractModule: React.FC = () => {
     const [currentContract, setCurrentContract] = useState<ContractData>({
         number: '', date: new Date().toISOString().split('T')[0], firstPartyName: 'شركة جيلكو للمصاعد',
         secondPartyName: '', secondPartyId: '', location: '', totalValue: 0, elevatorType: '', stops: 2, durationMonths: 2, elevatorCount: 1, internalDoorsCount: 1, externalDoorsCount: 1, accessControl: '',
-        paymentTerms: [
-            { name: 'الدفعة الأولى (توقيع العقد)', percentage: 40 },
-            { name: 'الدفعة الثانية (عند توريد السكك)', percentage: 30 },
-            { name: 'الدفعة الثالثة (عند توريد الماكينة)', percentage: 20 },
-            { name: 'الدفعة الرابعة (التسليم والتشغيل)', percentage: 10 }
-        ],
+        paymentTerms: DEFAULT_PAYMENT_TERMS.map(term => ({ ...term })),
         firstPartyObligations: DEFAULT_FIRST_PARTY,
         secondPartyObligations: DEFAULT_SECOND_PARTY,
         handoverAndWarranty: DEFAULT_HANDOVER,
         worksDuration: DEFAULT_DURATION
     });
 
-    const [currentSpecs, setCurrentSpecs] = useState<TechnicalSpecs>({
-        elevatorType: '', capacity: '', speed: '', stops: '', driveType: '', controlSystem: '', powerSupply: '', cabin: '', doors: '', externalDoors: '', machineRoom: '', rails: '', ropes: '', safety: '', emergency: ''
-    });
+    const [currentSpecs, setCurrentSpecs] = useState<TechnicalSpecs>({ ...EMPTY_TECHNICAL_SPECS });
 
     // Load Config
     useEffect(() => {
@@ -181,20 +187,13 @@ export const ContractModule: React.FC = () => {
             date: new Date().toISOString().split('T')[0],
             firstPartyName: config.headerTitle || 'شركة جيلكو للمصاعد',
             secondPartyName: '', secondPartyId: '', location: '', totalValue: 0, elevatorType: '', stops: 2, durationMonths: 2, elevatorCount: 1, internalDoorsCount: 1, externalDoorsCount: 1, accessControl: '',
-            paymentTerms: [
-                { name: 'الدفعة الأولى (توقيع العقد)', percentage: 40 },
-                { name: 'الدفعة الثانية (عند توريد السكك)', percentage: 30 },
-                { name: 'الدفعة الثالثة (عند توريد الماكينة)', percentage: 20 },
-                { name: 'الدفعة الرابعة (التسليم والتشغيل)', percentage: 10 }
-            ],
+            paymentTerms: DEFAULT_PAYMENT_TERMS.map(term => ({ ...term })),
             firstPartyObligations: DEFAULT_FIRST_PARTY,
             secondPartyObligations: DEFAULT_SECOND_PARTY,
             handoverAndWarranty: DEFAULT_HANDOVER,
             worksDuration: DEFAULT_DURATION
         });
-        setCurrentSpecs({
-            elevatorType: '', capacity: '', speed: '', stops: '', driveType: '', controlSystem: '', powerSupply: '', cabin: '', doors: '', externalDoors: '', machineRoom: '', rails: '', ropes: '', safety: '', emergency: ''
-        });
+        setCurrentSpecs({ ...EMPTY_TECHNICAL_SPECS });
         setViewMode('editor');
     };
 
@@ -236,9 +235,23 @@ export const ContractModule: React.FC = () => {
             specs: currentSpecs
         };
 
-        await saveProjectRecord('jilco_contracts_archive', recordId, contractObj);
-
+        const saved = await saveProjectRecord('jilco_contracts_archive', recordId, contractObj);
+        if (!saved) return alert('تعذر حفظ العقد. لم يتم إغلاق نموذج التعديل حتى لا تفقد تغييراتك.');
         setViewMode('list');
+    };
+
+    const openSavedContract = (saved: any, printAfterOpen = false) => {
+        const savedTerms = Array.isArray(saved.data?.paymentTerms) && saved.data.paymentTerms.length
+            ? saved.data.paymentTerms
+            : DEFAULT_PAYMENT_TERMS;
+        setCurrentContract({
+            ...saved.data,
+            paymentTerms: savedTerms.map((term: any) => ({ ...term }))
+        });
+        setCurrentSpecs({ ...EMPTY_TECHNICAL_SPECS, ...(saved.specs || {}) });
+        setActiveTab('details');
+        setViewMode('editor');
+        if (printAfterOpen) setTimeout(() => window.print(), 500);
     };
 
     const handleCustomerSelect = (customerId: string) => {
@@ -308,14 +321,11 @@ export const ContractModule: React.FC = () => {
                                         <td className="p-4 font-black text-green-700 font-mono">{c.data.totalValue.toLocaleString()}</td>
                                         <td className="p-4 font-mono text-gray-500 text-xs">{c.data.date}</td>
                                         <td className="p-4 flex justify-center gap-2">
-                                            <button title="تعديل" onClick={() => { setCurrentContract(c.data); setCurrentSpecs(c.specs); setViewMode('editor'); }} className="p-2 text-blue-600 hover:bg-blue-50 rounded-full"><Edit size={16} /></button>
+                                            <button title="تعديل" onClick={() => openSavedContract(c)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-full"><Edit size={16} /></button>
                                             <button
                                                 title="طباعة"
                                                 onClick={() => {
-                                                    setCurrentContract(c.data);
-                                                    setCurrentSpecs(c.specs);
-                                                    setViewMode('editor'); // Switch view first!
-                                                    setTimeout(() => window.print(), 500); // Then print
+                                                    openSavedContract(c, true);
                                                 }}
                                                 className="p-2 text-gray-600 hover:bg-gray-50 rounded-full"
                                             >

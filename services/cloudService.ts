@@ -369,10 +369,15 @@ export const cloudService = {
                      internalDoorsCount: Number(row.internal_doors_count), externalDoorsCount: Number(row.external_doors_count),
                      accessControl: row.access_control, durationMonths: Number(row.duration_months),
                      firstPartyObligations: row.first_party_obligations, secondPartyObligations: row.second_party_obligations,
-                     handoverAndWarranty: row.handover_and_warranty, worksDuration: row.works_duration
+                     handoverAndWarranty: row.handover_and_warranty, worksDuration: row.works_duration,
+                     paymentTerms: Array.isArray(row.payment_terms) ? row.payment_terms : []
                  };
                  // Simulate old wrapping so frontend doesn't break
-                 return { id: contractData.id, data: contractData, specs: {} }; // Assuming specs might need to be joined later
+                 return {
+                   id: contractData.id,
+                   data: contractData,
+                   specs: row.technical_specs && typeof row.technical_specs === 'object' ? row.technical_specs : {}
+                 };
               }
           },
           'jilco_invoices_archive': {
@@ -548,7 +553,9 @@ export const cloudService = {
                      external_doors_count: d.externalDoorsCount, access_control: d.accessControl,
                      duration_months: d.durationMonths, first_party_obligations: d.firstPartyObligations,
                      second_party_obligations: d.secondPartyObligations, handover_and_warranty: d.handoverAndWarranty,
-                     works_duration: d.worksDuration
+                     works_duration: d.worksDuration,
+                     payment_terms: Array.isArray(d.paymentTerms) ? d.paymentTerms : [],
+                     technical_specs: payloadRecord.specs && typeof payloadRecord.specs === 'object' ? payloadRecord.specs : {}
                  };
               }
           },
