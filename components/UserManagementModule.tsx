@@ -50,6 +50,13 @@ export const UserManagementModule: React.FC = () => {
             return;
         }
 
+        const email = editingUser.username.trim().toLowerCase();
+        const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+        if (!emailPattern.test(email)) {
+            alert('أدخل بريدًا إلكترونيًا صحيحًا مثل name@company.com');
+            return;
+        }
+
         // Check if permissions differ from default role permissions
         const defaultPerms = ROLE_PERMISSIONS[editingUser.role] || [];
         const isCustom = JSON.stringify(selectedPermissions.sort()) !== JSON.stringify(defaultPerms.sort());
@@ -58,7 +65,7 @@ export const UserManagementModule: React.FC = () => {
         const userToSave: User = {
             ...safeEditingUser,
             name: editingUser.name?.trim() || '',
-            username: editingUser.username?.trim() || '',
+            username: email,
             customPermissions: isCustom ? selectedPermissions : undefined // Only save if custom
         };
 
@@ -206,8 +213,8 @@ export const UserManagementModule: React.FC = () => {
                                         </div>
 
                                         <div>
-                                            <label className="block text-xs font-bold text-gray-600 mb-1">اسم الدخول (Username)</label>
-                                            <input title="اسم الدخول" type="text" value={editingUser.username || ''} onChange={e => setEditingUser({ ...editingUser, username: e.target.value })} className="w-full p-2.5 border rounded-lg text-sm font-mono focus:ring-2 focus:ring-jilco-500 outline-none" dir="ltr" />
+                                            <label className="block text-xs font-bold text-gray-600 mb-1">البريد الإلكتروني للمستخدم</label>
+                                            <input title="البريد الإلكتروني للمستخدم" type="email" inputMode="email" autoComplete="email" placeholder="name@company.com" value={editingUser.username || ''} onChange={e => setEditingUser({ ...editingUser, username: e.target.value })} className="w-full p-2.5 border rounded-lg text-sm font-mono focus:ring-2 focus:ring-jilco-500 outline-none" dir="ltr" />
                                         </div>
 
                                         <div>

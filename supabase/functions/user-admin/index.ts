@@ -25,11 +25,13 @@ Deno.serve(async (req) => {
   try { input = await req.json(); } catch { return json({ error: "Invalid JSON" }, 400); }
   const role = input.role || "staff";
   const allowedRoles = ["admin", "manager", "sales", "accountant", "technician", "staff"];
-  if (input.action !== "delete" && (!input.email || !input.name || !allowedRoles.includes(role))) return json({ error: "Name, email and a valid role are required" }, 400);
+  const email = input.email?.trim().toLowerCase() || "";
+  const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+  if (input.action !== "delete" && (!emailPattern.test(email) || !input.name?.trim() || !allowedRoles.includes(role))) return json({ error: "Enter a valid email address such as name@company.com, a name and a valid role" }, 400);
   if (input.action === "create" && (!input.password || input.password.length < 8)) return json({ error: "Password must be at least 8 characters" }, 400);
 
   if (input.action === "create") {
-    const { data, error } = await admin.auth.admin.createUser({ email: input.email!.trim().toLowerCase(), password: input.password, email_confirm: true, user_metadata: { full_name: input.name } });
+    const { data, error } = await admin.auth.admin.createUser({ email, password: input.password, email_confirm: true, user_metadata: { full_name: input.name } });
     if (error || !data.user) return json({ error: error?.message || "Could not create user" }, 400);
     const { error: profileError } = await admin.from("app_users").insert({ id: data.user.id, company_id: callerProfile.company_id, full_name: input.name!.trim(), email: data.user.email, role, });
     if (profileError) { await admin.auth.admin.deleteUser(data.user.id); return json({ error: profileError.message }, 400); }
@@ -47,14 +49,14 @@ Deno.serve(async (req) => {
   }
   if (input.action !== "update") return json({ error: "Unknown action" }, 400);
   const authUpdate: Record<string, unknown> = {
-    email: input.email!.trim().toLowerCase(),
+    email,
     email_confirm: true,
     user_metadata: { full_name: input.name },
   };
   if (input.password) { if (input.password.length < 8) return json({ error: "Password must be at least 8 characters" }, 400); authUpdate.password = input.password; }
   const { error: authError } = await admin.auth.admin.updateUserById(input.id, authUpdate);
   if (authError) return json({ error: authError.message }, 400);
-  const { error: profileError } = await admin.from("app_users").update({ full_name: input.name!.trim(), email: input.email!.trim().toLowerCase(), role }).eq("id", input.id).eq("company_id", callerProfile.company_id);
+  const { error: profileError } = await admin.from("app_users").update({ full_name: input.name!.trim(), email, role }).eq("id", input.id).eq("company_id", callerProfile.company_id);
   if (profileError) return json({ error: profileError.message }, 400);
   return json({ id: input.id, email: input.email, name: input.name!.trim(), role, status: input.status || "active" });
 });
