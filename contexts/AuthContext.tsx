@@ -1,238 +1,83 @@
-
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { User, UserRole, Permission, ROLE_PERMISSIONS } from '../types';
-import { cloudService } from '../services/cloudService';
+import { supabase } from '../services/supabaseClient';
 import { loggerService } from '../services/loggerService';
 
-
-
-interface CloudIdentity {
-  id: string;
-  email: string;
-  role?: string;
-}
-
-interface AuthContextType {
-  currentUser: User | null;
-  users: User[];
-  login: (username: string, pass: string) => Promise<boolean>;
-  logout: () => void;
-  addUser: (user: User) => void;
-  updateUser: (user: User) => void;
-  deleteUser: (id: string) => void;
-  isAdmin: boolean;
-  hasPermission: (permission: Permission) => boolean;
-}
-
+interface CloudIdentity { id: string; email: string; company_id?: string; role?: string; }
+interface AuthContextType { currentUser: User | null; users: User[]; login: (username: string, pass: string) => Promise<boolean>; logout: () => Promise<void>; addUser: (user: User, password?: string) => Promise<void>; updateUser: (user: User, password?: string) => Promise<void>; deleteUser: (id: string) => Promise<void>; isAdmin: boolean; hasPermission: (permission: Permission) => boolean; }
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const USERS_KEY = 'jilco_system_users';
+const withoutPassword = (user: User): User => { const { password: _password, ...safe } = user; return safe; };
+const roleOf = (role?: string): UserRole => ['admin', 'manager', 'sales', 'accountant', 'technician'].includes(role || '')
+  ? role as UserRole
+  : 'technician';
 
-const ADMIN_DEFAULT_PASSWORD = (import.meta as any).env?.VITE_ADMIN_PASSWORD;
-
-const DEFAULT_ADMIN: User = {
-  id: 'admin-01',
-  username: 'admin',
-  password: ADMIN_DEFAULT_PASSWORD,
-  name: 'المدير العام',
-  role: 'admin',
-  status: 'active'
+// This is the only client entry point for privileged user administration. The Edge Function
+// performs auth.admin operations server-side; passwords never enter localStorage or backups.
+const invokeAdminUsers = async (action: string, payload: Record<string, unknown> = {}) => {
+  // Keep the browser client on the deployed, JWT-verified function. The
+  // function accepts the descriptive aliases used by the UI as well.
+  const body = {
+    action,
+    ...payload,
+    ...(payload.full_name && !payload.name ? { name: payload.full_name } : {}),
+    ...(payload.user_id && !payload.id ? { id: payload.user_id } : {}),
+  };
+  const { data, error } = await supabase.functions.invoke('user-admin', { body });
+  if (error) throw new Error(error.message || 'تعذر تنفيذ العملية الآمنة للمستخدم.');
+  if (data?.error) throw new Error(data.error);
+  return data;
 };
 
 export const AuthProvider: React.FC<{ children: ReactNode; cloudUser?: CloudIdentity | null }> = ({ children, cloudUser }) => {
-  // 1. Load Users Synchronously (Lazy Initialization)
-  const [users, setUsers] = useState<User[]>(() => {
-    try {
-      const savedUsers = localStorage.getItem('jilco_system_users');
-      let loadedUsers: User[] = savedUsers ? JSON.parse(savedUsers) : [];
+  const [users, setUsers] = useState<User[]>(() => { try { const parsed = JSON.parse(localStorage.getItem(USERS_KEY) || '[]'); return Array.isArray(parsed) ? parsed.map(withoutPassword) : []; } catch { return []; } });
+  const [currentUser, setCurrentUser] = useState<User | null>(() => { try { const parsed = JSON.parse(localStorage.getItem('jilco_current_session') || 'null'); return parsed ? withoutPassword(parsed) : null; } catch { return null; } });
 
-      if (!Array.isArray(loadedUsers)) loadedUsers = [];
-
-      const adminIndex = loadedUsers.findIndex(u => u.username === 'admin');
-
-      if (adminIndex === -1) {
-        loadedUsers.push(DEFAULT_ADMIN);
-        localStorage.setItem('jilco_system_users', JSON.stringify(loadedUsers));
-      }
-
-      return loadedUsers;
-    } catch (e) {
-      return [DEFAULT_ADMIN];
-    }
-  });
-
-  const [currentUser, setCurrentUser] = useState<User | null>(() => {
-    try {
-      const savedSession = localStorage.getItem('jilco_current_session');
-      return savedSession ? JSON.parse(savedSession) : null;
-    } catch (e) {
-      return null;
-    }
-  });
-
-  // Supabase is the source of truth for authentication. Mirror the cloud
-  // identity into the legacy permission model so users do not face a second
-  // local login screen after signing in to the cloud.
   useEffect(() => {
     if (!cloudUser) return;
-    const role: UserRole = cloudUser.role === 'admin' ? 'admin' : cloudUser.role === 'manager' ? 'manager' : 'manager';
-    const sessionUser: User = {
-      id: cloudUser.id,
-      username: cloudUser.email,
-      name: cloudUser.email,
-      role,
-      status: 'active',
-      lastLogin: new Date().toISOString(),
-    };
+    const sessionUser = withoutPassword({ id: cloudUser.id, username: cloudUser.email, name: cloudUser.email, role: roleOf(cloudUser.role), status: 'active', lastLogin: new Date().toISOString() });
     setCurrentUser(sessionUser);
-    setUsers(prev => {
-      const existing = prev.find(u => u.id === sessionUser.id);
-      if (existing) return prev.map(u => u.id === sessionUser.id ? { ...u, ...sessionUser } : u);
-      return [...prev, sessionUser];
-    });
+    setUsers(prev => prev.some(u => u.id === sessionUser.id) ? prev.map(u => u.id === sessionUser.id ? { ...u, ...sessionUser } : u) : [...prev, sessionUser]);
     localStorage.setItem('jilco_current_session', JSON.stringify(sessionUser));
   }, [cloudUser]);
-
+  useEffect(() => { localStorage.setItem(USERS_KEY, JSON.stringify(users.map(withoutPassword))); }, [users]);
   useEffect(() => {
-    localStorage.setItem('jilco_system_users', JSON.stringify(users));
-  }, [users]);
+    if (!cloudUser) return;
+    void supabase.from('app_users').select('id, email, full_name, role, created_at').then(({ data }) => {
+      if (!data) return;
+      setUsers(data.map((row: any) => withoutPassword({ id: row.id, username: row.email || row.id, name: row.full_name || row.email || 'مستخدم', role: roleOf(row.role), status: 'active' })));
+    });
+  }, [cloudUser?.id]);
 
-  // Updated Asynchronous Login
-  const login = async (username: string, pass: string): Promise<boolean> => {
-    const cleanUser = username?.trim().toLowerCase();
-    const cleanPass = pass;
-
-    if (!cleanUser || !cleanPass) return false;
-
-    // 1. Helper function to check credentials against a list
-    const checkCredentials = (userList: User[]) => {
-      // Emergency Admin Check — uses ADMIN_DEFAULT_PASSWORD constant
-      if (ADMIN_DEFAULT_PASSWORD && cleanUser === 'admin' && cleanPass === ADMIN_DEFAULT_PASSWORD) {
-        const existingAdmin = userList.find(u => u.username === 'admin');
-        if (existingAdmin) {
-          // Return the admin user (resetting password locally if needed happens in logic below)
-          return { ...existingAdmin, password: ADMIN_DEFAULT_PASSWORD };
-        }
-      }
-      return userList.find(u => u.username?.trim().toLowerCase() === cleanUser && u.password === cleanPass);
-    };
-
-    // 2. Try Local First
-    let user = checkCredentials(users);
-
-    // 3. If not found locally, Try Cloud Sync
-    if (!user) {
-      try {
-        console.log("User not found locally, checking cloud...");
-        // 🛠️ FIX: Try to download from 'admin' backup first, as admin is the one who creates users
-        let cloudData = await cloudService.downloadData('admin');
-
-        // If no admin backup, fallback to default or the user's own backup
-        if (!cloudData) {
-          cloudData = await cloudService.downloadData();
-        }
-
-        if (cloudData && cloudData['jilco_system_users']) {
-          const cloudUsers: User[] = JSON.parse(cloudData['jilco_system_users']);
-
-          if (Array.isArray(cloudUsers)) {
-            setUsers(cloudUsers);
-            localStorage.setItem('jilco_system_users', JSON.stringify(cloudUsers));
-
-            user = checkCredentials(cloudUsers);
-          }
-        }
-      } catch (e) {
-        console.error("Failed to sync users from cloud during login:", e);
-      }
-    }
-
-    // 4. Final Validation
-    if (user && user.status === 'active') {
-      const timestamp = new Date().toISOString();
-      const sessionUser = { ...user, lastLogin: timestamp };
-
-      setUsers(prev => prev.map(u => u.id === user!.id ? { ...u, lastLogin: timestamp } : u));
-
-      setCurrentUser(sessionUser);
-      localStorage.setItem('jilco_current_session', JSON.stringify(sessionUser));
-
-      // LOG LOGIN ACTION
-      loggerService.addLog(sessionUser, 'تسجيل دخول', 'تم تسجيل الدخول بنجاح للنظام', 'الأمان');
-
-      return true;
-    }
-
-    return false;
+  const login = async (username: string, pass: string) => {
+    const email = username.trim().toLowerCase(); if (!email || !pass) return false;
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password: pass }); if (error || !data.user) return false;
+    const matched = users.find(u => u.id === data.user!.id) || { id: data.user.id, username: email, name: email, role: 'manager' as UserRole, status: 'active' as const };
+    const sessionUser = withoutPassword({ ...matched, lastLogin: new Date().toISOString() }); setCurrentUser(sessionUser); localStorage.setItem('jilco_current_session', JSON.stringify(sessionUser));
+    loggerService.addLog(sessionUser, 'تسجيل دخول', 'تم تسجيل الدخول بنجاح للنظام', 'الأمان'); return true;
   };
-
-  const logout = () => {
-    // LOG LOGOUT ACTION
-    if (currentUser) {
-      loggerService.addLog(currentUser, 'تسجيل خروج', 'تم تسجيل الخروج من النظام', 'الأمان');
-    }
-    setCurrentUser(null);
-    localStorage.removeItem('jilco_current_session');
-  };
-
-  const addUser = (newUser: User) => {
-    setUsers(prev => [...prev, newUser]);
-    // Log creation
-    if (currentUser) {
-      loggerService.addLog(currentUser, 'إضافة مستخدم', `تم إنشاء مستخدم جديد: ${newUser.name}`, 'المستخدمين');
+  const logout = async () => {
+    if (currentUser) loggerService.addLog(currentUser, 'تسجيل خروج', 'تم تسجيل الخروج من النظام', 'الأمان');
+    // Revoke all Supabase sessions before clearing the local mirror. This
+    // prevents a stale browser tab from retaining a valid cloud session.
+    try { await supabase.auth.signOut({ scope: 'global' }); } finally {
+      setCurrentUser(null);
+      localStorage.removeItem('jilco_current_session');
     }
   };
-
-  const updateUser = (updatedUser: User) => {
-    setUsers(prev => prev.map(u => u.id === updatedUser.id ? updatedUser : u));
-    if (currentUser?.id === updatedUser.id) {
-      setCurrentUser(updatedUser);
-      localStorage.setItem('jilco_current_session', JSON.stringify(updatedUser));
-    }
-    // Log update
-    if (currentUser) {
-      loggerService.addLog(currentUser, 'تعديل مستخدم', `تم تحديث بيانات المستخدم: ${updatedUser.name}`, 'المستخدمين');
-    }
+  const addUser = async (user: User, password?: string) => {
+    if (!password) throw new Error('يرجى تحديد كلمة مرور مؤقتة للمستخدم.');
+    const data = await invokeAdminUsers('create', { email: user.username.trim().toLowerCase(), password, full_name: user.name.trim(), role: user.role, status: user.status });
+    const safe = withoutPassword({ ...user, id: data?.user?.id || data?.id || user.id, username: user.username.trim().toLowerCase() }); setUsers(prev => [...prev.filter(existing => existing.id !== safe.id), safe]);
+    if (currentUser) loggerService.addLog(currentUser, 'إضافة مستخدم', `تم إنشاء مستخدم جديد: ${safe.name}`, 'المستخدمين');
   };
-
-  const deleteUser = (id: string) => {
-    const userToDelete = users.find(u => u.id === id);
-    setUsers(prev => prev.filter(u => u.id !== id));
-    // Log deletion
-    if (currentUser) {
-      loggerService.addLog(currentUser, 'حذف مستخدم', `تم حذف المستخدم: ${userToDelete?.name || id}`, 'المستخدمين');
-    }
+  const updateUser = async (user: User, password?: string) => {
+    const safe = withoutPassword(user); await invokeAdminUsers('update', { user_id: safe.id, email: safe.username, password: password || undefined, full_name: safe.name, role: safe.role, status: safe.status });
+    setUsers(prev => prev.map(existing => existing.id === safe.id ? safe : existing)); if (currentUser?.id === safe.id) { setCurrentUser(safe); localStorage.setItem('jilco_current_session', JSON.stringify(safe)); }
+    if (currentUser) loggerService.addLog(currentUser, 'تعديل مستخدم', `تم تحديث بيانات المستخدم: ${safe.name}`, 'المستخدمين');
   };
-
-  const hasPermission = (permission: Permission): boolean => {
-    if (!currentUser) return false;
-    if (currentUser.role === 'admin') return true;
-    if (currentUser.customPermissions && currentUser.customPermissions.length > 0) {
-      return currentUser.customPermissions.includes(permission);
-    }
-    const rolePermissions = ROLE_PERMISSIONS[currentUser.role];
-    return rolePermissions ? rolePermissions.includes(permission) : false;
-  };
-
-  return (
-    <AuthContext.Provider value={{
-      currentUser,
-      users,
-      login,
-      logout,
-      addUser,
-      updateUser,
-      deleteUser,
-      isAdmin: currentUser?.role === 'admin',
-      hasPermission
-    }}>
-      {children}
-    </AuthContext.Provider>
-  );
+  const deleteUser = async (id: string) => { const target = users.find(u => u.id === id); await invokeAdminUsers('delete', { user_id: id }); setUsers(prev => prev.filter(u => u.id !== id)); if (currentUser) loggerService.addLog(currentUser, 'حذف مستخدم', `تم حذف المستخدم: ${target?.name || id}`, 'المستخدمين'); };
+  const hasPermission = (permission: Permission) => { if (!currentUser) return false; if (currentUser.role === 'admin') return true; if (currentUser.customPermissions?.length) return currentUser.customPermissions.includes(permission); return (ROLE_PERMISSIONS[currentUser.role] || []).includes(permission); };
+  return <AuthContext.Provider value={{ currentUser, users, login, logout, addUser, updateUser, deleteUser, isAdmin: currentUser?.role === 'admin', hasPermission }}>{children}</AuthContext.Provider>;
 };
-
-export const useAuth = () => {
-  const context = useContext(AuthContext);
-  if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
-  return context;
-};
+export const useAuth = () => { const context = useContext(AuthContext); if (!context) throw new Error('useAuth must be used within an AuthProvider'); return context; };

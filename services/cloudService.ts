@@ -22,7 +22,6 @@ const STORAGE_KEYS = [
   'jilco_hr_commissions',
   'jilco_smart_elevators',
   'jilco_documents',
-  'jilco_system_users',
   'jilco_claims_archive',
   'jilco_expenses_archive',
   'jilco_calculator_prices_v6'

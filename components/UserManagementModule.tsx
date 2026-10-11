@@ -28,6 +28,8 @@ export const UserManagementModule: React.FC = () => {
 
     // Local state for permissions checklist
     const [selectedPermissions, setSelectedPermissions] = useState<Permission[]>([]);
+    const [saving, setSaving] = useState(false);
+    const [password, setPassword] = useState('');
 
     // When opening form or changing role, load initial permissions
     useEffect(() => {
@@ -42,7 +44,7 @@ export const UserManagementModule: React.FC = () => {
         }
     }, [showForm, editingUser.role, editingUser.customPermissions]);
 
-    const handleSave = () => {
+    const handleSave = async () => {
         if (!editingUser.username || !editingUser.name || !editingUser.role) {
             alert('يرجى ملء كافة الحقول المطلوبة');
             return;
@@ -52,18 +54,20 @@ export const UserManagementModule: React.FC = () => {
         const defaultPerms = ROLE_PERMISSIONS[editingUser.role] || [];
         const isCustom = JSON.stringify(selectedPermissions.sort()) !== JSON.stringify(defaultPerms.sort());
 
+        const { password: _legacyPassword, ...safeEditingUser } = editingUser as User;
         const userToSave: User = {
-            ...editingUser as User,
+            ...safeEditingUser,
             name: editingUser.name?.trim() || '',
             username: editingUser.username?.trim() || '',
-            password: editingUser.password?.trim() || '',
             customPermissions: isCustom ? selectedPermissions : undefined // Only save if custom
         };
 
+        setSaving(true);
+        try {
         if (editingUser.id) {
-            updateUser(userToSave);
+            await updateUser(userToSave, password.trim() || undefined);
         } else {
-            if (!editingUser.password) {
+            if (password.trim().length < 8) {
                 alert('يرجى تحديد كلمة مرور');
                 return;
             }
@@ -72,10 +76,14 @@ export const UserManagementModule: React.FC = () => {
                 id: `USR-${Date.now()}`,
                 status: editingUser.status || 'active'
             };
-            addUser(newUser);
+            await addUser(newUser, password.trim());
         }
         setShowForm(false);
         setEditingUser({});
+        setPassword('');
+        } catch (error: any) {
+            alert(error?.message || 'تعذر حفظ المستخدم في قاعدة البيانات');
+        } finally { setSaving(false); }
     };
 
     const handleDelete = (id: string) => {
@@ -84,7 +92,7 @@ export const UserManagementModule: React.FC = () => {
             return;
         }
         if (window.confirm('هل أنت متأكد من حذف هذا المستخدم؟')) {
-            deleteUser(id);
+            deleteUser(id).catch((error: any) => alert(error?.message || 'تعذر حذف المستخدم'));
         }
     };
 
@@ -184,7 +192,7 @@ export const UserManagementModule: React.FC = () => {
                                     {editingUser.id ? <Edit size={20} /> : <Plus size={20} />}
                                     {editingUser.id ? 'تعديل بيانات وصلاحيات المستخدم' : 'إضافة مستخدم جديد'}
                                 </h3>
-                                <button title="إغلاق النافذة" onClick={() => setShowForm(false)} className="p-2 hover:bg-gray-200 rounded-full transition-colors"><X size={20} /></button>
+                                <button title="إغلاق النافذة" onClick={() => { setShowForm(false); setPassword(''); }} className="p-2 hover:bg-gray-200 rounded-full transition-colors"><X size={20} /></button>
                             </div>
 
                             <div className="flex-1 overflow-y-auto p-6">
@@ -204,7 +212,8 @@ export const UserManagementModule: React.FC = () => {
 
                                         <div>
                                             <label className="block text-xs font-bold text-gray-600 mb-1">كلمة المرور</label>
-                                            <input title="كلمة المرور" type="text" value={editingUser.password || ''} onChange={e => setEditingUser({ ...editingUser, password: e.target.value })} placeholder={editingUser.id ? 'ترك فارغاً للإبقاء' : '••••••'} className="w-full p-2.5 border rounded-lg text-sm font-mono focus:ring-2 focus:ring-jilco-500 outline-none" dir="ltr" />
+                                            <input title="كلمة المرور المؤقتة" type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder={editingUser.id ? 'ترك فارغاً للإبقاء' : '8 أحرف على الأقل'} autoComplete="new-password" className="w-full p-2.5 border rounded-lg text-sm font-mono focus:ring-2 focus:ring-jilco-500 outline-none" dir="ltr" />
+                                            <p className="text-[10px] text-gray-400 mt-1">لا تُحفظ كلمة المرور داخل المتصفح أو النسخ السحابية.</p>
                                         </div>
 
                                         <div>
@@ -297,8 +306,8 @@ export const UserManagementModule: React.FC = () => {
 
                             <div className="flex justify-end gap-3 p-6 border-t border-gray-100 bg-gray-50">
                                 <button title="إلغاء النافذة" onClick={() => setShowForm(false)} className="px-6 py-2.5 text-gray-600 hover:bg-gray-200 rounded-lg font-bold text-sm transition-colors">إلغاء</button>
-                                <button title="حفظ المستحدم" onClick={handleSave} className="px-8 py-2.5 bg-jilco-900 text-white rounded-lg hover:bg-jilco-800 font-bold text-sm shadow-lg flex items-center gap-2 transition-colors">
-                                    <CheckCircle2 size={18} /> حفظ التغييرات
+                                <button title="حفظ المستخدم" disabled={saving} onClick={handleSave} className="px-8 py-2.5 bg-jilco-900 text-white rounded-lg hover:bg-jilco-800 font-bold text-sm shadow-lg flex items-center gap-2 transition-colors disabled:opacity-50">
+                                    <CheckCircle2 size={18} /> {saving ? 'جارٍ الحفظ...' : 'حفظ التغييرات'}
                                 </button>
                             </div>
                         </div>
