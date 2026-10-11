@@ -157,6 +157,23 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
     };
 
+    // When an existing Chrome installation opens the new cloud-backed build,
+    // migrate its local records once after authentication. The marker prevents
+    // repeated uploads while keeping the original localStorage untouched.
+    useEffect(() => {
+        const migrationMarker = 'jilco_cloud_migration_v1';
+        if (localStorage.getItem(migrationMarker)) return;
+        const sourceKeys = ['jilco_customers', 'jilco_projects', 'jilco_quotes_archive', 'jilco_invoices_archive', 'jilco_receipts_archive'];
+        const hasLocalRecords = sourceKeys.some((key) => {
+            const raw = localStorage.getItem(key);
+            try { return Array.isArray(JSON.parse(raw || 'null')) && JSON.parse(raw || '[]').length > 0; } catch { return false; }
+        });
+        if (!hasLocalRecords) return;
+        void migrateAllLocalData().then((ok) => {
+            if (ok) localStorage.setItem(migrationMarker, new Date().toISOString());
+        });
+    }, []);
+
     return (
         <DataContext.Provider value={{
             config, setConfig,
