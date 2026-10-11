@@ -615,6 +615,17 @@ export const cloudService = {
       return true;
     } catch (e) {
       console.error(`Failed to save record ${recordId} in ${collection}:`, e);
+      // Keep the original record even when a legacy-to-relational mapping is
+      // incomplete. It can be reviewed and normalized from the generic store
+      // instead of being silently lost during migration.
+      try {
+        const { error: fallbackError } = await supabase
+          .from('jilco_realtime_data')
+          .upsert({ collection, record_id: recordId, data: dataObj, updated_at: new Date().toISOString() }, { onConflict: 'collection, record_id' });
+        if (!fallbackError) return true;
+      } catch {
+        // Preserve the original failure result when the fallback also fails.
+      }
       return false;
     }
   },
