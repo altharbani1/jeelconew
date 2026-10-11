@@ -451,10 +451,13 @@ export const cloudService = {
       if (collection === 'jilco_quotes_archive') {
          const qData = dataObj;
          const d = qData.details ? qData.details : qData; // Support wrapped or flat
-         if (!d.number?.trim()) throw new Error('رقم عرض السعر مطلوب');
+         // Legacy browser records may not have a quote number. Preserve them
+         // during one-time migration by using the stable record id as a
+         // fallback; the editor can assign a human-readable number later.
+         const normalizedNumber = String(d.number || qData.id || recordId || crypto.randomUUID()).trim();
          const quotePayload = {
-            legacy_id: qData.id || d.number,
-            number: d.number.trim(),
+            legacy_id: qData.id || normalizedNumber,
+            number: normalizedNumber,
             date: d.date || null,
             customer_name: d.customerName,
             customer_address: d.customerAddress,
