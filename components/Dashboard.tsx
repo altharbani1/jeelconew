@@ -137,12 +137,10 @@ export const Dashboard: React.FC<DashboardProps> = ({ setView }) => {
           {currentUser?.role === 'admin' && (
             <button
               onClick={async () => {
-                if (window.confirm("تحذير: هذه العملية ستقوم برفع كافة البيانات المحلية المخزنة في جهازك (عروض، مشاريع، فواتير) إلى جدول المزامنة الحية (Real-Time) الجديد في السحابة. هل تريد المتابعة؟")) {
-                  setIsMigrating(true);
-                  const res = await migrateAllLocalData();
-                  setIsMigrating(false);
-                  if (res) alert("تم ترحيل جميع بياناتك للسحابة الحية بنجاح!");
-                }
+                setIsMigrating(true);
+                const res = await migrateAllLocalData();
+                setIsMigrating(false);
+                if (res) alert("تم ترحيل جميع بياناتك للسحابة الحية بنجاح!");
               }}
               disabled={isMigrating}
               className={`bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-xl flex items-center gap-2 shadow-sm font-bold text-sm transition-all
