@@ -46,7 +46,11 @@ Deno.serve(async (req) => {
     return json({ ok: true });
   }
   if (input.action !== "update") return json({ error: "Unknown action" }, 400);
-  const authUpdate: Record<string, unknown> = { user_metadata: { full_name: input.name } };
+  const authUpdate: Record<string, unknown> = {
+    email: input.email!.trim().toLowerCase(),
+    email_confirm: true,
+    user_metadata: { full_name: input.name },
+  };
   if (input.password) { if (input.password.length < 8) return json({ error: "Password must be at least 8 characters" }, 400); authUpdate.password = input.password; }
   const { error: authError } = await admin.auth.admin.updateUserById(input.id, authUpdate);
   if (authError) return json({ error: authError.message }, 400);
