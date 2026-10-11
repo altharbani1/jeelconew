@@ -6,6 +6,12 @@ import { loggerService } from '../services/loggerService';
 
 
 
+interface CloudIdentity {
+  id: string;
+  email: string;
+  role?: string;
+}
+
 interface AuthContextType {
   currentUser: User | null;
   users: User[];
@@ -31,7 +37,7 @@ const DEFAULT_ADMIN: User = {
   status: 'active'
 };
 
-export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+export const AuthProvider: React.FC<{ children: ReactNode; cloudUser?: CloudIdentity | null }> = ({ children, cloudUser }) => {
   // 1. Load Users Synchronously (Lazy Initialization)
   const [users, setUsers] = useState<User[]>(() => {
     try {
@@ -62,6 +68,29 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     }
   });
 
+  // Supabase is the source of truth for authentication. Mirror the cloud
+  // identity into the legacy permission model so users do not face a second
+  // local login screen after signing in to the cloud.
+  useEffect(() => {
+    if (!cloudUser) return;
+    const role: UserRole = cloudUser.role === 'admin' ? 'admin' : cloudUser.role === 'manager' ? 'manager' : 'manager';
+    const sessionUser: User = {
+      id: cloudUser.id,
+      username: cloudUser.email,
+      name: cloudUser.email,
+      role,
+      status: 'active',
+      lastLogin: new Date().toISOString(),
+    };
+    setCurrentUser(sessionUser);
+    setUsers(prev => {
+      const existing = prev.find(u => u.id === sessionUser.id);
+      if (existing) return prev.map(u => u.id === sessionUser.id ? { ...u, ...sessionUser } : u);
+      return [...prev, sessionUser];
+    });
+    localStorage.setItem('jilco_current_session', JSON.stringify(sessionUser));
+  }, [cloudUser]);
+
   useEffect(() => {
     localStorage.setItem('jilco_system_users', JSON.stringify(users));
   }, [users]);
@@ -69,7 +98,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   // Updated Asynchronous Login
   const login = async (username: string, pass: string): Promise<boolean> => {
     const cleanUser = username?.trim().toLowerCase();
-    const cleanPass = pass?.trim();
+    const cleanPass = pass;
 
     if (!cleanUser || !cleanPass) return false;
 

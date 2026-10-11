@@ -1,89 +1,16 @@
 import React, { useState } from 'react';
+import { AlertCircle, ArrowLeft, Building2, CheckCircle2, Eye, EyeOff, KeyRound, Loader2, Mail, ShieldCheck, Wifi } from 'lucide-react';
 import { supabase } from '../services/supabaseClient';
+
+const Brand = () => <div className="flex items-center gap-3"><div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-400 to-blue-700 text-white shadow-lg"><Building2 size={26} /></div><div><div className="text-xl font-black tracking-tight text-white">جيلكو</div><div className="text-[10px] font-bold tracking-[0.22em] text-cyan-200">للمصاعد</div></div></div>;
+
+const Field = ({ label, icon: Icon, type = 'text', value, onChange, placeholder, autoComplete, showPassword, onToggle }: any) => <label className="block"><span className="mb-2 block text-sm font-bold text-slate-700">{label}</span><div className="group relative"><Icon size={19} className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-600" /><input type={type} value={value} onChange={onChange} placeholder={placeholder} autoComplete={autoComplete} required className="h-14 w-full rounded-2xl border border-slate-200 bg-slate-50/70 px-12 text-left text-base font-semibold text-slate-900 outline-none transition-all placeholder:text-slate-400 focus:border-blue-500 focus:bg-white focus:ring-4 focus:ring-blue-100" dir={type === 'email' || type === 'password' ? 'ltr' : 'rtl'} />{onToggle && <button type="button" aria-label={showPassword ? 'إخفاء كلمة المرور' : 'إظهار كلمة المرور'} onClick={onToggle} className="absolute left-4 top-1/2 -translate-y-1/2 rounded-lg p-1 text-slate-400 hover:text-blue-600">{showPassword ? <EyeOff size={19} /> : <Eye size={19} />}</button>}</div></label>;
 
 export const FirstRunSetup: React.FC = () => {
   const [mode, setMode] = useState<'login' | 'setup'>('login');
-  const [companyName, setCompanyName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState(false);
-
-  const handleSetup = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError('');
-    try {
-      // يجب إنشاء جلسة Supabase أولاً، لأن قاعدة البيانات لا تقبل الكتابة
-      // إلا للمستخدمين المسجلين.
-      const { data, error: signUpError } = await supabase.auth.signUp({ email, password });
-      if (signUpError && !/already registered/i.test(signUpError.message)) {
-        throw new Error(signUpError.message);
-      }
-      let userId = data.session?.user?.id || data.user?.id;
-      if (!data.session) {
-        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({ email, password });
-        if (signInError) throw new Error('فعّل البريد الإلكتروني أولاً، ثم أعد المحاولة لإكمال الإعداد.');
-        userId = signInData.user?.id;
-      }
-      if (!userId) throw new Error('لم يتم تسجيل الدخول بعد إنشاء المستخدم');
-
-      const { error: companyError } = await supabase.rpc('bootstrap_company', { p_name: companyName });
-      if (companyError) throw new Error(companyError.message);
-
-      setSuccess(true);
-      // الانتقال مباشرة للتطبيق بعد نجاح التسجيل والدخول
-      // يمكنك هنا توجيه المستخدم لصفحة رئيسية أو داشبورد
-      window.location.href = '/';
-    } catch (err: any) {
-      setError(err.message);
-    }
-    setLoading(false);
-  };
-
-  const handleLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError('');
-    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
-    if (signInError) {
-      setError('تعذر تسجيل دخول المزامنة. تحقق من البريد وكلمة المرور.');
-      setLoading(false);
-      return;
-    }
-    window.location.href = '/';
-  };
-
-  if (mode === 'login') {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-900">
-        <form onSubmit={handleLogin} className="bg-white p-8 rounded shadow w-96">
-          <h2 className="text-xl font-bold mb-2">دخول المزامنة السحابية</h2>
-          <p className="text-sm text-gray-600 mb-4">سجّل الدخول بحساب المزامنة الذي أنشأته مسبقًا.</p>
-          <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="البريد الإلكتروني" className="mb-2 w-full p-2 border rounded" required />
-          <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="كلمة المرور" className="mb-3 w-full p-2 border rounded" required />
-          <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded w-full" disabled={loading}>{loading ? 'جاري الدخول...' : 'دخول المزامنة'}</button>
-          <button type="button" onClick={() => { setError(''); setMode('setup'); }} className="text-blue-700 text-sm mt-4 w-full">إعداد المزامنة لأول مرة</button>
-          {error && <div className="text-red-600 mt-2">{error}</div>}
-        </form>
-      </div>
-    );
-  }
-
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-900">
-      <form onSubmit={handleSetup} className="bg-white p-8 rounded shadow w-96">
-        <h2 className="text-xl font-bold mb-2">إعداد المزامنة السحابية</h2>
-        <p className="text-sm text-gray-600 mb-4">أنشئ حساب المدير لحفظ بيانات النظام في القاعدة الجديدة.</p>
-        <input type="text" value={companyName} onChange={e => setCompanyName(e.target.value)} placeholder="اسم الشركة" className="mb-2 w-full p-2 border rounded" required />
-        <input type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="البريد الإلكتروني" className="mb-2 w-full p-2 border rounded" required />
-        <input type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder="كلمة المرور" className="mb-2 w-full p-2 border rounded" required />
-        <button type="submit" className="bg-blue-600 text-white px-4 py-2 rounded" disabled={loading}>إنشاء المدير</button>
-        {error && <div className="text-red-600 mt-2">{error}</div>}
-        {success && <div className="text-green-600 mt-2">تم إنشاء المدير والشركة بنجاح!</div>}
-        <button type="button" onClick={() => { setError(''); setMode('login'); }} className="text-blue-700 text-sm mt-4 w-full">لدي حساب مزامنة بالفعل</button>
-      </form>
-    </div>
-  );
+  const [companyName, setCompanyName] = useState(''); const [email, setEmail] = useState(''); const [password, setPassword] = useState(''); const [showPassword, setShowPassword] = useState(false); const [loading, setLoading] = useState(false); const [error, setError] = useState(''); const [success, setSuccess] = useState(false);
+  const handleSetup = async (e: React.FormEvent) => { e.preventDefault(); setLoading(true); setError(''); try { const { data, error: signUpError } = await supabase.auth.signUp({ email: email.trim(), password }); if (signUpError && !/already registered/i.test(signUpError.message)) throw new Error(signUpError.message); let userId = data.session?.user?.id || data.user?.id; if (!data.session) { const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({ email: email.trim(), password }); if (signInError) throw new Error('فعّل البريد الإلكتروني أولاً، ثم أعد المحاولة لإكمال الإعداد.'); userId = signInData.user?.id; } if (!userId) throw new Error('لم يتم تسجيل الدخول بعد إنشاء المستخدم'); const { error: companyError } = await supabase.rpc('bootstrap_company', { p_name: companyName.trim() }); if (companyError) throw new Error(companyError.message); setSuccess(true); window.location.href = '/'; } catch (err: any) { setError(err.message || 'تعذر إكمال الإعداد.'); } setLoading(false); };
+  const handleLogin = async (e: React.FormEvent) => { e.preventDefault(); setLoading(true); setError(''); const { error: signInError } = await supabase.auth.signInWithPassword({ email: email.trim(), password }); if (signInError) { setError('تعذر تسجيل الدخول. تحقق من البريد الإلكتروني وكلمة المرور ثم حاول مجددًا.'); setLoading(false); return; } window.location.href = '/'; };
+  const isLogin = mode === 'login';
+  return <main className="relative flex min-h-screen overflow-hidden bg-slate-100 font-sans" dir="rtl"><div className="absolute inset-0 bg-[radial-gradient(circle_at_15%_15%,rgba(14,165,233,.16),transparent_35%),radial-gradient(circle_at_85%_80%,rgba(30,64,175,.16),transparent_40%)]" /><section className="relative hidden w-[43%] flex-col justify-between overflow-hidden bg-[#071d3b] p-12 text-white lg:flex"><div className="absolute -right-32 -top-28 h-96 w-96 rounded-full border border-cyan-300/10" /><div className="absolute -bottom-44 -left-24 h-[32rem] w-[32rem] rounded-full border border-blue-200/10" /><Brand /><div className="relative max-w-md pb-12"><div className="mb-8 flex h-20 w-20 items-center justify-center rounded-3xl border border-cyan-200/20 bg-cyan-300/10 text-cyan-200"><Building2 size={42} /></div><h1 className="text-4xl font-black leading-[1.35]">إدارة أعمالك<br /><span className="text-cyan-300">بارتقاء وثقة</span></h1><p className="mt-5 text-base leading-8 text-blue-100/75">منصة جيلكو المتكاملة لإدارة مشاريع المصاعد، العروض، العقود، والفواتير في مكان واحد.</p><div className="mt-8 flex items-center gap-3 text-sm text-blue-100/70"><ShieldCheck size={19} className="text-cyan-300" /> بياناتك محفوظة ومزامنة بأمان</div></div><div className="flex items-center justify-between text-xs text-blue-200/50"><span>© {new Date().getFullYear()} جيلكو للمصاعد</span><span className="flex items-center gap-1.5"><Wifi size={14} /> منصة سحابية</span></div></section><section className="relative flex w-full items-center justify-center px-5 py-10 sm:px-8 lg:w-[57%]"><div className="w-full max-w-[470px]"><div className="mb-8 lg:hidden"><Brand /></div><div className="rounded-[2rem] border border-white/70 bg-white/90 p-6 shadow-2xl shadow-blue-950/10 backdrop-blur sm:p-10"><div className="mb-8"><div className="mb-4 inline-flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1.5 text-xs font-bold text-blue-700"><ShieldCheck size={15} /> دخول آمن للمستخدمين</div><h2 className="text-2xl font-black text-slate-900">{isLogin ? 'مرحبًا بك من جديد' : 'إعداد المزامنة السحابية'}</h2><p className="mt-2 text-sm leading-6 text-slate-500">{isLogin ? 'سجّل الدخول للوصول إلى نظام جيلكو وإدارة أعمالك.' : 'أنشئ حساب المدير واربط بياناتك بقاعدة جيلكو السحابية.'}</p></div>{error && <div role="alert" className="mb-5 flex items-start gap-3 rounded-2xl border border-red-100 bg-red-50 px-4 py-3 text-sm font-semibold leading-6 text-red-700"><AlertCircle size={19} className="mt-1 shrink-0" /><span>{error}</span></div>}{success && <div className="mb-5 flex items-center gap-2 rounded-2xl bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-700"><CheckCircle2 size={19} /> تم إنشاء الحساب والشركة بنجاح</div>}<form onSubmit={isLogin ? handleLogin : handleSetup} className="space-y-5">{!isLogin && <Field label="اسم الشركة" icon={Building2} value={companyName} onChange={(e: any) => setCompanyName(e.target.value)} placeholder="مثال: جيلكو للمصاعد" autoComplete="organization" />}<Field label="البريد الإلكتروني" icon={Mail} type="email" value={email} onChange={(e: any) => setEmail(e.target.value)} placeholder="name@company.com" autoComplete="email" /><Field label="كلمة المرور" icon={KeyRound} type={showPassword ? 'text' : 'password'} value={password} onChange={(e: any) => setPassword(e.target.value)} placeholder="أدخل كلمة المرور" autoComplete={isLogin ? 'current-password' : 'new-password'} showPassword={showPassword} onToggle={() => setShowPassword(v => !v)} /><button type="submit" disabled={loading} className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-l from-blue-800 to-blue-600 text-base font-black text-white shadow-lg shadow-blue-700/20 transition hover:-translate-y-0.5 hover:from-blue-900 hover:to-blue-700 disabled:cursor-not-allowed disabled:opacity-70">{loading ? <><Loader2 size={20} className="animate-spin" /> جارٍ التحقق...</> : <>{isLogin ? 'دخول إلى النظام' : 'إنشاء حساب المدير'}<ArrowLeft size={19} /></>}</button></form><button type="button" onClick={() => { setError(''); setSuccess(false); setMode(isLogin ? 'setup' : 'login'); }} className="mt-6 flex w-full items-center justify-center gap-1 text-sm font-bold text-blue-700 transition hover:text-blue-900">{isLogin ? 'إعداد المزامنة لأول مرة' : 'لدي حساب مزامنة بالفعل'} <ArrowLeft size={15} /></button></div><p className="mt-6 text-center text-xs font-semibold text-slate-400">نظام جيلكو لإدارة المصاعد • دخول مشفّر وآمن</p></div></section></main>;
 };

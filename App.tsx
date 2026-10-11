@@ -125,7 +125,7 @@ const App: React.FC = () => {
   }
 
   return (
-    <AuthProvider>
+    <AuthProvider cloudUser={cloudUser}>
       <DataProvider>
         <ProjectProvider>
           <SalesProvider>
