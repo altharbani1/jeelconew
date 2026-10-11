@@ -450,7 +450,9 @@ export const cloudService = {
 
       if (collection === 'jilco_quotes_archive') {
          const qData = dataObj;
-         const d = qData.details ? qData.details : qData; // Support wrapped or flat
+         const d = qData.details && (qData.details.number || qData.details.customerName || qData.details.projectName)
+           ? qData.details
+           : qData; // Support wrapped, legacy-flat, and partially wrapped records
          // Legacy browser records may not have a quote number. Preserve them
          // during one-time migration by using the stable record id as a
          // fallback; the editor can assign a human-readable number later.
