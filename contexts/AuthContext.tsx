@@ -24,7 +24,15 @@ const invokeAdminUsers = async (action: string, payload: Record<string, unknown>
     ...(payload.user_id && !payload.id ? { id: payload.user_id } : {}),
   };
   const { data, error } = await supabase.functions.invoke('user-admin', { body });
-  if (error) throw new Error(error.message || 'تعذر تنفيذ العملية الآمنة للمستخدم.');
+  if (error) {
+    let message = error.message || 'تعذر تنفيذ العملية الآمنة للمستخدم.';
+    try {
+      const response = (error as any).context;
+      const details = response && typeof response.json === 'function' ? await response.json() : null;
+      if (details?.error) message = details.error;
+    } catch { /* keep the SDK message */ }
+    throw new Error(message);
+  }
   if (data?.error) throw new Error(data.error);
   return data;
 };

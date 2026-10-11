@@ -68,7 +68,7 @@ export const UserManagementModule: React.FC = () => {
             await updateUser(userToSave, password.trim() || undefined);
         } else {
             if (password.trim().length < 8) {
-                alert('يرجى تحديد كلمة مرور');
+                alert('يجب أن تتكون كلمة المرور المؤقتة من 8 أحرف على الأقل');
                 return;
             }
             const newUser: User = {
