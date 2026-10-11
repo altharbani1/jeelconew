@@ -31,7 +31,6 @@ import { FormsModule } from './components/FormsModule.tsx';
 import { DocumentsModule } from './components/DocumentsModule.tsx';
 import { ActivityLogModule } from './components/ActivityLogModule.tsx';
 import { InventoryModule } from './components/InventoryModule.tsx';
-import { LoginScreen } from './components/LoginScreen.tsx';
 import { FinancialReportModule } from './components/FinancialReportModule.tsx';
 import { MaintenanceModule } from './components/MaintenanceModule.tsx';
 import { SubcontractModule } from './components/SubcontractModule.tsx';
@@ -68,7 +67,10 @@ const MainApp: React.FC = () => {
   })();
 
   if (!currentUser) {
-    return <LoginScreen />;
+    // SupabaseAuthProvider already authenticated the user. The legacy local
+    // login screen is intentionally not rendered: cloud login is the only
+    // user-facing authentication flow.
+    return <div className="min-h-screen flex items-center justify-center bg-gray-900 text-white">جاري تجهيز حسابك...</div>;
   }
 
   return (
