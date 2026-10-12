@@ -106,8 +106,13 @@ export const SubcontractModule: React.FC = () => {
         const subc = subcontractors.find(s => s.id === currentSubcontract.subcontractorId);
         const proj = projects.find(p => p.id === currentSubcontract.projectId);
 
+        const isNewContract = !(currentSubcontract as any).id;
         const newContractData = {
             ...currentSubcontract,
+            // New contracts always start as drafts; completion is a later
+            // lifecycle transition that requires 100% progress.
+            status: isNewContract ? 'draft' : currentSubcontract.status,
+            progressPercentage: Number(currentSubcontract.progressPercentage || 0),
             subcontractorName: subc?.name || '',
             projectName: proj?.name || '',
             number: currentSubcontract.number || `SUB-${Date.now()}`

@@ -43,8 +43,11 @@ export const subcontractService = {
   },
   async save(table: 'subcontractors' | 'subcontracts', company: string, value: any, existing?: any) {
     const fields = table === 'subcontractors' ? contractorFields : contractFields;
-    const payload = Object.fromEntries(Object.entries(fields).filter(([key]) => value[key] !== undefined)
-      .map(([key, column]) => [column, value[key] === '' && !['name', 'specialty', 'scopeOfWork'].includes(key) ? null : value[key]]));
+    const saveValue = table === 'subcontracts' && !existing
+      ? { ...value, status: value.status || 'draft', progressPercentage: Number(value.progressPercentage || 0) }
+      : value;
+    const payload = Object.fromEntries(Object.entries(fields).filter(([key]) => saveValue[key] !== undefined)
+      .map(([key, column]) => [column, saveValue[key] === '' && !['name', 'specialty', 'scopeOfWork'].includes(key) ? null : saveValue[key]]));
     const query = existing
       ? supabase.from(table).update(payload).eq('company_id', company).eq('id', existing.id).eq('updated_at', value.updatedAt || existing.updatedAt)
       : supabase.from(table).insert({ ...payload, id: value.id, company_id: company });
