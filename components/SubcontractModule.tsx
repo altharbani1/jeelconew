@@ -4,6 +4,7 @@ import { Subcontractor, Subcontract, SubcontractPayment, Project } from '../type
 import { useSubcontract } from '../contexts/SubcontractContext';
 import { useProject } from '../contexts/ProjectContext';
 import { subcontractService } from '../services/subcontractService';
+import { SubcontractDocumentsPanel } from './SubcontractDocumentsPanel';
 
 export const SubcontractModule: React.FC = () => {
     const {
@@ -21,7 +22,7 @@ export const SubcontractModule: React.FC = () => {
 
     const { projects } = useProject();
 
-    const [activeTab, setActiveTab] = useState<'dashboard' | 'subcontractors' | 'contracts'>('dashboard');
+    const [activeTab, setActiveTab] = useState<'dashboard' | 'subcontractors' | 'contracts' | 'documents'>('dashboard');
     const [statementSubcontractor, setStatementSubcontractor] = useState<Subcontractor | null>(null);
     const [printingPayment, setPrintingPayment] = useState<{ contract: Subcontract, payment: SubcontractPayment } | null>(null);
 
@@ -558,7 +559,10 @@ export const SubcontractModule: React.FC = () => {
                     <button onClick={() => setActiveTab('dashboard')} className={`flex-1 py-3 text-sm font-bold flex justify-center items-center gap-2 transition-colors ${activeTab === 'dashboard' ? 'bg-jilco-50 text-jilco-800 border-b-4 border-jilco-600' : 'text-gray-500 hover:bg-gray-50'}`}><FileText size={18} /> نظرة عامة</button>
                     <button onClick={() => setActiveTab('subcontractors')} className={`flex-1 py-3 text-sm font-bold flex justify-center items-center gap-2 transition-colors ${activeTab === 'subcontractors' ? 'bg-jilco-50 text-jilco-800 border-b-4 border-jilco-600' : 'text-gray-500 hover:bg-gray-50'}`}><Building2 size={18} /> قائمة المقاولين</button>
                     <button onClick={() => setActiveTab('contracts')} className={`flex-1 py-3 text-sm font-bold flex justify-center items-center gap-2 transition-colors ${activeTab === 'contracts' ? 'bg-jilco-50 text-jilco-800 border-b-4 border-jilco-600' : 'text-gray-500 hover:bg-gray-50'}`}><Wrench size={18} /> سجل العقود</button>
+                    <button onClick={() => setActiveTab('documents')} className={`flex-1 py-3 text-sm font-bold flex justify-center items-center gap-2 transition-colors ${activeTab === 'documents' ? 'bg-jilco-50 text-jilco-800 border-b-4 border-jilco-600' : 'text-gray-500 hover:bg-gray-50'}`}><Printer size={18} /> مستندات التنفيذ</button>
                 </div>
+
+                {activeTab === 'documents' && <SubcontractDocumentsPanel subcontracts={subcontracts} subcontractors={subcontractors} canManage={canManage} />}
 
                 {/* Dashboard Tab Content */}
                 {activeTab === 'dashboard' && (
