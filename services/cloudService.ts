@@ -475,15 +475,15 @@ export const cloudService = {
             tax_rate: Number(d.taxRate) || 0,
             warranty_installation: d.warrantyInstallation,
             warranty_motor: d.warrantyMotor,
-            payment_terms: d.paymentTerms,
+            payment_terms: Array.isArray(d.paymentTerms) ? d.paymentTerms : [],
             terms_and_conditions: d.termsAndConditions,
-            features: d.features,
+            features: Array.isArray(d.features) ? d.features : [],
             handover_and_warranty: d.handoverAndWarranty,
             first_party_obligations: d.firstPartyObligations,
             second_party_obligations: d.secondPartyObligations,
             works_duration: d.worksDuration,
-            show_gallery: d.showGallery,
-            gallery_images: d.galleryImages,
+            show_gallery: d.showGallery === true,
+            gallery_images: d.galleryImages && typeof d.galleryImages === 'object' ? d.galleryImages : {},
             total: (qData.items || []).reduce((sum: number, item: any) => sum + (Number(item.total) || 0), 0)
          };
 
