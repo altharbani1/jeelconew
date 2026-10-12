@@ -384,7 +384,8 @@ export const cloudService = {
               mapFn: (row: any) => ({
                   id: row.legacy_id || row.id, number: row.number, date: row.date, dueDate: row.due_date,
                   customerName: row.customer_name, customerVatNumber: row.customer_vat_number,
-                  items: row.items || [], status: row.status, discountAmount: Number(row.discount_amount),
+                  items: row.items || [], status: row.status, grandTotal: Number(row.total) || 0,
+                  discountAmount: Number(row.discount_amount) || 0,
                   isTaxInclusive: row.is_tax_inclusive
               })
           },
@@ -567,10 +568,18 @@ export const cloudService = {
               table: 'invoices',
               mapFn: (payloadRecord: any) => {
                   const d = payloadRecord.data ? payloadRecord.data : payloadRecord;
+                  const itemsTotal = Array.isArray(d.items)
+                    ? d.items.reduce((sum: number, item: any) => sum + (Number(item?.total) || 0), 0)
+                    : 0;
+                  const discount = Math.max(0, Number(d.discountAmount) || 0);
+                  const net = Math.max(0, itemsTotal - discount);
+                  const total = Number.isFinite(Number(d.grandTotal))
+                    ? Math.max(0, Number(d.grandTotal))
+                    : (d.isTaxInclusive === false ? net * 1.15 : net);
                   return {
                       legacy_id: payloadRecord.id || d.number, number: d.number, date: d.date, due_date: d.dueDate,
                       customer_name: d.customerName, customer_vat_number: d.customerVatNumber,
-                      items: d.items, status: d.status, discount_amount: d.discountAmount, is_tax_inclusive: d.isTaxInclusive
+                      items: d.items, status: d.status, total, discount_amount: discount, is_tax_inclusive: d.isTaxInclusive
                   };
               }
           },

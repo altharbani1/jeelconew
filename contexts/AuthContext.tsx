@@ -60,7 +60,10 @@ export const AuthProvider: React.FC<{ children: ReactNode; cloudUser?: CloudIden
   const login = async (username: string, pass: string) => {
     const email = username.trim().toLowerCase(); if (!email || !pass) return false;
     const { data, error } = await supabase.auth.signInWithPassword({ email, password: pass }); if (error || !data.user) return false;
-    const matched = users.find(u => u.id === data.user!.id) || { id: data.user.id, username: email, name: email, role: 'manager' as UserRole, status: 'active' as const };
+    // Never grant an elevated role when the profile lookup has not completed.
+    // The cloud profile is loaded immediately after sign-in; until then use the
+    // least-privileged role and let the resolved app_users row replace it.
+    const matched = users.find(u => u.id === data.user!.id) || { id: data.user.id, username: email, name: email, role: 'technician' as UserRole, status: 'active' as const };
     const sessionUser = withoutPassword({ ...matched, lastLogin: new Date().toISOString() }); setCurrentUser(sessionUser); localStorage.setItem('jilco_current_session', JSON.stringify(sessionUser));
     loggerService.addLog(sessionUser, 'تسجيل دخول', 'تم تسجيل الدخول بنجاح للنظام', 'الأمان'); return true;
   };

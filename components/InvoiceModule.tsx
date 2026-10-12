@@ -105,7 +105,7 @@ export const InvoiceModule: React.FC = () => {
         if (currentInvoice.items.length === 0) return alert('يرجى إضافة بند واحد على الأقل');
 
         const calcSubtotal = currentInvoice.items.reduce((s, i) => s + i.total, 0);
-        const calcDiscount = currentInvoice.discountAmount || 0;
+        const calcDiscount = Math.min(calcSubtotal, Math.max(0, currentInvoice.discountAmount || 0));
         let calcTax = 0;
         let calcGrandTotal = 0;
 
@@ -169,7 +169,7 @@ export const InvoiceModule: React.FC = () => {
     };
 
     const subtotal = (currentInvoice.items || []).reduce((s, i) => s + i.total, 0);
-    const discount = currentInvoice.discountAmount || 0;
+    const discount = Math.min(subtotal, Math.max(0, currentInvoice.discountAmount || 0));
 
     // حسابات الضريبة بناء على الخيار (شامل أو غير شامل)
     let tax = 0;
