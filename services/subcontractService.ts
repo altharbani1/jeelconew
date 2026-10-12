@@ -44,8 +44,11 @@ export const subcontractService = {
   async save(table: 'subcontractors' | 'subcontracts', company: string, value: any, existing?: any) {
     const fields = table === 'subcontractors' ? contractorFields : contractFields;
     const saveValue = table === 'subcontracts' && !existing
-      ? { ...value, status: value.status || 'draft', progressPercentage: Number(value.progressPercentage || 0) }
+      ? { ...value, status: value.status || 'draft', progressPercentage: Number(value.progressPercentage || 0), scopeOfWork: value.scopeOfWork?.trim() || '' }
       : value;
+    if (table === 'subcontracts' && !saveValue.scopeOfWork?.trim()) {
+      throw new Error('نطاق العمل مطلوب قبل حفظ عقد مقاول الباطن.');
+    }
     const payload = Object.fromEntries(Object.entries(fields).filter(([key]) => saveValue[key] !== undefined)
       .map(([key, column]) => [column, saveValue[key] === '' && !['name', 'specialty', 'scopeOfWork'].includes(key) ? null : saveValue[key]]));
     const query = existing

@@ -99,6 +99,9 @@ export const SubcontractModule: React.FC = () => {
         if (!currentSubcontract.startDate || !currentSubcontract.endDate || currentSubcontract.endDate <= currentSubcontract.startDate) {
             alert('يجب أن يكون تاريخ الانتهاء بعد تاريخ البدء'); return;
         }
+        if (!currentSubcontract.scopeOfWork?.trim()) {
+            alert('يرجى إدخال نطاق العمل قبل حفظ العقد'); return;
+        }
         if (currentSubcontract.status === 'completed' && Number(currentSubcontract.progressPercentage || 0) !== 100) {
             alert('لا يمكن وضع العقد كمكتمل قبل تسجيل نسبة إنجاز 100٪. استخدم حالة «نشط» أثناء التنفيذ.');
             return;
