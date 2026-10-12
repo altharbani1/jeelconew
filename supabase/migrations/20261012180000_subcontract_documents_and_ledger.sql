@@ -19,6 +19,7 @@ create table if not exists public.subcontract_work_orders (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   unique(company_id, number),
+  unique(company_id, id),
   foreign key(company_id, subcontract_id) references public.subcontracts(company_id, id),
   foreign key(company_id, subcontractor_id) references public.subcontractors(company_id, id)
 );

@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { ClipboardCheck, FileCheck2, FileText, Plus, Printer, Receipt, Search, X } from 'lucide-react';
 import { Subcontract, Subcontractor } from '../types';
+import { useSubcontract } from '../contexts/SubcontractContext';
 
 type DocumentType = 'statement' | 'voucher' | 'work_order' | 'receiving';
 type DocumentStatus = 'draft' | 'issued' | 'approved' | 'cancelled';
@@ -15,6 +16,7 @@ const icons: Record<DocumentType, React.ReactNode> = { statement: <FileText size
 const statusLabels: Record<DocumentStatus, string> = { draft: 'مسودة', issued: 'صادر', approved: 'معتمد', cancelled: 'ملغي' };
 
 export const SubcontractDocumentsPanel: React.FC<{ subcontracts: Subcontract[]; subcontractors: Subcontractor[]; canManage: boolean }> = ({ subcontracts, subcontractors, canManage }) => {
+  const { workOrders, receipts, vouchers, saveWorkOrder, saveReceipt, saveVoucher } = useSubcontract();
   const [records, setRecords] = useState<DocumentRecord[]>([]);
   const [typeFilter, setTypeFilter] = useState<DocumentType | 'all'>('all');
   const [query, setQuery] = useState('');
@@ -22,16 +24,32 @@ export const SubcontractDocumentsPanel: React.FC<{ subcontracts: Subcontract[]; 
   const [printing, setPrinting] = useState<DocumentRecord | null>(null);
   const [draft, setDraft] = useState<Partial<DocumentRecord>>({ type: 'work_order', status: 'draft', date: new Date().toISOString().slice(0, 10) });
 
-  useEffect(() => { try { setRecords(JSON.parse(localStorage.getItem('jilco_subcontract_documents') || '[]')); } catch { setRecords([]); } }, []);
-  const persist = (next: DocumentRecord[]) => { setRecords(next); localStorage.setItem('jilco_subcontract_documents', JSON.stringify(next)); };
+  useEffect(() => {
+    const fromBackend: DocumentRecord[] = [
+      ...workOrders.map((r: any) => ({ id: r.id, number: r.number, type: 'work_order' as const, status: r.status === 'issued' ? 'issued' as const : r.status === 'cancelled' ? 'cancelled' as const : 'draft' as const, subcontractId: r.subcontractId, subcontractorId: r.subcontractorId, title: r.title, date: r.issueDate, amount: Number(r.estimatedAmount || 0), description: r.scopeOfWork, notes: r.notes })),
+      ...receipts.map((r: any) => ({ id: r.id, number: r.number, type: 'receiving' as const, status: r.status === 'accepted' ? 'approved' as const : r.status === 'rejected' ? 'cancelled' as const : 'draft' as const, subcontractId: r.subcontractId, title: 'محضر استلام', date: r.receiptDate, amount: Number(r.amount || 0), description: r.description, notes: r.notes })),
+      ...vouchers.map((r: any) => ({ id: r.id, number: r.number, type: 'voucher' as const, status: r.status === 'approved' || r.status === 'paid' ? 'approved' as const : r.status === 'cancelled' ? 'cancelled' as const : 'draft' as const, subcontractId: r.subcontractId, title: 'سند صرف', date: r.voucherDate, amount: Number(r.amount || 0), description: r.description }))
+    ];
+    setRecords(fromBackend);
+  }, [workOrders, receipts, vouchers]);
   const selectedContract = subcontracts.find(c => c.id === draft.subcontractId);
   const filtered = useMemo(() => records.filter(r => (typeFilter === 'all' || r.type === typeFilter) && `${r.number} ${r.title} ${r.description}`.toLowerCase().includes(query.toLowerCase())), [records, typeFilter, query]);
   const createDocument = () => {
     if (!draft.title?.trim() || !draft.description?.trim()) return alert('أدخل عنوان المستند ووصفه قبل الحفظ');
     const type = (draft.type || 'work_order') as DocumentType;
     const prefix = type === 'voucher' ? 'PV' : type === 'work_order' ? 'WO' : type === 'receiving' ? 'GRN' : 'ST';
-    const next: DocumentRecord = { id: crypto.randomUUID(), number: `${prefix}-${new Date().getFullYear()}-${String(records.length + 1).padStart(4, '0')}`, type, status: (draft.status || 'draft') as DocumentStatus, subcontractId: draft.subcontractId, subcontractorId: selectedContract?.subcontractorId, title: draft.title.trim(), date: draft.date || new Date().toISOString().slice(0, 10), amount: Number(draft.amount || 0), description: draft.description.trim(), notes: draft.notes?.trim() };
-    persist([next, ...records]); setShowForm(false); setDraft({ type: 'work_order', status: 'draft', date: new Date().toISOString().slice(0, 10) });
+    const id = crypto.randomUUID();
+    const number = `${prefix}-${new Date().getFullYear()}-${String(records.length + 1).padStart(4, '0')}`;
+    const date = draft.date || new Date().toISOString().slice(0, 10);
+    const common = { id, number, subcontractId: draft.subcontractId || '', subcontractorId: selectedContract?.subcontractorId || '', notes: draft.notes?.trim() };
+    const action = type === 'work_order'
+      ? saveWorkOrder({ ...common, title: draft.title.trim(), scopeOfWork: draft.description.trim(), status: draft.status === 'issued' ? 'issued' : 'draft', issueDate: date, estimatedAmount: Number(draft.amount || 0) })
+      : type === 'receiving'
+        ? saveReceipt({ ...common, receiptDate: date, description: draft.description.trim(), amount: Number(draft.amount || 0), status: draft.status === 'approved' ? 'accepted' : 'draft', type: 'work' })
+        : type === 'voucher'
+          ? saveVoucher({ ...common, voucherDate: date, description: draft.description.trim(), amount: Number(draft.amount || 0), status: draft.status === 'approved' ? 'approved' : 'draft', type: 'payment' })
+          : Promise.resolve(true);
+    void action.then(ok => { if (ok !== false) { setShowForm(false); setDraft({ type: 'work_order', status: 'draft', date: new Date().toISOString().slice(0, 10) }); } });
   };
   const contractorName = (r: DocumentRecord) => subcontractors.find(s => s.id === r.subcontractorId)?.name || subcontracts.find(c => c.id === r.subcontractId)?.subcontractorName || 'غير محدد';
   return <section className="animate-fade-in space-y-4" dir="rtl">
