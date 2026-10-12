@@ -16,7 +16,7 @@ const icons: Record<DocumentType, React.ReactNode> = { statement: <FileText size
 const statusLabels: Record<DocumentStatus, string> = { draft: 'مسودة', issued: 'صادر', approved: 'معتمد', cancelled: 'ملغي' };
 
 export const SubcontractDocumentsPanel: React.FC<{ subcontracts: Subcontract[]; subcontractors: Subcontractor[]; canManage: boolean }> = ({ subcontracts, subcontractors, canManage }) => {
-  const { workOrders, receipts, vouchers, saveWorkOrder, saveReceipt, saveVoucher } = useSubcontract();
+  const { workOrders, receipts, vouchers, saveWorkOrder, saveReceipt, saveVoucher, getAccountStatement } = useSubcontract();
   const [records, setRecords] = useState<DocumentRecord[]>([]);
   const [typeFilter, setTypeFilter] = useState<DocumentType | 'all'>('all');
   const [query, setQuery] = useState('');
@@ -25,13 +25,24 @@ export const SubcontractDocumentsPanel: React.FC<{ subcontracts: Subcontract[]; 
   const [draft, setDraft] = useState<Partial<DocumentRecord>>({ type: 'work_order', status: 'draft', date: new Date().toISOString().slice(0, 10) });
 
   useEffect(() => {
-    const fromBackend: DocumentRecord[] = [
+    const load = async () => {
+      const statementRows = (await Promise.all(subcontracts.map(async (contract) => {
+        try {
+          const entries = await getAccountStatement(contract.id);
+          const total = entries.reduce((sum, entry) => sum + entry.debit - entry.credit, 0);
+          return { id: `statement-${contract.id}`, number: `ST-${contract.number}`, type: 'statement' as const, status: 'approved' as const, subcontractId: contract.id, subcontractorId: contract.subcontractorId, title: 'كشف حساب مقاول', date: contract.date, amount: total, description: entries.map(entry => `${entry.date} — ${entry.description}: ${entry.debit - entry.credit} ر.س`).join('\n') || 'لا توجد حركة مالية بعد' };
+        } catch { return null; }
+      }))).filter(Boolean) as DocumentRecord[];
+      const fromBackend: DocumentRecord[] = [
+      ...statementRows,
       ...workOrders.map((r: any) => ({ id: r.id, number: r.number, type: 'work_order' as const, status: r.status === 'issued' ? 'issued' as const : r.status === 'cancelled' ? 'cancelled' as const : 'draft' as const, subcontractId: r.subcontractId, subcontractorId: r.subcontractorId, title: r.title, date: r.issueDate, amount: Number(r.estimatedAmount || 0), description: r.scopeOfWork, notes: r.notes })),
       ...receipts.map((r: any) => ({ id: r.id, number: r.number, type: 'receiving' as const, status: r.status === 'accepted' ? 'approved' as const : r.status === 'rejected' ? 'cancelled' as const : 'draft' as const, subcontractId: r.subcontractId, title: 'محضر استلام', date: r.receiptDate, amount: Number(r.amount || 0), description: r.description, notes: r.notes })),
       ...vouchers.map((r: any) => ({ id: r.id, number: r.number, type: 'voucher' as const, status: r.status === 'approved' || r.status === 'paid' ? 'approved' as const : r.status === 'cancelled' ? 'cancelled' as const : 'draft' as const, subcontractId: r.subcontractId, title: 'سند صرف', date: r.voucherDate, amount: Number(r.amount || 0), description: r.description }))
-    ];
-    setRecords(fromBackend);
-  }, [workOrders, receipts, vouchers]);
+      ];
+      setRecords(fromBackend);
+    };
+    void load();
+  }, [workOrders, receipts, vouchers, subcontracts, getAccountStatement]);
   const selectedContract = subcontracts.find(c => c.id === draft.subcontractId);
   const filtered = useMemo(() => records.filter(r => (typeFilter === 'all' || r.type === typeFilter) && `${r.number} ${r.title} ${r.description}`.toLowerCase().includes(query.toLowerCase())), [records, typeFilter, query]);
   const createDocument = () => {
