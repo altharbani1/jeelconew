@@ -496,35 +496,36 @@ export const SubcontractModule: React.FC = () => {
     };
 
     return (
-        <div className="flex-1 bg-gray-100 p-8 overflow-auto h-full animate-fade-in text-right print:block print:bg-white print:p-0 print:overflow-visible print:absolute print:inset-0 print:z-50 print:h-auto" dir="rtl">
-            <div className="print:hidden mb-4 flex gap-3 items-center">
-                <input aria-label="بحث في عقود الباطن" placeholder="بحث بالاسم أو رقم العقد" className="border rounded p-2" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
-                <select aria-label="تصفية حالة العقد" className="border rounded p-2" value={contractStatusFilter} onChange={e => setContractStatusFilter(e.target.value as any)}>
+        <div className="flex-1 overflow-auto bg-slate-100 p-4 text-right sm:p-6 lg:p-8 print:block print:bg-white print:p-0 print:overflow-visible print:absolute print:inset-0 print:z-50 print:h-auto" dir="rtl">
+            <div className="print:hidden mb-5 flex flex-wrap items-center gap-3">
+                <div className="relative min-w-[220px] flex-1"><Search size={16} className="absolute right-3 top-3 text-slate-400" /><input aria-label="بحث في عقود الباطن" placeholder="بحث بالاسم أو رقم العقد" className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pr-9 pl-3 text-sm font-bold outline-none focus:border-jilco-500 focus:ring-2 focus:ring-jilco-100" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} /></div>
+                <select aria-label="تصفية حالة العقد" className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-bold outline-none focus:border-jilco-500" value={contractStatusFilter} onChange={e => setContractStatusFilter(e.target.value as any)}>
                     <option value="all">كل الحالات</option><option value="draft">مسودة</option><option value="active">نشط</option><option value="completed">مكتمل</option><option value="cancelled">ملغي</option>
                 </select>
-                <button onClick={() => { void refresh().catch(() => {}); }}>تحديث</button>
-                {busy && <span>جارٍ الحفظ…</span>}
+                <button onClick={() => { void refresh().catch(() => {}); }} className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-bold text-slate-700 transition hover:bg-slate-50">تحديث</button>
+                {busy && <span className="rounded-full bg-jilco-50 px-3 py-1.5 text-xs font-bold text-jilco-700">جارٍ الحفظ…</span>}
             </div>
             {error && <div role="alert" className="print:hidden fixed top-4 right-4 max-w-lg z-[10000] p-3 mb-4 bg-red-50 text-red-800 border border-red-300 rounded">{error}</div>}
 
             <div className={`max-w-6xl mx-auto transition-opacity ${statementSubcontractor || printingPayment ? 'print:hidden' : ''}`}>
 
                 {/* Header */}
-                <div className="flex justify-between items-center mb-6">
+                <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
                     <div>
-                        <h1 className="text-2xl font-bold text-jilco-900 flex items-center gap-2">
-                            <Users className="text-jilco-600" /> مقاولي الباطن
+                        <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-jilco-50 px-3 py-1 text-[11px] font-black text-jilco-700"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> إدارة المشاريع والموردين</div>
+                        <h1 className="flex items-center gap-2 text-2xl font-black tracking-tight text-slate-900">
+                            <span className="rounded-xl bg-jilco-900 p-2 text-white shadow-sm"><Users size={21} /></span> مقاولو الباطن
                         </h1>
-                        <p className="text-gray-500 text-sm mt-1 font-bold">إدارة عقود الباطن، والدفعات، وتقييم المقاولين</p>
+                        <p className="mt-2 text-sm font-bold text-slate-500">إدارة العقود والدفعات والتقدم ومستندات التنفيذ من لوحة واحدة</p>
                     </div>
                     <div className="flex gap-2">
                         {activeTab === 'subcontractors' && (
-                            <button disabled={!canManage || busy} onClick={() => { setCurrentSubcontractor({ status: 'active', rating: 3 }); setShowSubcontractorForm(true); }} className="bg-jilco-900 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 hover:bg-jilco-800 shadow-md text-sm disabled:opacity-50 disabled:cursor-not-allowed">
+                            <button disabled={!canManage || busy} onClick={() => { setCurrentSubcontractor({ status: 'active', rating: 3 }); setShowSubcontractorForm(true); }} className="flex items-center gap-2 rounded-xl bg-jilco-900 px-4 py-2.5 text-sm font-black text-white shadow-md transition hover:bg-jilco-800 disabled:cursor-not-allowed disabled:opacity-50">
                                 <Plus size={18} /> مقاول جديد
                             </button>
                         )}
                         {activeTab === 'contracts' && (
-                            <button disabled={!canManage || busy} onClick={() => { setCurrentSubcontract({ status: 'draft', progressPercentage: 0, payments: [], date: new Date().toISOString().split('T')[0] }); setShowSubcontractForm(true); }} className="bg-jilco-900 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 hover:bg-jilco-800 shadow-md text-sm disabled:opacity-50 disabled:cursor-not-allowed">
+                            <button disabled={!canManage || busy} onClick={() => { setCurrentSubcontract({ status: 'draft', progressPercentage: 0, payments: [], date: new Date().toISOString().split('T')[0] }); setShowSubcontractForm(true); }} className="flex items-center gap-2 rounded-xl bg-jilco-900 px-4 py-2.5 text-sm font-black text-white shadow-md transition hover:bg-jilco-800 disabled:cursor-not-allowed disabled:opacity-50">
                                 <Plus size={18} /> عقد جديد
                             </button>
                         )}
@@ -532,35 +533,35 @@ export const SubcontractModule: React.FC = () => {
                 </div>
 
                 {/* Dashboard Stats */}
-                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-4 mb-6">
-                    <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm border-r-4 border-r-jilco-500">
+                <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+                    <div className="rounded-2xl border border-slate-200 border-r-4 border-r-jilco-500 bg-white p-4 shadow-sm">
                         <p className="text-xs font-bold text-gray-500 mb-1">عقود باطن نشطة</p>
                         <p className="text-2xl font-black text-jilco-900">{stats.activeContracts}</p>
                     </div>
-                    <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm border-r-4 border-r-blue-500">
+                    <div className="rounded-2xl border border-slate-200 border-r-4 border-r-blue-500 bg-white p-4 shadow-sm">
                         <p className="text-xs font-bold text-gray-500 mb-1">إجمالي الالتزامات (ر.س)</p>
                         <p className="text-2xl font-black text-jilco-900 font-mono">{stats.totalCommitted.toLocaleString()}</p>
                     </div>
-                    <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm border-r-4 border-r-green-500">
+                    <div className="rounded-2xl border border-slate-200 border-r-4 border-r-green-500 bg-white p-4 shadow-sm">
                         <p className="text-xs font-bold text-gray-500 mb-1">إجمالي المستخلص المنصرف</p>
                         <p className="text-2xl font-black text-green-600 font-mono">{stats.totalPaid.toLocaleString()}</p>
                     </div>
-                    <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm border-r-4 border-r-amber-500">
+                    <div className="rounded-2xl border border-slate-200 border-r-4 border-r-amber-500 bg-white p-4 shadow-sm">
                         <p className="text-xs font-bold text-gray-500 mb-1">دفعات قيد الانتظار</p>
                         <p className="text-2xl font-black text-amber-600 font-mono">{stats.totalPending.toLocaleString()}</p>
                     </div>
-                    <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm border-r-4 border-r-purple-500">
+                    <div className="rounded-2xl border border-slate-200 border-r-4 border-r-purple-500 bg-white p-4 shadow-sm">
                         <p className="text-xs font-bold text-gray-500 mb-1">بانتظار الاعتماد الهندسي</p>
                         <p className="text-2xl font-black text-purple-600 font-mono">{stats.pendingEngineering}</p>
                     </div>
-                    <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm border-r-4 border-r-orange-500">
+                    <div className="rounded-2xl border border-slate-200 border-r-4 border-r-orange-500 bg-white p-4 shadow-sm">
                         <p className="text-xs font-bold text-gray-500 mb-1">بانتظار الاعتماد المالي</p>
                         <p className="text-2xl font-black text-orange-600 font-mono">{stats.pendingFinance}</p>
                     </div>
                 </div>
 
                 {/* Navigation Tabs */}
-                <div className="flex bg-white rounded-xl shadow-sm border border-gray-200 mb-6 overflow-hidden w-full max-w-2xl">
+                <div className="mb-6 flex w-full max-w-4xl overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
                     <button onClick={() => setActiveTab('dashboard')} className={`flex-1 py-3 text-sm font-bold flex justify-center items-center gap-2 transition-colors ${activeTab === 'dashboard' ? 'bg-jilco-50 text-jilco-800 border-b-4 border-jilco-600' : 'text-gray-500 hover:bg-gray-50'}`}><FileText size={18} /> نظرة عامة</button>
                     <button onClick={() => setActiveTab('subcontractors')} className={`flex-1 py-3 text-sm font-bold flex justify-center items-center gap-2 transition-colors ${activeTab === 'subcontractors' ? 'bg-jilco-50 text-jilco-800 border-b-4 border-jilco-600' : 'text-gray-500 hover:bg-gray-50'}`}><Building2 size={18} /> قائمة المقاولين</button>
                     <button onClick={() => setActiveTab('contracts')} className={`flex-1 py-3 text-sm font-bold flex justify-center items-center gap-2 transition-colors ${activeTab === 'contracts' ? 'bg-jilco-50 text-jilco-800 border-b-4 border-jilco-600' : 'text-gray-500 hover:bg-gray-50'}`}><Wrench size={18} /> سجل العقود</button>
