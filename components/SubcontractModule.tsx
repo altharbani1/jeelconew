@@ -705,6 +705,7 @@ export const SubcontractModule: React.FC = () => {
                                         </span>
                                     </div>
                                     <div className="flex gap-2">
+                                        {contract.status === 'draft' && <button disabled={busy || !canManage} onClick={() => void updateSubcontract(contract.id, { status: 'active' })} className="text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1 hover:bg-emerald-100 disabled:opacity-50"><CheckCircle2 size={14} /> تفعيل العقد</button>}
                                         <button onClick={() => { setCurrentSubcontract(contract); setShowSubcontractForm(true); }} className="text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1 hover:bg-blue-100"><Edit size={14} /> تعديل</button>
                                         <button disabled={busy || !canManage} onClick={() => { if (window.confirm('هل أنت متأكد من حذف هذا العقد؟')) deleteSubcontract(contract.id); }} className="text-red-600 bg-red-50 px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1 hover:bg-red-100"><Trash2 size={14} /> حذف</button>
                                     </div>
@@ -767,7 +768,7 @@ export const SubcontractModule: React.FC = () => {
                                 <div className="p-4 border-t border-gray-100 bg-white">
                                     <div className="flex justify-between items-center mb-3">
                                         <h4 className="font-bold text-sm text-gray-800 flex items-center gap-2"><DollarSign size={16} className="text-green-600" /> سجل الدفعات والمستخلصات</h4>
-                                        <button disabled={!canManage || busy} onClick={() => { setSelectedContractId(contract.id); setCurrentPayment({ status: 'pending', dueDate: new Date().toISOString().split('T')[0] }); setShowPaymentForm(true); }} className="text-xs font-bold bg-green-50 text-green-700 px-3 py-1.5 rounded-lg border border-green-200 hover:bg-green-100 flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed">
+                                        <button disabled={!canManage || busy || contract.status !== 'active'} title={contract.status !== 'active' ? 'فعّل العقد أولاً' : 'إضافة دفعة مستحقة'} onClick={() => { setSelectedContractId(contract.id); setCurrentPayment({ status: 'pending', dueDate: new Date().toISOString().split('T')[0] }); setShowPaymentForm(true); }} className="text-xs font-bold bg-green-50 text-green-700 px-3 py-1.5 rounded-lg border border-green-200 hover:bg-green-100 flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed">
                                             <Plus size={14} /> إضافة دفعة مستحقة
                                         </button>
                                     </div>
