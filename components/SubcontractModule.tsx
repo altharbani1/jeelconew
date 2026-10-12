@@ -75,6 +75,11 @@ export const SubcontractModule: React.FC = () => {
         return { activeContracts, totalCommitted, totalPaid, totalPending, pendingEngineering, pendingFinance, overduePending };
     }, [subcontracts]);
 
+    const filteredContracts = useMemo(() => subcontracts.filter(c =>
+        (contractStatusFilter === 'all' || c.status === contractStatusFilter) &&
+        [c.number, c.subcontractorName, c.projectName, c.scopeOfWork].some(v => v?.toLowerCase().includes(searchTerm.trim().toLowerCase()))
+    ), [subcontracts, contractStatusFilter, searchTerm]);
+
     // --- SUBCONTRACTOR ACTIONS ---
     const handleSaveSubcontractor = async () => {
         if (!currentSubcontractor.name || !currentSubcontractor.specialty) {
@@ -564,6 +569,20 @@ export const SubcontractModule: React.FC = () => {
 
                 {activeTab === 'documents' && <SubcontractDocumentsPanel subcontracts={subcontracts} subcontractors={subcontractors} canManage={canManage} />}
 
+                {activeTab === 'contracts' && <div className="mb-5 rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden animate-fade-in">
+                    <div className="p-4 md:p-5 bg-gradient-to-l from-jilco-950 to-jilco-800 text-white flex flex-wrap items-center justify-between gap-4">
+                        <div><h2 className="text-lg font-black">سجل عقود مقاولي الباطن</h2><p className="text-xs text-white/70 mt-1">متابعة القيمة والإنجاز والالتزامات في شاشة واحدة</p></div>
+                        <div className="flex items-center gap-2 text-xs font-bold"><span className="px-3 py-1.5 rounded-full bg-white/15">{filteredContracts.length} عقد ظاهر</span><span className="px-3 py-1.5 rounded-full bg-white/15">{filteredContracts.reduce((sum, c) => sum + Number(c.totalAmount || 0), 0).toLocaleString('ar-SA')} ر.س</span></div>
+                    </div>
+                    <div className="p-4 grid grid-cols-2 md:grid-cols-4 gap-3 border-b border-slate-100">
+                        {[['all','كل العقود',subcontracts.length,'text-slate-700'],['active','قيد التنفيذ',subcontracts.filter(c => c.status === 'active').length,'text-blue-700'],['draft','مسودات',subcontracts.filter(c => c.status === 'draft').length,'text-amber-700'],['completed','مكتملة',subcontracts.filter(c => c.status === 'completed').length,'text-emerald-700']].map(([value,label,count,color]) => <button key={value} onClick={() => setContractStatusFilter(value as any)} className={`text-right p-3 rounded-xl border transition ${contractStatusFilter === value ? 'border-jilco-500 ring-2 ring-jilco-100 bg-jilco-50' : 'border-slate-200 hover:bg-slate-50'}`}><span className="block text-xs font-bold text-slate-500">{label}</span><strong className={`text-xl font-black ${color}`}>{count}</strong></button>)}
+                    </div>
+                    <div className="px-4 py-3 flex flex-wrap gap-3 items-center bg-slate-50/70">
+                        <div className="relative flex-1 min-w-[220px]"><Search size={16} className="absolute right-3 top-3 text-slate-400" /><input aria-label="بحث متقدم في سجل العقود" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="ابحث برقم العقد أو المقاول أو المشروع" className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pr-9 pl-3 text-sm font-bold outline-none focus:border-jilco-500" /></div>
+                        <button onClick={() => { setSearchTerm(''); setContractStatusFilter('all'); }} className="px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-sm font-bold hover:bg-slate-100">إعادة ضبط</button>
+                    </div>
+                </div>}
+
                 {/* Dashboard Tab Content */}
                 {activeTab === 'dashboard' && (
                     <div className="animate-fade-in grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -673,7 +692,7 @@ export const SubcontractModule: React.FC = () => {
                 {/* Contracts Tab */}
                 {activeTab === 'contracts' && (
                     <div className="animate-fade-in space-y-4">
-                        {subcontracts.filter(c => (contractStatusFilter === 'all' || c.status === contractStatusFilter) && [c.number, c.subcontractorName, c.projectName].some(v => v?.toLowerCase().includes(searchTerm.trim().toLowerCase()))).map(contract => (
+                        {filteredContracts.map(contract => (
                             <div key={contract.id} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
                                 <div className="p-4 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
                                     <div className="flex items-center gap-4">
