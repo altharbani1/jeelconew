@@ -303,41 +303,41 @@ export const MaintenanceModule: React.FC = () => {
 
         return (
             <div className="space-y-6 animate-fade-in">
-            <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-6">
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between">
+            <div className="grid grid-cols-2 lg:grid-cols-5 gap-2 sm:gap-3">
+                <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between">
                     <div>
                         <p className="text-sm font-bold text-gray-500 mb-1">عقود صيانة نشطة</p>
                         <p className="text-3xl font-black text-jilco-900">{activeContractsCount}</p>
                     </div>
-                    <div className="w-14 h-14 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600"><FileText size={28} /></div>
+                    <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center text-blue-600"><FileText size={21} /></div>
                 </div>
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between">
+                <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between">
                     <div>
                         <p className="text-sm font-bold text-gray-500 mb-1">زيارات مستحقة</p>
                         <p className="text-3xl font-black text-purple-600">{dueVisits.length}</p>
                     </div>
-                    <div className="w-14 h-14 bg-purple-50 rounded-2xl flex items-center justify-center text-purple-600"><Calendar size={28} /></div>
+                    <div className="w-10 h-10 bg-purple-50 rounded-xl flex items-center justify-center text-purple-600"><Calendar size={21} /></div>
                 </div>
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between">
+                <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between">
                     <div>
                         <p className="text-sm font-bold text-gray-500 mb-1">تذاكر مفتوحة</p>
                         <p className="text-3xl font-black text-red-600">{openTicketsCount}</p>
                     </div>
-                    <div className="w-14 h-14 bg-red-50 rounded-2xl flex items-center justify-center text-red-500"><AlertTriangle size={28} /></div>
+                    <div className="w-10 h-10 bg-red-50 rounded-xl flex items-center justify-center text-red-500"><AlertTriangle size={21} /></div>
                 </div>
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between">
+                <div className="bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex items-center justify-between">
                     <div>
                         <p className="text-sm font-bold text-gray-500 mb-1">تم إنجازها</p>
                         <p className="text-3xl font-black text-green-600">{resolvedTicketsCount}</p>
                     </div>
-                    <div className="w-14 h-14 bg-green-50 rounded-2xl flex items-center justify-center text-green-500"><CheckCircle2 size={28} /></div>
+                    <div className="w-10 h-10 bg-green-50 rounded-xl flex items-center justify-center text-green-500"><CheckCircle2 size={21} /></div>
                 </div>
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-red-100 flex items-center justify-between">
+                <div className="bg-white p-4 rounded-xl shadow-sm border border-red-100 flex items-center justify-between">
                     <div>
                         <p className="text-sm font-bold text-gray-500 mb-1">متجاوزة للـ SLA</p>
                         <p className="text-3xl font-black text-red-600">{overdueTicketsCount}</p>
                     </div>
-                    <div className="w-14 h-14 bg-red-50 rounded-2xl flex items-center justify-center text-red-600"><Clock size={28} /></div>
+                    <div className="w-10 h-10 bg-red-50 rounded-xl flex items-center justify-center text-red-600"><Clock size={21} /></div>
                 </div>
             </div>
             <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
@@ -527,8 +527,8 @@ export const MaintenanceModule: React.FC = () => {
     };
 
     return (
-        <div className="flex-1 bg-gray-100 p-3 sm:p-5 lg:p-8 h-full overflow-auto print:block print:bg-white print:p-0 print:overflow-visible print:absolute print:inset-0 print:z-50 print:h-auto">
-            <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6">
+        <div className="flex-1 bg-gray-100 p-2 sm:p-4 lg:p-5 h-full overflow-auto print:block print:bg-white print:p-0 print:overflow-visible print:absolute print:inset-0 print:z-50 print:h-auto">
+            <div className="max-w-6xl mx-auto space-y-3 sm:space-y-4">
 
                 {/* Header */}
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-3 mb-4 sm:mb-6">
@@ -560,12 +560,12 @@ export const MaintenanceModule: React.FC = () => {
             {/* Contract Modal */}
             {showContractCreator && (
                 <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden animate-in zoom-in-95">
-                        <div className="bg-jilco-900 p-6 flex justify-between items-center text-white">
+                    <div className="bg-white rounded-xl shadow-2xl w-full max-w-xl max-h-[88vh] overflow-y-auto animate-in zoom-in-95">
+                        <div className="bg-jilco-900 p-4 flex justify-between items-center text-white">
                             <h2 className="text-xl font-bold flex items-center gap-2"><FileText /> {currentContract.id ? 'تعديل عقد' : 'إنشاء عقد صيانة جديد'}</h2>
                             <button title="إغلاق" onClick={() => setShowContractCreator(false)} className="hover:bg-white/10 p-2 rounded-full"><Plus className="rotate-45" /></button>
                         </div>
-                        <div className="p-6 space-y-4">
+                        <div className="p-4 space-y-3">
                             <div>
                                 <label className="block text-xs font-bold text-gray-700 mb-1">العميل</label>
                                 <select title="العميل" value={currentContract.customerId || ''} onChange={(e) => setCurrentContract({ ...currentContract, customerId: e.target.value })} className="w-full p-3 border border-gray-200 rounded-xl font-bold text-sm outline-none focus:border-jilco-500">
@@ -598,12 +598,12 @@ export const MaintenanceModule: React.FC = () => {
             {/* Ticket Modal */}
             {showTicketCreator && (
                 <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden animate-in zoom-in-95">
-                        <div className="bg-red-600 p-6 flex justify-between items-center text-white">
+                    <div className="bg-white rounded-xl shadow-2xl w-full max-w-xl max-h-[88vh] overflow-y-auto animate-in zoom-in-95">
+                        <div className="bg-red-600 p-4 flex justify-between items-center text-white">
                             <h2 className="text-xl font-bold flex items-center gap-2"><AlertTriangle /> {currentTicket.id ? 'تعديل التذكرة' : 'إنشاء تذكرة صيانة/عطل'}</h2>
                             <button title="إغلاق" onClick={() => setShowTicketCreator(false)} className="hover:bg-white/10 p-2 rounded-full"><Plus className="rotate-45" /></button>
                         </div>
-                        <div className="p-6 space-y-4">
+                        <div className="p-4 space-y-3">
                             <div className="grid grid-cols-2 gap-4">
                                 <div>
                                     <label className="block text-xs font-bold text-gray-700 mb-1">العميل المُبلغ</label>
@@ -688,9 +688,9 @@ export const MaintenanceModule: React.FC = () => {
             {/* Appointment Modal */}
             {showVisitCreator && (
                 <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95">
-                        <div className="bg-purple-700 p-6 flex justify-between items-center text-white"><h2 className="text-xl font-bold flex items-center gap-2"><CalendarDays /> {currentVisit.id ? 'تعديل موعد الصيانة' : 'إضافة موعد صيانة'}</h2><button title="إغلاق" onClick={() => setShowVisitCreator(false)} className="hover:bg-white/10 p-2 rounded-full"><Plus className="rotate-45" /></button></div>
-                        <div className="p-6 space-y-4">
+                    <div className="bg-white rounded-xl shadow-2xl w-full max-w-md max-h-[88vh] overflow-y-auto animate-in zoom-in-95">
+                        <div className="bg-purple-700 p-4 flex justify-between items-center text-white"><h2 className="text-lg font-bold flex items-center gap-2"><CalendarDays size={20} /> {currentVisit.id ? 'تعديل موعد الصيانة' : 'إضافة موعد صيانة'}</h2><button title="إغلاق" onClick={() => setShowVisitCreator(false)} className="hover:bg-white/10 p-2 rounded-full"><Plus className="rotate-45" /></button></div>
+                        <div className="p-4 space-y-3">
                             <div><label className="block text-xs font-bold text-gray-700 mb-1">عقد الصيانة</label><select title="عقد الصيانة" value={currentVisit.contractId || ''} onChange={e => setCurrentVisit({ ...currentVisit, contractId: e.target.value })} className="w-full p-3 border rounded-xl font-bold text-sm"><option value="">-- اختر العقد --</option>{contracts.filter(c => c.status === 'active').map(c => <option key={c.id} value={c.id}>{c.number} — {getCustomerName(c.customerId)}</option>)}</select></div>
                             <div className="grid grid-cols-2 gap-4"><div><label className="block text-xs font-bold text-gray-700 mb-1">تاريخ الموعد</label><input title="تاريخ الموعد" type="date" value={currentVisit.scheduledDate || ''} onChange={e => setCurrentVisit({ ...currentVisit, scheduledDate: e.target.value })} className="w-full p-3 border rounded-xl font-bold" /></div><div><label className="block text-xs font-bold text-gray-700 mb-1">الحالة</label><select title="حالة الموعد" value={currentVisit.status || 'pending'} onChange={e => setCurrentVisit({ ...currentVisit, status: e.target.value as VisitStatus })} className="w-full p-3 border rounded-xl font-bold"><option value="pending">مجدولة</option><option value="rescheduled">مؤجلة</option><option value="completed">مكتملة</option><option value="missed">فائتة</option><option value="cancelled">ملغاة</option></select></div></div>
                             <div className="grid grid-cols-2 gap-4"><div><label className="block text-xs font-bold text-gray-700 mb-1">نوع الزيارة</label><select title="نوع الزيارة" value={currentVisit.visitType || 'preventive'} onChange={e => setCurrentVisit({ ...currentVisit, visitType: e.target.value as MaintenanceVisit['visitType'] })} className="w-full p-3 border rounded-xl font-bold"><option value="preventive">وقائية دورية</option><option value="corrective">تصحيحية / عطل</option><option value="inspection">فحص</option><option value="emergency">طارئة</option></select></div><div><label className="block text-xs font-bold text-gray-700 mb-1">المدة المخططة (دقيقة)</label><input title="المدة المخططة" type="number" min="15" step="15" value={currentVisit.plannedDurationMinutes || 60} onChange={e => setCurrentVisit({ ...currentVisit, plannedDurationMinutes: Number(e.target.value) || 60 })} className="w-full p-3 border rounded-xl font-bold" /></div></div>
@@ -711,15 +711,15 @@ export const MaintenanceModule: React.FC = () => {
             {/* Visits Schedule Modal */}
             {selectedContractForVisits && (
                 <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
-                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden animate-in zoom-in-95">
-                        <div className="bg-purple-700 p-6 flex justify-between items-center text-white shrink-0">
+                    <div className="bg-white rounded-xl shadow-2xl w-full max-w-3xl max-h-[86vh] flex flex-col overflow-hidden animate-in zoom-in-95">
+                        <div className="bg-purple-700 p-4 flex justify-between items-center text-white shrink-0">
                             <div>
                                 <h2 className="text-xl font-bold flex items-center gap-2"><Calendar /> جدول الزيارات الدورية</h2>
                                 <p className="text-purple-200 text-sm mt-1">عقد رقم: {contracts.find(c => c.id === selectedContractForVisits)?.number}</p>
                             </div>
                             <button title="إغلاق" onClick={() => setSelectedContractForVisits(null)} className="hover:bg-white/10 p-2 rounded-full"><Plus className="rotate-45" /></button>
                         </div>
-                        <div className="p-6 overflow-y-auto flex-1 bg-gray-50">
+                        <div className="p-4 overflow-y-auto flex-1 bg-gray-50">
                             {visits.filter(v => v.contractId === selectedContractForVisits).length === 0 ? (
                                 <div className="text-center py-12 text-gray-400 font-bold">لا توجد زيارات مجدولة لهذا العقد. (تم إنشاء العقد قبل تحديث النظام)</div>
                             ) : (
