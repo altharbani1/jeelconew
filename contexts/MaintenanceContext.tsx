@@ -25,16 +25,22 @@ const MaintenanceContext = createContext<MaintenanceContextType | undefined>(und
 
 const overlaps = (a: MaintenanceVisit, b: MaintenanceVisit) => {
     if (a.scheduledDate !== b.scheduledDate || !a.technicianId || a.technicianId !== b.technicianId) return false;
-    // Existing date-only visits remain compatible; only reject an overlap when both visits have times.
+    // Date-only legacy visits remain compatible because their duration is unknown.
     if (!a.startTime || !a.endTime || !b.startTime || !b.endTime) return false;
     return a.startTime < b.endTime && b.startTime < a.endTime;
 };
 
 const assertNoTechnicianConflict = (candidate: MaintenanceVisit, visits: MaintenanceVisit[]) => {
+    if ((candidate.startTime && !candidate.endTime) || (!candidate.startTime && candidate.endTime)) {
+        throw new Error('يجب إدخال وقت البداية والنهاية معًا أو تركهما فارغين');
+    }
     if (candidate.startTime && candidate.endTime && candidate.startTime >= candidate.endTime) {
         throw new Error('وقت نهاية الموعد يجب أن يكون بعد وقت البداية');
     }
-    const conflict = visits.find(existing => existing.id !== candidate.id && existing.status !== 'missed' && overlaps(candidate, existing));
+    const conflict = visits.find(existing => existing.id !== candidate.id
+        && !['completed', 'missed', 'cancelled'].includes(existing.status)
+        && existing.workOrderStatus !== 'cancelled'
+        && overlaps(candidate, existing));
     if (conflict) throw new Error(`الفني مرتبط بموعد متعارض في ${conflict.scheduledDate} من ${conflict.startTime} إلى ${conflict.endTime}`);
 };
 
@@ -47,12 +53,27 @@ export const MaintenanceProvider: React.FC<{ children: ReactNode }> = ({ childre
 
     // Keep the existing localStorage keys as a fast offline cache while syncing
     // the same records through the shared Supabase-backed cloud store.
+    const normalizeVisit = (visit: MaintenanceVisit): MaintenanceVisit => ({
+        ...visit,
+        // These defaults make old date-only rows participate in the new ERP model
+        // without changing their historical status or scheduled date.
+        visitType: visit.visitType || (visit.ticketId ? 'corrective' : 'preventive'),
+        workOrderStatus: visit.workOrderStatus || (visit.status === 'completed' ? 'completed' : 'not_started'),
+        plannedDurationMinutes: visit.plannedDurationMinutes || 60,
+        priority: visit.priority || (visit.ticketId ? 'high' : 'medium')
+    });
+    const setNormalizedVisits: React.Dispatch<React.SetStateAction<any[]>> = action => {
+        setVisits(previous => {
+            const next = typeof action === 'function' ? action(previous) : action;
+            return next.map(normalizeVisit);
+        });
+    };
     const modules = [
         { collection: 'jilco_maintenance_contracts', stateSetter: setContracts as React.Dispatch<React.SetStateAction<any[]>> },
         { collection: 'jilco_maintenance_tickets', stateSetter: setTickets as React.Dispatch<React.SetStateAction<any[]>> },
         { collection: 'jilco_maintenance_ticket_events', stateSetter: setTicketEvents as React.Dispatch<React.SetStateAction<any[]>> },
         { collection: 'jilco_maintenance_part_usages', stateSetter: setPartUsages as React.Dispatch<React.SetStateAction<any[]>> },
-        { collection: 'jilco_maintenance_visits', stateSetter: setVisits as React.Dispatch<React.SetStateAction<any[]>> }
+        { collection: 'jilco_maintenance_visits', stateSetter: setNormalizedVisits }
     ];
     const { syncStatus, saveRecord, deleteRecord } = useCloudSync(modules);
 
@@ -76,7 +97,13 @@ export const MaintenanceProvider: React.FC<{ children: ReactNode }> = ({ childre
                 id: `VISIT-${contract.id}-${i}`,
                 contractId: contract.id,
                 scheduledDate: scheduledDate.toISOString().split('T')[0],
-                status: 'pending'
+                sequenceNumber: i,
+                recurrenceKey: `${contract.id}:${i}`,
+                visitType: 'preventive',
+                plannedDurationMinutes: 60,
+                priority: 'medium',
+                status: 'pending',
+                workOrderStatus: 'not_started'
             });
         }
 
@@ -120,7 +147,13 @@ export const MaintenanceProvider: React.FC<{ children: ReactNode }> = ({ childre
                     id: `VISIT-${contract.id}-${index + 1}`,
                     contractId: contract.id,
                     scheduledDate,
-                    status: 'pending'
+                    sequenceNumber: index + 1,
+                    recurrenceKey: `${contract.id}:${index + 1}`,
+                    visitType: 'preventive',
+                    plannedDurationMinutes: 60,
+                    priority: 'medium',
+                    status: 'pending',
+                    workOrderStatus: 'not_started'
                 };
                 nextVisits.push(next);
                 writes.push(saveRecord('jilco_maintenance_visits', next.id, next));
@@ -241,22 +274,29 @@ export const MaintenanceProvider: React.FC<{ children: ReactNode }> = ({ childre
         const current = visits.find(visit => visit.id === id);
         if (!current) return;
         const nextStatus = updatedFields.status ?? current.status;
-        const updated = {
+        const updated: MaintenanceVisit = {
             ...current,
             ...updatedFields,
+            ...normalizeVisit({ ...current, ...updatedFields }),
             completedDate: nextStatus === 'completed'
                 ? (updatedFields.completedDate || current.completedDate || new Date().toISOString().split('T')[0])
                 : updatedFields.status ? undefined : (updatedFields.completedDate ?? current.completedDate)
         };
         assertNoTechnicianConflict(updated, visits);
         setVisits(prev => prev.map(v => v.id === id ? updated : v));
-        await saveRecord('jilco_maintenance_visits', id, updated);
+        const saved = await saveRecord('jilco_maintenance_visits', id, updated);
+        if (!saved) throw new Error('تعذر تحديث موعد الصيانة');
     };
 
     const addVisit = async (visit: MaintenanceVisit) => {
-        assertNoTechnicianConflict(visit, visits);
-        setVisits(prev => [...prev, visit]);
-        await saveRecord('jilco_maintenance_visits', visit.id, visit);
+        const normalized = normalizeVisit(visit);
+        assertNoTechnicianConflict(normalized, visits);
+        setVisits(prev => [...prev, normalized]);
+        const saved = await saveRecord('jilco_maintenance_visits', normalized.id, normalized);
+        if (!saved) {
+            setVisits(prev => prev.filter(existing => existing.id !== normalized.id));
+            throw new Error('تعذر حفظ موعد الصيانة');
+        }
     };
 
     return (

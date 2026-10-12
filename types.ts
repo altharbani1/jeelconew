@@ -753,7 +753,10 @@ export interface MaintenanceTicket {
   customerSignature?: string;
 }
 
-export type VisitStatus = 'pending' | 'completed' | 'missed' | 'rescheduled';
+/** Lifecycle of a planned field visit. `pending` is retained for legacy rows. */
+export type VisitStatus = 'pending' | 'completed' | 'missed' | 'rescheduled' | 'cancelled';
+export type MaintenanceVisitType = 'preventive' | 'corrective' | 'inspection' | 'emergency';
+export type WorkOrderStatus = 'not_started' | 'in_progress' | 'on_hold' | 'completed' | 'cancelled';
 
 export interface MaintenanceVisit {
   id: string;
@@ -764,7 +767,23 @@ export interface MaintenanceVisit {
   completedDate?: string; // YYYY-MM-DD
   technicianId?: string; // ID from HR
   ticketId?: string; // Linked fault ticket / work order
-  workOrderStatus?: 'not_started' | 'in_progress' | 'completed' | 'cancelled';
+  /** Preventive/corrective classification used by ERP reporting. */
+  visitType?: MaintenanceVisitType;
+  /** Stable occurrence number within a contract schedule. */
+  sequenceNumber?: number;
+  /** Stable key used to reconcile recurring contract visits without duplicates. */
+  recurrenceKey?: string;
+  /** Expected effort; used when a visit has no explicit end time. */
+  plannedDurationMinutes?: number;
+  /** Actual field execution timestamps, kept separate from the scheduled slot. */
+  actualStartAt?: string;
+  actualEndAt?: string;
+  /** Optional asset/elevator and site information for technician dispatch. */
+  assetId?: string;
+  location?: string;
+  priority?: TicketPriority;
+  rescheduleReason?: string;
+  workOrderStatus?: WorkOrderStatus;
   workOrderNotes?: string;
   status: VisitStatus;
   notes?: string;
