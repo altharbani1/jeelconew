@@ -523,61 +523,90 @@ export const ProjectModule: React.FC = () => {
 
     // --- List View ---
     if (viewMode === 'list' || viewMode === 'dashboard') {
+        const normalizedSearch = searchTerm.trim().toLocaleLowerCase('ar');
+        const filteredProjects = projects.filter(p => {
+            if (!normalizedSearch) return true;
+            return `${p.name} ${p.clientName}`.toLocaleLowerCase('ar').includes(normalizedSearch);
+        });
         const stats = {
             total: projects.length,
             active: projects.filter(p => p.status === 'in_progress').length,
-            completed: projects.filter(p => p.status === 'completed').length
+            completed: projects.filter(p => p.status === 'completed').length,
+            averageProgress: projects.length > 0
+                ? Math.round(projects.reduce((sum, project) => sum + (project.progress || 0), 0) / projects.length)
+                : 0
         };
 
         return (
-            <div className="flex-1 bg-gray-100 p-8 overflow-auto h-full animate-fade-in relative">
-                <div className="max-w-6xl mx-auto">
-                    <div className="flex justify-between items-end mb-8">
-                        <div>
-                            <h1 className="text-2xl font-bold text-jilco-900 flex items-center gap-2">
-                                <Briefcase className="text-gold-500" /> إدارة المشاريع
-                            </h1>
-                            <p className="text-gray-500 text-sm mt-1">متابعة سير العمل، المراحل، والتكاليف</p>
+            <div className="flex-1 bg-slate-50 p-4 md:p-8 overflow-auto h-full animate-fade-in relative" dir="rtl">
+                <div className="max-w-7xl mx-auto space-y-6">
+                    <section className="relative overflow-hidden rounded-3xl bg-gradient-to-l from-jilco-950 via-jilco-900 to-slate-800 px-5 py-6 md:px-8 md:py-7 text-white shadow-xl">
+                        <div className="absolute -left-16 -top-20 h-48 w-48 rounded-full bg-gold-500/20 blur-2xl" aria-hidden="true" />
+                        <div className="relative flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
+                            <div>
+                                <div className="mb-2 flex items-center gap-2 text-gold-300 text-xs font-bold">
+                                    <LayoutDashboard size={15} /> مركز متابعة المشاريع
+                                </div>
+                                <h1 className="text-2xl md:text-3xl font-black flex items-center gap-2">
+                                    <Briefcase className="text-gold-400" /> إدارة المشاريع
+                                </h1>
+                                <p className="mt-2 text-sm text-slate-200">نظرة موحدة على التنفيذ، المراحل، والتكاليف لكل مشاريع جيلكو.</p>
+                            </div>
+                            <button onClick={() => setShowNewProjectModal(true)} className="w-full md:w-auto bg-gold-500 text-jilco-950 px-5 py-3 rounded-xl font-black flex items-center justify-center gap-2 hover:bg-gold-400 transition-colors shadow-lg focus:outline-none focus:ring-2 focus:ring-white/70">
+                                <Plus size={20} /> تسجيل مشروع جديد
+                            </button>
                         </div>
-                        <button onClick={() => setShowNewProjectModal(true)} className="bg-jilco-600 text-white px-6 py-2.5 rounded-lg font-bold flex items-center gap-2 hover:bg-jilco-700 shadow-md">
-                            <Plus size={20} /> مشروع جديد
-                        </button>
-                    </div>
+                    </section>
 
                     {/* Stats Cards */}
-                    <div className="grid grid-cols-3 gap-6 mb-8">
-                        <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
-                            <p className="text-xs font-bold text-gray-500 mb-1">إجمالي المشاريع</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+                        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                            <p className="text-xs font-bold text-slate-500 mb-1">إجمالي المشاريع</p>
                             <p className="text-3xl font-black text-jilco-900">{stats.total}</p>
+                            <p className="text-xs text-slate-400 mt-2">كل المشاريع المسجلة</p>
                         </div>
-                        <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
-                            <p className="text-xs font-bold text-gray-500 mb-1">مشاريع نشطة</p>
+                        <div className="bg-white p-5 rounded-2xl border border-blue-100 shadow-sm">
+                            <p className="text-xs font-bold text-slate-500 mb-1">مشاريع نشطة</p>
                             <p className="text-3xl font-black text-blue-600">{stats.active}</p>
+                            <p className="text-xs text-slate-400 mt-2">قيد التنفيذ حاليًا</p>
                         </div>
-                        <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
-                            <p className="text-xs font-bold text-gray-500 mb-1">مشاريع مكتملة</p>
+                        <div className="bg-white p-5 rounded-2xl border border-green-100 shadow-sm">
+                            <p className="text-xs font-bold text-slate-500 mb-1">مشاريع مكتملة</p>
                             <p className="text-3xl font-black text-green-600">{stats.completed}</p>
+                            <p className="text-xs text-slate-400 mt-2">تم إنجازها وإغلاقها</p>
+                        </div>
+                        <div className="bg-white p-5 rounded-2xl border border-gold-100 shadow-sm">
+                            <p className="text-xs font-bold text-slate-500 mb-1">متوسط الإنجاز</p>
+                            <p className="text-3xl font-black text-gold-600">{stats.averageProgress}%</p>
+                            <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-100" role="progressbar" aria-label="متوسط إنجاز المشاريع" aria-valuenow={stats.averageProgress} aria-valuemin={0} aria-valuemax={100}>
+                                <div className="h-full rounded-full bg-gold-500 transition-all" style={{ width: `${stats.averageProgress}%` }} />
+                            </div>
                         </div>
                     </div>
 
-                    <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-                        <div className="p-4 border-b border-gray-100">
-                            <div className="relative max-w-md">
+                    <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                        <div className="p-4 md:p-5 border-b border-slate-100 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                            <div>
+                                <h2 className="font-black text-jilco-900">سجل المشاريع</h2>
+                                <p className="text-xs text-slate-500 mt-1">{filteredProjects.length} من {projects.length} مشروع ظاهر</p>
+                            </div>
+                            <div className="relative w-full md:max-w-sm">
                                 <Search className="absolute right-3 top-2.5 text-gray-400" size={18} />
                                 <input
+                                    id="search-projects"
                                     title="Search Projects"
                                     type="text" placeholder="بحث باسم المشروع أو العميل..."
                                     value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
-                                    className="w-full pr-10 pl-4 py-2 border border-gray-400 rounded-lg text-sm bg-white text-black font-bold focus:ring-2 focus:ring-jilco-500 outline-none"
+                                    className="w-full pr-10 pl-4 py-2.5 border border-slate-300 rounded-xl text-sm bg-white text-slate-900 font-bold focus:ring-2 focus:ring-jilco-500 outline-none"
                                 />
                             </div>
                         </div>
-                        <table className="w-full text-sm text-right">
-                            <thead className="bg-gray-50 text-gray-500 font-medium">
+                        <div className="overflow-x-auto">
+                        <table className="w-full min-w-[760px] text-sm text-right">
+                            <thead className="bg-slate-50 text-slate-500 font-bold">
                                 <tr>
                                     <th className="p-4">
                                         المشروع
-                                        <label htmlFor="search-projects" className="sr-only">Search Projects</label>
                                     </th>
                                     <th className="p-4">العميل</th>
                                     <th className="p-4">تاريخ البداية</th>
@@ -586,16 +615,18 @@ export const ProjectModule: React.FC = () => {
                                     <th className="p-4 text-center">إجراءات</th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-gray-100">
-                                {projects.filter(p => p.name.includes(searchTerm) || p.clientName.includes(searchTerm)).map(p => (
-                                    <tr key={p.id} className="hover:bg-gray-50 group cursor-pointer" onClick={() => { setSelectedProjectId(p.id); setViewMode('details'); }}>
-                                        <td className="p-4 font-bold text-jilco-900">{p.name}</td>
-                                        <td className="p-4 font-bold text-gray-700">{p.clientName}</td>
+                            <tbody className="divide-y divide-slate-100">
+                                {filteredProjects.map(p => (
+                                    <tr key={p.id} className="hover:bg-slate-50 group cursor-pointer transition-colors" onClick={() => { setSelectedProjectId(p.id); setViewMode('details'); }}>
+                                        <td className="p-4 font-bold text-jilco-900">
+                                            <div>{p.name}</div>
+                                            <div className="text-[10px] text-slate-400 font-mono mt-1">{p.id}</div>
+                                        </td>
+                                        <td className="p-4 font-bold text-slate-700">{p.clientName}</td>
                                         <td className="p-4 font-mono text-xs text-gray-500">{p.startDate}</td>
                                         <td className="p-4">
-                                            {/* eslint-disable react/style-prop-object */}
                                             <div className="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden flex" role="progressbar" aria-label="Project Progress" aria-valuenow={String(p.progress || 0)} aria-valuemin={"0"} aria-valuemax={"100"} title={`Progress: ${p.progress}%`}>
-                                                <div className={`bg-jilco-600 h-2.5 rounded-full shrink-0 ${p.progress > 0 ? `w-[${Math.round(p.progress)}%]` : 'hidden'}`}></div>
+                                                <div className="bg-jilco-600 h-2.5 rounded-full shrink-0 transition-all" style={{ width: `${Math.max(0, Math.min(100, Math.round(p.progress || 0)))}%` }}></div>
                                             </div>
                                             <span className="text-[10px] font-bold text-gray-500 mt-1 block">{p.progress}%</span>
                                         </td>
@@ -606,9 +637,14 @@ export const ProjectModule: React.FC = () => {
                                         </td>
                                     </tr>
                                 ))}
-                                {projects.length === 0 && <tr><td colSpan={6} className="p-12 text-center text-gray-400">لا توجد مشاريع مسجلة.</td></tr>}
+                                {filteredProjects.length === 0 && <tr><td colSpan={6} className="p-12 text-center">
+                                    <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-slate-400"><Briefcase size={25} /></div>
+                                    <p className="mt-3 font-bold text-slate-600">{projects.length === 0 ? 'لا توجد مشاريع مسجلة' : 'لا توجد نتائج مطابقة'}</p>
+                                    <p className="mt-1 text-xs text-slate-400">{projects.length === 0 ? 'ابدأ بتسجيل أول مشروع لمتابعة مراحله وتكاليفه.' : 'جرّب البحث باسم مختلف أو امسح عبارة البحث.'}</p>
+                                </td></tr>}
                             </tbody>
                         </table>
+                        </div>
                     </div>
                 </div>
                 {showNewProjectModal && renderNewProjectModal()}
