@@ -56,6 +56,8 @@ function useSubcontractState() {
             const rawMessage = e?.message || '';
             const message = /completion requires 100 percent progress/i.test(rawMessage)
                 ? 'لا يمكن اعتماد العقد كمكتمل قبل تسجيل نسبة إنجاز 100٪.'
+                : /null value in column "subcontract_id" of relation "subcontract_vouchers"/i.test(rawMessage)
+                    ? 'يجب اختيار عقد مقاول الباطن قبل حفظ سند الصرف.'
                 : (rawMessage || 'تعذر تنفيذ العملية');
             setError(message); return false;
         }

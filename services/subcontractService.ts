@@ -69,6 +69,7 @@ export const subcontractService = {
     };
   },
   async saveDocument(table: 'subcontract_work_orders' | 'subcontract_receipts' | 'subcontract_vouchers', company: string, value: any, existing?: any) {
+    if (!value.subcontractId?.trim()) throw new Error('يجب اختيار عقد مقاول الباطن قبل حفظ المستند.');
     const fields = table === 'subcontract_work_orders' ? workOrderFields : table === 'subcontract_receipts' ? receiptFields : voucherFields;
     const payload = Object.fromEntries(Object.entries(fields).filter(([key]) => value[key] !== undefined)
       .map(([key, column]) => [column, value[key] === '' ? null : value[key]]));

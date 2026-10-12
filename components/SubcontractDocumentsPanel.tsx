@@ -48,6 +48,7 @@ export const SubcontractDocumentsPanel: React.FC<{ subcontracts: Subcontract[]; 
   const createDocument = () => {
     if (!draft.title?.trim() || !draft.description?.trim()) return alert('أدخل عنوان المستند ووصفه قبل الحفظ');
     const type = (draft.type || 'work_order') as DocumentType;
+    if (type !== 'statement' && !draft.subcontractId) return alert('اختر عقد مقاول الباطن المرتبط بالمستند قبل الحفظ');
     const prefix = type === 'voucher' ? 'PV' : type === 'work_order' ? 'WO' : type === 'receiving' ? 'GRN' : 'ST';
     const id = crypto.randomUUID();
     const number = `${prefix}-${new Date().getFullYear()}-${String(records.length + 1).padStart(4, '0')}`;
