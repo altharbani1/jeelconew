@@ -1,17 +1,19 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, ReactNode } from 'react';
 import { MaintenanceContract, MaintenanceTicket, MaintenanceVisit } from '../types';
+import { useCloudSync } from '../lib/useCloudSync';
 
 interface MaintenanceContextType {
     contracts: MaintenanceContract[];
     tickets: MaintenanceTicket[];
     visits: MaintenanceVisit[];
-    addContract: (contract: MaintenanceContract) => void;
-    updateContract: (id: string, contract: Partial<MaintenanceContract>) => void;
-    deleteContract: (id: string) => void;
-    addTicket: (ticket: MaintenanceTicket) => void;
-    updateTicket: (id: string, ticket: Partial<MaintenanceTicket>) => void;
-    deleteTicket: (id: string) => void;
-    updateVisit: (id: string, visit: Partial<MaintenanceVisit>) => void;
+    addContract: (contract: MaintenanceContract) => Promise<void>;
+    updateContract: (id: string, contract: Partial<MaintenanceContract>) => Promise<void>;
+    deleteContract: (id: string) => Promise<void>;
+    addTicket: (ticket: MaintenanceTicket) => Promise<void>;
+    updateTicket: (id: string, ticket: Partial<MaintenanceTicket>) => Promise<void>;
+    deleteTicket: (id: string) => Promise<void>;
+    updateVisit: (id: string, visit: Partial<MaintenanceVisit>) => Promise<void>;
+    syncStatus: 'idle' | 'syncing' | 'synced' | 'error';
 }
 
 const MaintenanceContext = createContext<MaintenanceContextType | undefined>(undefined);
@@ -21,31 +23,16 @@ export const MaintenanceProvider: React.FC<{ children: ReactNode }> = ({ childre
     const [tickets, setTickets] = useState<MaintenanceTicket[]>([]);
     const [visits, setVisits] = useState<MaintenanceVisit[]>([]);
 
-    // Load from local storage on mount
-    useEffect(() => {
-        const savedContracts = localStorage.getItem('jilco_maintenance_contracts');
-        const savedTickets = localStorage.getItem('jilco_maintenance_tickets');
-        const savedVisits = localStorage.getItem('jilco_maintenance_visits');
+    // Keep the existing localStorage keys as a fast offline cache while syncing
+    // the same records through the shared Supabase-backed cloud store.
+    const modules = [
+        { collection: 'jilco_maintenance_contracts', stateSetter: setContracts as React.Dispatch<React.SetStateAction<any[]>> },
+        { collection: 'jilco_maintenance_tickets', stateSetter: setTickets as React.Dispatch<React.SetStateAction<any[]>> },
+        { collection: 'jilco_maintenance_visits', stateSetter: setVisits as React.Dispatch<React.SetStateAction<any[]>> }
+    ];
+    const { syncStatus, saveRecord, deleteRecord } = useCloudSync(modules);
 
-        if (savedContracts) setContracts(JSON.parse(savedContracts));
-        if (savedTickets) setTickets(JSON.parse(savedTickets));
-        if (savedVisits) setVisits(JSON.parse(savedVisits));
-    }, []);
-
-    // Save to local storage when state changes
-    useEffect(() => {
-        localStorage.setItem('jilco_maintenance_contracts', JSON.stringify(contracts));
-    }, [contracts]);
-
-    useEffect(() => {
-        localStorage.setItem('jilco_maintenance_tickets', JSON.stringify(tickets));
-    }, [tickets]);
-
-    useEffect(() => {
-        localStorage.setItem('jilco_maintenance_visits', JSON.stringify(visits));
-    }, [visits]);
-
-    const generateVisitsForContract = (contract: MaintenanceContract) => {
+    const generateVisitsForContract = async (contract: MaintenanceContract) => {
         const newVisits: MaintenanceVisit[] = [];
         const startDate = new Date(contract.startDate);
         const endDate = new Date(contract.endDate);
@@ -68,33 +55,56 @@ export const MaintenanceProvider: React.FC<{ children: ReactNode }> = ({ childre
         }
 
         setVisits(prev => [...prev, ...newVisits]);
+        await Promise.all(newVisits.map(visit => saveRecord('jilco_maintenance_visits', visit.id, visit)));
     };
 
     // Actions
-    const addContract = (contract: MaintenanceContract) => {
+    const addContract = async (contract: MaintenanceContract) => {
         setContracts(prev => [...prev, contract]);
-        generateVisitsForContract(contract);
+        await saveRecord('jilco_maintenance_contracts', contract.id, contract);
+        await generateVisitsForContract(contract);
     };
 
-    const updateContract = (id: string, updatedFields: Partial<MaintenanceContract>) => {
-        setContracts(prev => prev.map(c => c.id === id ? { ...c, ...updatedFields } : c));
+    const updateContract = async (id: string, updatedFields: Partial<MaintenanceContract>) => {
+        const current = contracts.find(contract => contract.id === id);
+        if (!current) return;
+        const updated = { ...current, ...updatedFields };
+        setContracts(prev => prev.map(c => c.id === id ? updated : c));
+        await saveRecord('jilco_maintenance_contracts', id, updated);
     };
 
-    const deleteContract = (id: string) => {
+    const deleteContract = async (id: string) => {
+        const linkedVisits = visits.filter(visit => visit.contractId === id);
         setContracts(prev => prev.filter(c => c.id !== id));
-        setVisits(prev => prev.filter(v => v.contractId !== id));
+        setVisits(prev => prev.filter(visit => visit.contractId !== id));
+        await deleteRecord('jilco_maintenance_contracts', id);
+        await Promise.all(linkedVisits.map(visit => deleteRecord('jilco_maintenance_visits', visit.id)));
     };
 
-    const addTicket = (ticket: MaintenanceTicket) => setTickets(prev => [...prev, ticket]);
-
-    const updateTicket = (id: string, updatedFields: Partial<MaintenanceTicket>) => {
-        setTickets(prev => prev.map(t => t.id === id ? { ...t, ...updatedFields } : t));
+    const addTicket = async (ticket: MaintenanceTicket) => {
+        setTickets(prev => [...prev, ticket]);
+        await saveRecord('jilco_maintenance_tickets', ticket.id, ticket);
     };
 
-    const deleteTicket = (id: string) => setTickets(prev => prev.filter(t => t.id !== id));
+    const updateTicket = async (id: string, updatedFields: Partial<MaintenanceTicket>) => {
+        const current = tickets.find(ticket => ticket.id === id);
+        if (!current) return;
+        const updated = { ...current, ...updatedFields };
+        setTickets(prev => prev.map(t => t.id === id ? updated : t));
+        await saveRecord('jilco_maintenance_tickets', id, updated);
+    };
 
-    const updateVisit = (id: string, updatedFields: Partial<MaintenanceVisit>) => {
-        setVisits(prev => prev.map(v => v.id === id ? { ...v, ...updatedFields } : v));
+    const deleteTicket = async (id: string) => {
+        setTickets(prev => prev.filter(t => t.id !== id));
+        await deleteRecord('jilco_maintenance_tickets', id);
+    };
+
+    const updateVisit = async (id: string, updatedFields: Partial<MaintenanceVisit>) => {
+        const current = visits.find(visit => visit.id === id);
+        if (!current) return;
+        const updated = { ...current, ...updatedFields };
+        setVisits(prev => prev.map(v => v.id === id ? updated : v));
+        await saveRecord('jilco_maintenance_visits', id, updated);
     };
 
     return (
@@ -102,7 +112,8 @@ export const MaintenanceProvider: React.FC<{ children: ReactNode }> = ({ childre
             contracts, tickets, visits,
             addContract, updateContract, deleteContract,
             addTicket, updateTicket, deleteTicket,
-            updateVisit
+            updateVisit,
+            syncStatus
         }}>
             {children}
         </MaintenanceContext.Provider>
