@@ -1,5 +1,5 @@
 import { supabase } from './supabaseClient';
-import { Subcontract, Subcontractor } from '../types';
+import { Subcontract, Subcontractor, SubcontractWorkOrder, SubcontractReceipt, SubcontractVoucher, SubcontractAccountEntry } from '../types';
 
 const contractorFields: Record<string, string> = {
   name: 'name', contactPerson: 'contact_person', phone: 'phone', email: 'email', specialty: 'specialty',
@@ -10,6 +10,21 @@ const contractFields: Record<string, string> = {
   number: 'number', subcontractorId: 'subcontractor_id', projectId: 'project_legacy_id', projectName: 'project_name',
   date: 'contract_date', totalAmount: 'total_amount', scopeOfWork: 'scope_of_work', startDate: 'start_date',
   endDate: 'end_date', status: 'status', notes: 'notes', progressPercentage: 'progress_percentage'
+};
+const workOrderFields: Record<string, string> = {
+  subcontractId: 'subcontract_id', subcontractorId: 'subcontractor_id', number: 'number', title: 'title',
+  scopeOfWork: 'scope_of_work', status: 'status', issueDate: 'issue_date', dueDate: 'due_date', assignedTo: 'assigned_to',
+  estimatedAmount: 'estimated_amount', actualAmount: 'actual_amount', notes: 'notes', createdBy: 'created_by'
+};
+const receiptFields: Record<string, string> = {
+  subcontractId: 'subcontract_id', workOrderId: 'work_order_id', number: 'number', type: 'type', status: 'status',
+  receiptDate: 'receipt_date', description: 'description', quantity: 'quantity', amount: 'amount', receivedBy: 'received_by',
+  acceptedBy: 'accepted_by', acceptedAt: 'accepted_at', rejectionReason: 'rejection_reason', notes: 'notes'
+};
+const voucherFields: Record<string, string> = {
+  subcontractId: 'subcontract_id', certificateId: 'certificate_id', number: 'number', type: 'type', status: 'status', amount: 'amount',
+  voucherDate: 'voucher_date', paymentMethod: 'payment_method', referenceNumber: 'reference_number', description: 'description',
+  approvedBy: 'approved_by', paidAt: 'paid_at'
 };
 const decode = (row: any, fields: Record<string, string>) => Object.fromEntries(Object.entries(fields).map(([key, column]) => [key, row[column]]));
 async function checked(query: any) {
@@ -40,6 +55,48 @@ export const subcontractService = {
         }))
       })) as Subcontract[]
     };
+  },
+  async loadDocuments(company: string) {
+    const [orders, receipts, vouchers] = await Promise.all([
+      checked(supabase.from('subcontract_work_orders').select('*').eq('company_id', company).order('issue_date', { ascending: false })),
+      checked(supabase.from('subcontract_receipts').select('*').eq('company_id', company).order('receipt_date', { ascending: false })),
+      checked(supabase.from('subcontract_vouchers').select('*').eq('company_id', company).order('voucher_date', { ascending: false }))
+    ]);
+    return {
+      workOrders: orders.map((r: any) => ({ ...decode(r, workOrderFields), id: r.id, companyId: r.company_id, estimatedAmount: Number(r.estimated_amount || 0), actualAmount: r.actual_amount == null ? undefined : Number(r.actual_amount), createdAt: r.created_at, updatedAt: r.updated_at })) as SubcontractWorkOrder[],
+      receipts: receipts.map((r: any) => ({ ...decode(r, receiptFields), id: r.id, companyId: r.company_id, quantity: r.quantity == null ? undefined : Number(r.quantity), amount: r.amount == null ? undefined : Number(r.amount), createdAt: r.created_at, updatedAt: r.updated_at })) as SubcontractReceipt[],
+      vouchers: vouchers.map((r: any) => ({ ...decode(r, voucherFields), id: r.id, companyId: r.company_id, amount: Number(r.amount), createdAt: r.created_at, updatedAt: r.updated_at })) as SubcontractVoucher[]
+    };
+  },
+  async saveDocument(table: 'subcontract_work_orders' | 'subcontract_receipts' | 'subcontract_vouchers', company: string, value: any, existing?: any) {
+    const fields = table === 'subcontract_work_orders' ? workOrderFields : table === 'subcontract_receipts' ? receiptFields : voucherFields;
+    const payload = Object.fromEntries(Object.entries(fields).filter(([key]) => value[key] !== undefined)
+      .map(([key, column]) => [column, value[key] === '' ? null : value[key]]));
+    const query = existing
+      ? supabase.from(table).update(payload).eq('company_id', company).eq('id', existing.id).eq('updated_at', value.updatedAt || existing.updatedAt)
+      : supabase.from(table).insert({ ...payload, id: value.id || crypto.randomUUID(), company_id: company });
+    const rows = await checked(query.select('id'));
+    if (!rows?.length) throw new Error('تغير المستند أو لم يعد متاحاً. حدّث البيانات وأعد المحاولة.');
+    return rows[0];
+  },
+  async removeDocument(table: 'subcontract_work_orders' | 'subcontract_receipts' | 'subcontract_vouchers', company: string, id: string) {
+    const rows = await checked(supabase.from(table).delete().eq('company_id', company).eq('id', id).select('id'));
+    if (!rows?.length) throw new Error('لم يُحذف المستند. تحقق من حالته وصلاحياتك.');
+  },
+  async accountStatement(company: string, subcontractId: string): Promise<SubcontractAccountEntry[]> {
+    const [contractResult, certificates, payments, vouchers] = await Promise.all([
+      checked(supabase.from('subcontracts').select('id,number,contract_date,total_amount').eq('company_id', company).eq('id', subcontractId).single()),
+      checked(supabase.from('subcontract_certificates').select('id,certificate_number,description,due_date,net_payable').eq('company_id', company).eq('subcontract_id', subcontractId)),
+      checked(supabase.from('subcontract_payments').select('id,amount,payment_date,reference_number').eq('company_id', company).eq('subcontract_id', subcontractId)),
+      checked(supabase.from('subcontract_vouchers').select('id,number,description,voucher_date,amount,type,status').eq('company_id', company).eq('subcontract_id', subcontractId))
+    ]);
+    const rows: SubcontractAccountEntry[] = [];
+    rows.push({ date: contractResult.contract_date, number: contractResult.number, type: 'contract', description: 'قيمة عقد مقاول الباطن', debit: Number(contractResult.total_amount), credit: 0, balance: 0, referenceId: contractResult.id });
+    certificates.forEach((r: any) => rows.push({ date: r.due_date, number: r.certificate_number, type: 'certificate', description: r.description, debit: Number(r.net_payable), credit: 0, balance: 0, referenceId: r.id }));
+    payments.forEach((r: any) => rows.push({ date: r.payment_date, number: r.reference_number || r.id, type: 'payment', description: 'سداد مستخلص مقاول', debit: 0, credit: Number(r.amount), balance: 0, referenceId: r.id }));
+    vouchers.filter((r: any) => r.status !== 'cancelled').forEach((r: any) => rows.push({ date: r.voucher_date, number: r.number, type: 'voucher', description: r.description, debit: r.type === 'deduction' ? 0 : Number(r.amount), credit: r.type === 'deduction' ? Number(r.amount) : 0, balance: 0, referenceId: r.id }));
+    rows.sort((a, b) => a.date.localeCompare(b.date) || a.number.localeCompare(b.number));
+    let balance = 0; return rows.map(row => ({ ...row, balance: (balance += row.debit - row.credit) }));
   },
   async save(table: 'subcontractors' | 'subcontracts', company: string, value: any, existing?: any) {
     const fields = table === 'subcontractors' ? contractorFields : contractFields;

@@ -384,6 +384,82 @@ export interface Subcontract {
   progressPercentage: number; // نسبة الإنجاز الكلية للمقاول
 }
 
+export type SubcontractWorkOrderStatus = 'draft' | 'issued' | 'in_progress' | 'completed' | 'cancelled';
+export interface SubcontractWorkOrder {
+  id: string;
+  companyId: string;
+  subcontractId: string;
+  subcontractorId: string;
+  number: string;
+  title: string;
+  scopeOfWork: string;
+  status: SubcontractWorkOrderStatus;
+  issueDate: string;
+  dueDate?: string;
+  assignedTo?: string;
+  estimatedAmount: number;
+  actualAmount?: number;
+  notes?: string;
+  createdBy?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export type SubcontractReceiptStatus = 'draft' | 'submitted' | 'accepted' | 'rejected';
+export type SubcontractReceiptType = 'material' | 'work' | 'partial' | 'final';
+export interface SubcontractReceipt {
+  id: string;
+  companyId: string;
+  subcontractId: string;
+  workOrderId?: string;
+  number: string;
+  type: SubcontractReceiptType;
+  status: SubcontractReceiptStatus;
+  receiptDate: string;
+  description: string;
+  quantity?: number;
+  amount?: number;
+  receivedBy?: string;
+  acceptedBy?: string;
+  acceptedAt?: string;
+  rejectionReason?: string;
+  notes?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export type SubcontractVoucherType = 'payment' | 'advance' | 'retention_release' | 'deduction';
+export type SubcontractVoucherStatus = 'draft' | 'approved' | 'paid' | 'cancelled';
+export interface SubcontractVoucher {
+  id: string;
+  companyId: string;
+  subcontractId: string;
+  certificateId?: string;
+  number: string;
+  type: SubcontractVoucherType;
+  status: SubcontractVoucherStatus;
+  amount: number;
+  voucherDate: string;
+  paymentMethod?: 'cash' | 'transfer' | 'check';
+  referenceNumber?: string;
+  description: string;
+  approvedBy?: string;
+  paidAt?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface SubcontractAccountEntry {
+  date: string;
+  number: string;
+  type: 'contract' | 'certificate' | 'payment' | 'voucher' | 'deduction';
+  description: string;
+  debit: number;
+  credit: number;
+  balance: number;
+  referenceId: string;
+}
+
 // --- CUSTOMER MANAGEMENT TYPES ---
 export type CustomerStatus = 'new' | 'contacted' | 'meeting_scheduled' | 'proposal_sent' | 'negotiation' | 'contracted' | 'lost';
 

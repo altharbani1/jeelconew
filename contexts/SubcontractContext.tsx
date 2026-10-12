@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
-import { Subcontractor, Subcontract, SubcontractPayment } from '../types';
+import { Subcontractor, Subcontract, SubcontractPayment, SubcontractWorkOrder, SubcontractReceipt, SubcontractVoucher } from '../types';
 import { useSupabaseAuth } from './SupabaseAuthContext';
 import { subcontractService } from '../services/subcontractService';
 
@@ -8,6 +8,9 @@ function useSubcontractState() {
     const company = user?.company_id;
     const [subcontractors, setSubcontractors] = useState<Subcontractor[]>([]);
     const [subcontracts, setSubcontracts] = useState<Subcontract[]>([]);
+    const [workOrders, setWorkOrders] = useState<SubcontractWorkOrder[]>([]);
+    const [receipts, setReceipts] = useState<SubcontractReceipt[]>([]);
+    const [vouchers, setVouchers] = useState<SubcontractVoucher[]>([]);
     const [syncStatus, setSyncStatus] = useState<'synced' | 'syncing' | 'error'>('syncing');
     const [error, setError] = useState<string | null>(null);
     const [busy, setBusy] = useState(false);
@@ -17,12 +20,17 @@ function useSubcontractState() {
     const canFinance = ['admin', 'manager', 'accountant'].includes(user?.role || '');
     const refresh = useCallback(async () => {
         const version = ++generation.current;
-        if (!company) { setSubcontractors([]); setSubcontracts([]); return; }
+        if (!company) { setSubcontractors([]); setSubcontracts([]); setWorkOrders([]); setReceipts([]); setVouchers([]); return; }
         setSyncStatus('syncing');
         try {
             const data = await subcontractService.load(company);
             if (version !== generation.current) return;
             setSubcontractors(data.subcontractors); setSubcontracts(data.subcontracts);
+            try {
+                const documents = await subcontractService.loadDocuments(company);
+                if (version !== generation.current) return;
+                setWorkOrders(documents.workOrders); setReceipts(documents.receipts); setVouchers(documents.vouchers);
+            } catch { setWorkOrders([]); setReceipts([]); setVouchers([]); }
             setSyncStatus('synced'); setError(null);
         } catch (e: any) {
             if (version !== generation.current) return;
@@ -30,7 +38,7 @@ function useSubcontractState() {
         }
     }, [company]);
     useEffect(() => {
-        setSubcontractors([]); setSubcontracts([]);
+        setSubcontractors([]); setSubcontracts([]); setWorkOrders([]); setReceipts([]); setVouchers([]);
         const reload = () => { void refresh().catch(() => {}); };
         reload(); window.addEventListener('focus', reload);
         const timer = window.setInterval(reload, 30000);
@@ -55,7 +63,7 @@ function useSubcontractState() {
     };
     const manage = () => { if (!canManage) throw new Error('هذه العملية تتطلب صلاحية مدير.'); };
     return {
-        subcontractors, subcontracts, syncStatus, busy, error, canManage, canEngineer, canFinance, refresh,
+        subcontractors, subcontracts, workOrders, receipts, vouchers, syncStatus, busy, error, canManage, canEngineer, canFinance, refresh,
         addSubcontractor: (data: Omit<Subcontractor, 'id' | 'createdAt'>) => run(async () => {
             manage(); await subcontractService.save('subcontractors', company!, { ...data, id: crypto.randomUUID() });
         }),
@@ -77,6 +85,22 @@ function useSubcontractState() {
         deletePayment: (id: string) => run(() => subcontractService.certificate('delete', id)),
         approvePayment: (payment: SubcontractPayment) => run(() => subcontractService.certificate(payment.engineerApprovedAt ? 'finance' : 'engineer', payment.id)),
         payPayment: (payment: SubcontractPayment, details: any) => run(() => subcontractService.pay(payment.id, details)),
+        saveWorkOrder: (data: Partial<SubcontractWorkOrder>, existing?: SubcontractWorkOrder) => run(async () => {
+            if (!canEngineer) throw new Error('هذه العملية تتطلب صلاحية فني أو مدير.');
+            await subcontractService.saveDocument('subcontract_work_orders', company!, { ...data, id: data.id || crypto.randomUUID(), companyId: company }, existing);
+        }),
+        saveReceipt: (data: Partial<SubcontractReceipt>, existing?: SubcontractReceipt) => run(async () => {
+            if (!canEngineer) throw new Error('هذه العملية تتطلب صلاحية فني أو مدير.');
+            await subcontractService.saveDocument('subcontract_receipts', company!, { ...data, id: data.id || crypto.randomUUID(), companyId: company }, existing);
+        }),
+        saveVoucher: (data: Partial<SubcontractVoucher>, existing?: SubcontractVoucher) => run(async () => {
+            if (!canFinance) throw new Error('هذه العملية تتطلب صلاحية محاسب أو مدير.');
+            await subcontractService.saveDocument('subcontract_vouchers', company!, { ...data, id: data.id || crypto.randomUUID(), companyId: company }, existing);
+        }),
+        deleteWorkOrder: (id: string) => run(() => subcontractService.removeDocument('subcontract_work_orders', company!, id)),
+        deleteReceipt: (id: string) => run(() => subcontractService.removeDocument('subcontract_receipts', company!, id)),
+        deleteVoucher: (id: string) => run(async () => { if (!canManage) throw new Error('هذه العملية تتطلب صلاحية مدير.'); await subcontractService.removeDocument('subcontract_vouchers', company!, id); }),
+        getAccountStatement: (subcontractId: string) => subcontractService.accountStatement(company!, subcontractId),
         uploadSubcontractAttachment: (id: string, file: File, _type: 'image' | 'pdf') => run(async () => {
             manage(); await subcontractService.upload(company!, id, file, user!.id);
         })
