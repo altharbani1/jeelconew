@@ -67,7 +67,11 @@ export const SubcontractModule: React.FC = () => {
             });
         });
 
-        return { activeContracts, totalCommitted, totalPaid, totalPending };
+        const payments = subcontracts.flatMap(c => c.payments || []);
+        const pendingEngineering = payments.filter(p => p.status === 'pending' && !p.engineerApprovedAt).length;
+        const pendingFinance = payments.filter(p => p.status === 'pending' && !!p.engineerApprovedAt && !p.financeApprovedAt).length;
+        const overduePending = payments.filter(p => p.status !== 'paid' && new Date(`${p.dueDate}T23:59:59`).getTime() < Date.now()).length;
+        return { activeContracts, totalCommitted, totalPaid, totalPending, pendingEngineering, pendingFinance, overduePending };
     }, [subcontracts]);
 
     // --- SUBCONTRACTOR ACTIONS ---
@@ -497,12 +501,12 @@ export const SubcontractModule: React.FC = () => {
                     </div>
                     <div className="flex gap-2">
                         {activeTab === 'subcontractors' && (
-                            <button onClick={() => { setCurrentSubcontractor({ status: 'active', rating: 3 }); setShowSubcontractorForm(true); }} className="bg-jilco-900 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 hover:bg-jilco-800 shadow-md text-sm">
+                            <button disabled={!canManage || busy} onClick={() => { setCurrentSubcontractor({ status: 'active', rating: 3 }); setShowSubcontractorForm(true); }} className="bg-jilco-900 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 hover:bg-jilco-800 shadow-md text-sm disabled:opacity-50 disabled:cursor-not-allowed">
                                 <Plus size={18} /> مقاول جديد
                             </button>
                         )}
                         {activeTab === 'contracts' && (
-                            <button onClick={() => { setCurrentSubcontract({ status: 'draft', date: new Date().toISOString().split('T')[0] }); setShowSubcontractForm(true); }} className="bg-jilco-900 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 hover:bg-jilco-800 shadow-md text-sm">
+                            <button disabled={!canManage || busy} onClick={() => { setCurrentSubcontract({ status: 'draft', date: new Date().toISOString().split('T')[0] }); setShowSubcontractForm(true); }} className="bg-jilco-900 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 hover:bg-jilco-800 shadow-md text-sm disabled:opacity-50 disabled:cursor-not-allowed">
                                 <Plus size={18} /> عقد جديد
                             </button>
                         )}
@@ -510,7 +514,7 @@ export const SubcontractModule: React.FC = () => {
                 </div>
 
                 {/* Dashboard Stats */}
-                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-6 gap-4 mb-6">
                     <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm border-r-4 border-r-jilco-500">
                         <p className="text-xs font-bold text-gray-500 mb-1">عقود باطن نشطة</p>
                         <p className="text-2xl font-black text-jilco-900">{stats.activeContracts}</p>
@@ -526,6 +530,14 @@ export const SubcontractModule: React.FC = () => {
                     <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm border-r-4 border-r-amber-500">
                         <p className="text-xs font-bold text-gray-500 mb-1">دفعات قيد الانتظار</p>
                         <p className="text-2xl font-black text-amber-600 font-mono">{stats.totalPending.toLocaleString()}</p>
+                    </div>
+                    <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm border-r-4 border-r-purple-500">
+                        <p className="text-xs font-bold text-gray-500 mb-1">بانتظار الاعتماد الهندسي</p>
+                        <p className="text-2xl font-black text-purple-600 font-mono">{stats.pendingEngineering}</p>
+                    </div>
+                    <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm border-r-4 border-r-orange-500">
+                        <p className="text-xs font-bold text-gray-500 mb-1">بانتظار الاعتماد المالي</p>
+                        <p className="text-2xl font-black text-orange-600 font-mono">{stats.pendingFinance}</p>
                     </div>
                 </div>
 
@@ -720,7 +732,7 @@ export const SubcontractModule: React.FC = () => {
                                 <div className="p-4 border-t border-gray-100 bg-white">
                                     <div className="flex justify-between items-center mb-3">
                                         <h4 className="font-bold text-sm text-gray-800 flex items-center gap-2"><DollarSign size={16} className="text-green-600" /> سجل الدفعات والمستخلصات</h4>
-                                        <button onClick={() => { setSelectedContractId(contract.id); setCurrentPayment({ status: 'pending', dueDate: new Date().toISOString().split('T')[0] }); setShowPaymentForm(true); }} className="text-xs font-bold bg-green-50 text-green-700 px-3 py-1.5 rounded-lg border border-green-200 hover:bg-green-100 flex items-center gap-1">
+                                        <button disabled={!canManage || busy} onClick={() => { setSelectedContractId(contract.id); setCurrentPayment({ status: 'pending', dueDate: new Date().toISOString().split('T')[0] }); setShowPaymentForm(true); }} className="text-xs font-bold bg-green-50 text-green-700 px-3 py-1.5 rounded-lg border border-green-200 hover:bg-green-100 flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed">
                                             <Plus size={14} /> إضافة دفعة مستحقة
                                         </button>
                                     </div>
