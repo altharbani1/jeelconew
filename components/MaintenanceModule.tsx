@@ -1,18 +1,21 @@
 import React, { useState } from 'react';
-import { Wrench, Calendar, FileText, AlertTriangle, Plus, Search, Filter, CheckCircle2, Factory, Trash2, Edit, Printer } from 'lucide-react';
+import { Wrench, Calendar, CalendarDays, FileText, AlertTriangle, Plus, Search, Filter, CheckCircle2, Factory, Trash2, Edit, Printer, Clock, MapPin, UserRound } from 'lucide-react';
 import { useMaintenance } from '../contexts/MaintenanceContext';
 import { useSales } from '../contexts/SalesContext';
 import { useHR } from '../contexts/HRContext';
-import { MaintenanceContract, MaintenanceTicket, TicketStatus, TicketPriority, TicketType } from '../types';
+import { MaintenanceContract, MaintenanceTicket, MaintenanceVisit, TicketStatus, TicketPriority, TicketType, VisitStatus } from '../types';
 import { isMaintenanceTechnician } from '../lib/hrIntegration';
 
 export const MaintenanceModule: React.FC = () => {
-    const { contracts, tickets, visits, addContract, updateContract, deleteContract, addTicket, updateTicket, deleteTicket, updateVisit } = useMaintenance();
+    const { contracts, tickets, visits, addContract, updateContract, deleteContract, addTicket, updateTicket, deleteTicket, updateVisit, addVisit } = useMaintenance();
     const { customers = [] } = useSales();
     const { hrEmployees: employees = [] } = useHR();
 
-    const [activeTab, setActiveTab] = useState<'dashboard' | 'contracts' | 'tickets'>('dashboard');
+    const [activeTab, setActiveTab] = useState<'dashboard' | 'contracts' | 'tickets' | 'visits'>('dashboard');
     const [searchTerm, setSearchTerm] = useState('');
+    const [visitStatusFilter, setVisitStatusFilter] = useState<'all' | VisitStatus>('all');
+    const [showVisitCreator, setShowVisitCreator] = useState(false);
+    const [currentVisit, setCurrentVisit] = useState<Partial<MaintenanceVisit>>({ status: 'pending' });
     const handlePrintContract = (contract: MaintenanceContract) => {
         const customer = customers.find(c => c.id === contract.customerId);
         const customerName = customer?.fullName || 'عميل غير معروف';
@@ -179,6 +182,8 @@ export const MaintenanceModule: React.FC = () => {
 
     const handleSaveContract = () => {
         if (!currentContract.customerId || !currentContract.amount) return alert('يرجى تعبئة العميل والتكلفة');
+        if (!currentContract.startDate || !currentContract.endDate || currentContract.endDate <= currentContract.startDate) return alert('يجب أن يكون تاريخ الانتهاء بعد تاريخ البداية');
+        if (!currentContract.visitsPerYear || currentContract.visitsPerYear < 1) return alert('يجب إدخال زيارة دورية واحدة على الأقل');
         if (currentContract.id) {
             updateContract(currentContract.id, currentContract);
         } else {
@@ -189,12 +194,35 @@ export const MaintenanceModule: React.FC = () => {
 
     const handleSaveTicket = () => {
         if (!currentTicket.customerId || !currentTicket.description || !currentTicket.elevatorLocation) return alert('يرجى تعبئة العميل، الوصف، والموقع');
-        if (currentTicket.id) {
-            updateTicket(currentTicket.id, currentTicket);
+        const ticketToSave = currentTicket.type === 'emergency' && currentTicket.priority === 'low'
+            ? { ...currentTicket, priority: 'high' as TicketPriority }
+            : currentTicket;
+        if (ticketToSave.id) {
+            updateTicket(ticketToSave.id, ticketToSave);
         } else {
-            addTicket({ ...currentTicket as MaintenanceTicket, id: Date.now().toString() });
+            addTicket({ ...ticketToSave as MaintenanceTicket, id: Date.now().toString() });
         }
         setShowTicketCreator(false);
+    };
+
+    const handleSaveVisit = async () => {
+        if (!currentVisit.contractId || !currentVisit.scheduledDate) {
+            alert('يرجى اختيار عقد وتحديد تاريخ الموعد');
+            return;
+        }
+        const visit: MaintenanceVisit = {
+            id: currentVisit.id || `VISIT-${Date.now()}`,
+            contractId: currentVisit.contractId,
+            scheduledDate: currentVisit.scheduledDate,
+            technicianId: currentVisit.technicianId,
+            status: (currentVisit.status || 'pending') as VisitStatus,
+            completedDate: currentVisit.completedDate,
+            notes: currentVisit.notes?.trim() || undefined
+        };
+        if (currentVisit.id) await updateVisit(currentVisit.id, visit);
+        else await addVisit(visit);
+        setShowVisitCreator(false);
+        setCurrentVisit({ status: 'pending' });
     };
 
     const getCustomerName = (id: string) => customers.find(c => c.id === id)?.fullName || 'عميل غير معروف';
@@ -205,15 +233,23 @@ export const MaintenanceModule: React.FC = () => {
         const activeContractsCount = contracts.filter(c => c.status === 'active').length;
         const openTicketsCount = tickets.filter(t => t.status === 'open' || t.status === 'in_progress').length;
         const resolvedTicketsCount = tickets.filter(t => t.status === 'resolved').length;
+        const dueVisitsCount = visits.filter(v => v.status === 'pending' && v.scheduledDate <= new Date().toISOString().split('T')[0]).length;
 
         return (
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-fade-in">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 animate-fade-in">
                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between">
                     <div>
                         <p className="text-sm font-bold text-gray-500 mb-1">عقود صيانة نشطة</p>
                         <p className="text-3xl font-black text-jilco-900">{activeContractsCount}</p>
                     </div>
                     <div className="w-14 h-14 bg-blue-50 rounded-2xl flex items-center justify-center text-blue-600"><FileText size={28} /></div>
+                </div>
+                <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between">
+                    <div>
+                        <p className="text-sm font-bold text-gray-500 mb-1">زيارات مستحقة</p>
+                        <p className="text-3xl font-black text-purple-600">{dueVisitsCount}</p>
+                    </div>
+                    <div className="w-14 h-14 bg-purple-50 rounded-2xl flex items-center justify-center text-purple-600"><Calendar size={28} /></div>
                 </div>
                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between">
                     <div>
@@ -331,6 +367,43 @@ export const MaintenanceModule: React.FC = () => {
         </div>
     );
 
+    const renderVisits = () => {
+        const query = searchTerm.trim().toLowerCase();
+        const filteredVisits = visits
+            .filter(visit => visitStatusFilter === 'all' || visit.status === visitStatusFilter)
+            .filter(visit => {
+                const contract = contracts.find(item => item.id === visit.contractId);
+                const haystack = `${contract?.number || ''} ${getCustomerName(contract?.customerId || '')} ${getTechName(visit.technicianId)} ${visit.notes || ''}`.toLowerCase();
+                return !query || haystack.includes(query) || visit.scheduledDate.includes(query);
+            })
+            .sort((a, b) => new Date(a.scheduledDate).getTime() - new Date(b.scheduledDate).getTime());
+        const statusLabels: Record<VisitStatus, string> = { pending: 'مجدولة', completed: 'مكتملة', missed: 'فائتة', rescheduled: 'مؤجلة' };
+        const statusClasses: Record<VisitStatus, string> = { pending: 'bg-blue-100 text-blue-700', completed: 'bg-green-100 text-green-700', missed: 'bg-red-100 text-red-700', rescheduled: 'bg-amber-100 text-amber-700' };
+        return (
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden animate-fade-in">
+                <div className="p-4 border-b border-gray-100 bg-gray-50 flex flex-wrap gap-3 items-center justify-between">
+                    <div className="flex gap-3 items-center flex-1 min-w-[280px]">
+                        <div className="relative flex-1 max-w-md"><Search className="absolute right-3 top-2.5 text-gray-400" size={18} /><input title="بحث المواعيد" type="search" placeholder="بحث بالعقد أو العميل أو الفني..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full pr-10 pl-4 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-purple-500" /></div>
+                        <select title="تصفية حالة الموعد" value={visitStatusFilter} onChange={e => setVisitStatusFilter(e.target.value as 'all' | VisitStatus)} className="p-2 border border-gray-200 rounded-lg text-sm font-bold"><option value="all">كل الحالات</option><option value="pending">مجدولة</option><option value="completed">مكتملة</option><option value="rescheduled">مؤجلة</option><option value="missed">فائتة</option></select>
+                    </div>
+                    <button onClick={() => { setCurrentVisit({ status: 'pending', scheduledDate: new Date().toISOString().split('T')[0] }); setShowVisitCreator(true); }} className="bg-purple-700 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-purple-800 flex items-center gap-2"><Plus size={16} /> موعد صيانة جديد</button>
+                </div>
+                <div className="p-4 grid gap-3">
+                    {filteredVisits.map(visit => {
+                        const contract = contracts.find(item => item.id === visit.contractId);
+                        return <div key={visit.id} className="border border-gray-100 rounded-xl p-4 hover:border-purple-200 hover:shadow-sm transition-all grid grid-cols-1 md:grid-cols-[1.4fr_1fr_1fr_auto] gap-4 items-center">
+                            <div><div className="flex items-center gap-2 font-black text-jilco-900"><CalendarDays size={18} className="text-purple-600" />{visit.scheduledDate}<span className={`px-2 py-1 rounded-full text-[10px] ${statusClasses[visit.status]}`}>{statusLabels[visit.status]}</span></div><p className="text-xs text-gray-500 mt-2">{contract?.number || 'عقد غير معروف'} · {getCustomerName(contract?.customerId || '')}</p></div>
+                            <div className="text-sm flex items-center gap-2 text-gray-600"><UserRound size={15} />{getTechName(visit.technicianId)}</div>
+                            <div className="text-sm flex items-center gap-2 text-gray-500"><Clock size={15} />{visit.completedDate ? `تم التنفيذ: ${visit.completedDate}` : 'لم يتم التنفيذ بعد'}</div>
+                            <div className="flex gap-1 justify-end"><button title="تعديل الموعد" onClick={() => { setCurrentVisit(visit); setShowVisitCreator(true); }} className="p-2 rounded-lg text-blue-600 hover:bg-blue-50"><Edit size={16} /></button><select title="تحديث حالة الموعد" value={visit.status} onChange={e => updateVisit(visit.id, { status: e.target.value as VisitStatus, completedDate: e.target.value === 'completed' ? new Date().toISOString().split('T')[0] : visit.completedDate })} className={`text-xs font-bold border-0 rounded-lg ${statusClasses[visit.status]}`}><option value="pending">مجدولة</option><option value="completed">مكتملة</option><option value="rescheduled">مؤجلة</option><option value="missed">فائتة</option></select></div>
+                        </div>;
+                    })}
+                    {filteredVisits.length === 0 && <div className="py-12 text-center text-gray-400"><Calendar size={34} className="mx-auto mb-3 opacity-40" /><p className="font-bold">لا توجد مواعيد مطابقة</p><p className="text-xs mt-1">أضف موعدًا جديدًا أو غيّر الفلاتر</p></div>}
+                </div>
+            </div>
+        );
+    };
+
     return (
         <div className="flex-1 bg-gray-100 p-8 h-full overflow-auto print:block print:bg-white print:p-0 print:overflow-visible print:absolute print:inset-0 print:z-50 print:h-auto">
             <div className="max-w-7xl mx-auto space-y-6">
@@ -350,12 +423,14 @@ export const MaintenanceModule: React.FC = () => {
                     <button onClick={() => setActiveTab('dashboard')} className={`px-6 py-2.5 rounded-xl font-bold text-sm transition-all flex items-center gap-2 ${activeTab === 'dashboard' ? 'bg-jilco-900 text-white shadow-md' : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200'}`}><Factory size={18} /> لوحة المتابعة</button>
                     <button onClick={() => setActiveTab('contracts')} className={`px-6 py-2.5 rounded-xl font-bold text-sm transition-all flex items-center gap-2 ${activeTab === 'contracts' ? 'bg-jilco-900 text-white shadow-md' : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200'}`}><FileText size={18} /> عقود الصيانة</button>
                     <button onClick={() => setActiveTab('tickets')} className={`px-6 py-2.5 rounded-xl font-bold text-sm transition-all flex items-center gap-2 ${activeTab === 'tickets' ? 'bg-jilco-900 text-white shadow-md' : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200'}`}><AlertTriangle size={18} /> تذاكر الأعطال</button>
+                    <button onClick={() => setActiveTab('visits')} className={`px-6 py-2.5 rounded-xl font-bold text-sm transition-all flex items-center gap-2 ${activeTab === 'visits' ? 'bg-jilco-900 text-white shadow-md' : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200'}`}><CalendarDays size={18} /> مواعيد الصيانة <span className="bg-purple-100 text-purple-700 px-1.5 rounded-full text-[10px]">{visits.filter(v => v.status === 'pending').length}</span></button>
                 </div>
 
                 {/* Tab Content */}
                 {activeTab === 'dashboard' && renderDashboard()}
                 {activeTab === 'contracts' && renderContracts()}
                 {activeTab === 'tickets' && renderTickets()}
+                {activeTab === 'visits' && renderVisits()}
             </div>
 
             {/* Contract Modal */}
@@ -455,6 +530,22 @@ export const MaintenanceModule: React.FC = () => {
                             </div>
 
                             <button onClick={handleSaveTicket} className="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-3.5 rounded-xl shadow-lg transition-all active:scale-95">تأكيد تذكرة الصيانة</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Appointment Modal */}
+            {showVisitCreator && (
+                <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+                    <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden animate-in zoom-in-95">
+                        <div className="bg-purple-700 p-6 flex justify-between items-center text-white"><h2 className="text-xl font-bold flex items-center gap-2"><CalendarDays /> {currentVisit.id ? 'تعديل موعد الصيانة' : 'إضافة موعد صيانة'}</h2><button title="إغلاق" onClick={() => setShowVisitCreator(false)} className="hover:bg-white/10 p-2 rounded-full"><Plus className="rotate-45" /></button></div>
+                        <div className="p-6 space-y-4">
+                            <div><label className="block text-xs font-bold text-gray-700 mb-1">عقد الصيانة</label><select title="عقد الصيانة" value={currentVisit.contractId || ''} onChange={e => setCurrentVisit({ ...currentVisit, contractId: e.target.value })} className="w-full p-3 border rounded-xl font-bold text-sm"><option value="">-- اختر العقد --</option>{contracts.filter(c => c.status === 'active').map(c => <option key={c.id} value={c.id}>{c.number} — {getCustomerName(c.customerId)}</option>)}</select></div>
+                            <div className="grid grid-cols-2 gap-4"><div><label className="block text-xs font-bold text-gray-700 mb-1">تاريخ الموعد</label><input title="تاريخ الموعد" type="date" value={currentVisit.scheduledDate || ''} onChange={e => setCurrentVisit({ ...currentVisit, scheduledDate: e.target.value })} className="w-full p-3 border rounded-xl font-bold" /></div><div><label className="block text-xs font-bold text-gray-700 mb-1">الحالة</label><select title="حالة الموعد" value={currentVisit.status || 'pending'} onChange={e => setCurrentVisit({ ...currentVisit, status: e.target.value as VisitStatus })} className="w-full p-3 border rounded-xl font-bold"><option value="pending">مجدولة</option><option value="rescheduled">مؤجلة</option><option value="completed">مكتملة</option><option value="missed">فائتة</option></select></div></div>
+                            <div><label className="block text-xs font-bold text-gray-700 mb-1">الفني المسؤول</label><select title="الفني المسؤول" value={currentVisit.technicianId || ''} onChange={e => setCurrentVisit({ ...currentVisit, technicianId: e.target.value })} className="w-full p-3 border rounded-xl font-bold"><option value="">-- لم يتم التعيين --</option>{technicians.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}</select></div>
+                            <div><label className="block text-xs font-bold text-gray-700 mb-1">ملاحظات الموعد</label><textarea title="ملاحظات الموعد" value={currentVisit.notes || ''} onChange={e => setCurrentVisit({ ...currentVisit, notes: e.target.value })} className="w-full p-3 border rounded-xl text-sm resize-none" rows={3} placeholder="تفاصيل الزيارة أو متطلبات العميل..." /></div>
+                            <button onClick={handleSaveVisit} className="w-full bg-purple-700 hover:bg-purple-800 text-white font-bold py-3.5 rounded-xl shadow-lg">حفظ الموعد</button>
                         </div>
                     </div>
                 </div>

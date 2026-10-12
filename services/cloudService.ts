@@ -32,8 +32,14 @@ const IMAGE_KEYS = ['jilco_logo', 'jilco_stamp'];
 
 const BUCKET = 'jilco-assets';
 
+// Tenant-scoped collections are always read/written with the current company.
+// Maintenance records used to fall through to the legacy global store, which
+// made them harder to isolate and allowed cross-company reads if a caller
+// queried the collection directly.
 const isHRCollection = (collection: string) => collection.startsWith('jilco_hr_') ||
-  ['subcontractors', 'subcontracts', 'jilco_projects', 'jilco_expenses_archive'].includes(collection);
+  ['subcontractors', 'subcontracts', 'jilco_projects', 'jilco_expenses_archive',
+    'jilco_maintenance_contracts', 'jilco_maintenance_tickets',
+    'jilco_maintenance_visits', 'jilco_maintenance_appointments'].includes(collection);
 
 async function getCurrentCompanyId(): Promise<string> {
   const { data: authData, error: authError } = await supabase.auth.getUser();

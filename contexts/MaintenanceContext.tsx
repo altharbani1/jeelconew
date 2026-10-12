@@ -13,6 +13,7 @@ interface MaintenanceContextType {
     updateTicket: (id: string, ticket: Partial<MaintenanceTicket>) => Promise<void>;
     deleteTicket: (id: string) => Promise<void>;
     updateVisit: (id: string, visit: Partial<MaintenanceVisit>) => Promise<void>;
+    addVisit: (visit: MaintenanceVisit) => Promise<void>;
     syncStatus: 'idle' | 'syncing' | 'synced' | 'error';
 }
 
@@ -47,21 +48,84 @@ export const MaintenanceProvider: React.FC<{ children: ReactNode }> = ({ childre
         for (let i = 1; i <= visitsCount; i++) {
             const scheduledDate = new Date(startDate.getTime() + (intervalDays * i * 24 * 3600 * 1000));
             newVisits.push({
-                id: `VISIT-${Date.now()}-${i}`,
+                // Deterministic IDs make retries and schedule regeneration
+                // idempotent instead of creating duplicate appointments.
+                id: `VISIT-${contract.id}-${i}`,
                 contractId: contract.id,
                 scheduledDate: scheduledDate.toISOString().split('T')[0],
                 status: 'pending'
             });
         }
 
-        setVisits(prev => [...prev, ...newVisits]);
-        await Promise.all(newVisits.map(visit => saveRecord('jilco_maintenance_visits', visit.id, visit)));
+        setVisits(prev => {
+            const byId = new Map(prev.map(visit => [visit.id, visit]));
+            newVisits.forEach(visit => byId.set(visit.id, visit));
+            return [...byId.values()];
+        });
+        const results = await Promise.all(newVisits.map(visit => saveRecord('jilco_maintenance_visits', visit.id, visit)));
+        if (results.some(result => !result)) throw new Error('تعذر حفظ مواعيد الصيانة');
+    };
+
+    /**
+     * Reconcile a contract's future schedule without rewriting completed visits.
+     * This keeps the service history intact when dates or visit frequency change.
+     */
+    const reconcileVisitsForContract = async (contract: MaintenanceContract) => {
+        const existing = visits
+            .filter(visit => visit.contractId === contract.id)
+            .sort((a, b) => a.scheduledDate.localeCompare(b.scheduledDate));
+        const start = new Date(`${contract.startDate}T00:00:00`);
+        const end = new Date(`${contract.endDate}T00:00:00`);
+        const totalDays = Math.max(1, Math.floor((end.getTime() - start.getTime()) / 86400000));
+        const targets = Array.from({ length: Math.max(0, contract.visitsPerYear) }, (_, index) => {
+            const date = new Date(start.getTime() + (totalDays * (index + 1) / contract.visitsPerYear) * 86400000);
+            return date.toISOString().split('T')[0];
+        });
+
+        const nextVisits: MaintenanceVisit[] = [];
+        const writes: Promise<boolean>[] = [];
+        targets.forEach((scheduledDate, index) => {
+            const current = existing[index];
+            if (current) {
+                const next = (current.status === 'pending' || current.status === 'rescheduled')
+                    ? { ...current, scheduledDate }
+                    : current;
+                nextVisits.push(next);
+                if (next !== current) writes.push(saveRecord('jilco_maintenance_visits', next.id, next));
+            } else {
+                const next: MaintenanceVisit = {
+                    id: `VISIT-${contract.id}-${index + 1}`,
+                    contractId: contract.id,
+                    scheduledDate,
+                    status: 'pending'
+                };
+                nextVisits.push(next);
+                writes.push(saveRecord('jilco_maintenance_visits', next.id, next));
+            }
+        });
+
+        // Never delete completed/missed history; only remove excess future slots.
+        const retainedIds = new Set(nextVisits.map(visit => visit.id));
+        const removable = existing.filter(visit => !retainedIds.has(visit.id) && (visit.status === 'pending' || visit.status === 'rescheduled'));
+        removable.forEach(visit => writes.push(deleteRecord('jilco_maintenance_visits', visit.id)));
+        setVisits(prev => {
+            const removedIds = new Set(removable.map(visit => visit.id));
+            const nextById = new Map(prev.filter(visit => !removedIds.has(visit.id)).map(visit => [visit.id, visit]));
+            nextVisits.forEach(visit => nextById.set(visit.id, visit));
+            return Array.from(nextById.values());
+        });
+        const results = await Promise.all(writes);
+        if (results.some(result => !result)) throw new Error('تعذر تحديث جدول مواعيد الصيانة');
     };
 
     // Actions
     const addContract = async (contract: MaintenanceContract) => {
         setContracts(prev => [...prev, contract]);
-        await saveRecord('jilco_maintenance_contracts', contract.id, contract);
+        const saved = await saveRecord('jilco_maintenance_contracts', contract.id, contract);
+        if (!saved) {
+            setContracts(prev => prev.filter(existing => existing.id !== contract.id));
+            throw new Error('تعذر حفظ عقد الصيانة');
+        }
         await generateVisitsForContract(contract);
     };
 
@@ -69,8 +133,16 @@ export const MaintenanceProvider: React.FC<{ children: ReactNode }> = ({ childre
         const current = contracts.find(contract => contract.id === id);
         if (!current) return;
         const updated = { ...current, ...updatedFields };
-        setContracts(prev => prev.map(c => c.id === id ? updated : c));
-        await saveRecord('jilco_maintenance_contracts', id, updated);
+        const saved = await saveRecord('jilco_maintenance_contracts', id, updated);
+        if (!saved) throw new Error('تعذر تحديث عقد الصيانة');
+        setContracts(prev => prev.map(contract => contract.id === id ? updated : contract));
+
+        const scheduleChanged = updated.startDate !== current.startDate
+            || updated.endDate !== current.endDate
+            || updated.visitsPerYear !== current.visitsPerYear;
+        if (scheduleChanged) {
+            await reconcileVisitsForContract(updated);
+        }
     };
 
     const deleteContract = async (id: string) => {
@@ -102,9 +174,21 @@ export const MaintenanceProvider: React.FC<{ children: ReactNode }> = ({ childre
     const updateVisit = async (id: string, updatedFields: Partial<MaintenanceVisit>) => {
         const current = visits.find(visit => visit.id === id);
         if (!current) return;
-        const updated = { ...current, ...updatedFields };
+        const nextStatus = updatedFields.status ?? current.status;
+        const updated = {
+            ...current,
+            ...updatedFields,
+            completedDate: nextStatus === 'completed'
+                ? (updatedFields.completedDate || current.completedDate || new Date().toISOString().split('T')[0])
+                : updatedFields.status ? undefined : (updatedFields.completedDate ?? current.completedDate)
+        };
         setVisits(prev => prev.map(v => v.id === id ? updated : v));
         await saveRecord('jilco_maintenance_visits', id, updated);
+    };
+
+    const addVisit = async (visit: MaintenanceVisit) => {
+        setVisits(prev => [...prev, visit]);
+        await saveRecord('jilco_maintenance_visits', visit.id, visit);
     };
 
     return (
@@ -112,7 +196,7 @@ export const MaintenanceProvider: React.FC<{ children: ReactNode }> = ({ childre
             contracts, tickets, visits,
             addContract, updateContract, deleteContract,
             addTicket, updateTicket, deleteTicket,
-            updateVisit,
+            updateVisit, addVisit,
             syncStatus
         }}>
             {children}
