@@ -6,6 +6,14 @@ import { useHR } from '../contexts/HRContext';
 import { MaintenanceContract, MaintenanceTicket, MaintenanceVisit, TicketStatus, TicketPriority, TicketType, VisitStatus } from '../types';
 import { isMaintenanceTechnician } from '../lib/hrIntegration';
 
+const SLA_DAYS: Record<TicketPriority, number> = { critical: 1, high: 2, medium: 3, low: 5 };
+const addDays = (date: string, days: number) => {
+    const next = new Date(`${date}T00:00:00`);
+    next.setDate(next.getDate() + days);
+    return next.toISOString().split('T')[0];
+};
+const ticketSlaDueDate = (reportedDate: string, priority: TicketPriority) => addDays(reportedDate, SLA_DAYS[priority]);
+
 export const MaintenanceModule: React.FC = () => {
     const { contracts, tickets, visits, addContract, updateContract, deleteContract, addTicket, updateTicket, deleteTicket, updateVisit, addVisit } = useMaintenance();
     const { customers = [] } = useSales();
@@ -192,15 +200,27 @@ export const MaintenanceModule: React.FC = () => {
         setShowContractCreator(false);
     };
 
-    const handleSaveTicket = () => {
+    const handleSaveTicket = async () => {
         if (!currentTicket.customerId || !currentTicket.description || !currentTicket.elevatorLocation) return alert('يرجى تعبئة العميل، الوصف، والموقع');
-        const ticketToSave = currentTicket.type === 'emergency' && currentTicket.priority === 'low'
-            ? { ...currentTicket, priority: 'high' as TicketPriority }
-            : currentTicket;
-        if (ticketToSave.id) {
-            updateTicket(ticketToSave.id, ticketToSave);
-        } else {
-            addTicket({ ...ticketToSave as MaintenanceTicket, id: Date.now().toString() });
+        const priority = currentTicket.type === 'emergency' && currentTicket.priority === 'low'
+            ? 'high' as TicketPriority
+            : (currentTicket.priority || 'medium') as TicketPriority;
+        const reportedDate = currentTicket.reportedDate || new Date().toISOString().split('T')[0];
+        const ticketToSave = {
+            ...currentTicket,
+            priority,
+            reportedDate,
+            slaDueDate: currentTicket.slaDueDate || ticketSlaDueDate(reportedDate, priority)
+        };
+        try {
+            if (ticketToSave.id) {
+                await updateTicket(ticketToSave.id, ticketToSave);
+            } else {
+                await addTicket({ ...ticketToSave as MaintenanceTicket, id: Date.now().toString() });
+            }
+        } catch (error) {
+            alert(error instanceof Error ? error.message : 'تعذر حفظ تذكرة الصيانة');
+            return;
         }
         setShowTicketCreator(false);
     };
@@ -228,15 +248,26 @@ export const MaintenanceModule: React.FC = () => {
     const getCustomerName = (id: string) => customers.find(c => c.id === id)?.fullName || 'عميل غير معروف';
     // Keep historical assignments readable even after a technician becomes inactive.
     const getTechName = (id?: string) => employees.find(t => t.id === id)?.name || 'غير مُعيّن';
+    const today = new Date().toISOString().split('T')[0];
+    const getTicketDueDate = (ticket: MaintenanceTicket) => ticket.slaDueDate || ticketSlaDueDate(ticket.reportedDate, ticket.priority);
+    const isTicketOverdue = (ticket: MaintenanceTicket) =>
+        Boolean(getTicketDueDate(ticket) < today && (ticket.status === 'open' || ticket.status === 'in_progress'));
 
     const renderDashboard = () => {
         const activeContractsCount = contracts.filter(c => c.status === 'active').length;
         const openTicketsCount = tickets.filter(t => t.status === 'open' || t.status === 'in_progress').length;
         const resolvedTicketsCount = tickets.filter(t => t.status === 'resolved').length;
-        const dueVisitsCount = visits.filter(v => v.status === 'pending' && v.scheduledDate <= new Date().toISOString().split('T')[0]).length;
+        const overdueTicketsCount = tickets.filter(isTicketOverdue).length;
+        const today = new Date().toISOString().split('T')[0];
+        const dueVisits = visits.filter(v => v.status === 'pending' && v.scheduledDate <= today)
+            .sort((a, b) => a.scheduledDate.localeCompare(b.scheduledDate));
+        const upcomingVisits = visits.filter(v => v.status === 'pending' && v.scheduledDate >= today)
+            .sort((a, b) => a.scheduledDate.localeCompare(b.scheduledDate)).slice(0, 5);
+        const criticalTickets = tickets.filter(t => t.status !== 'resolved' && t.status !== 'cancelled' && (t.priority === 'critical' || t.priority === 'high')).slice(0, 5);
 
         return (
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 animate-fade-in">
+            <div className="space-y-6 animate-fade-in">
+            <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 sm:gap-6">
                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between">
                     <div>
                         <p className="text-sm font-bold text-gray-500 mb-1">عقود صيانة نشطة</p>
@@ -247,7 +278,7 @@ export const MaintenanceModule: React.FC = () => {
                 <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between">
                     <div>
                         <p className="text-sm font-bold text-gray-500 mb-1">زيارات مستحقة</p>
-                        <p className="text-3xl font-black text-purple-600">{dueVisitsCount}</p>
+                        <p className="text-3xl font-black text-purple-600">{dueVisits.length}</p>
                     </div>
                     <div className="w-14 h-14 bg-purple-50 rounded-2xl flex items-center justify-center text-purple-600"><Calendar size={28} /></div>
                 </div>
@@ -265,6 +296,45 @@ export const MaintenanceModule: React.FC = () => {
                     </div>
                     <div className="w-14 h-14 bg-green-50 rounded-2xl flex items-center justify-center text-green-500"><CheckCircle2 size={28} /></div>
                 </div>
+                <div className="bg-white p-6 rounded-2xl shadow-sm border border-red-100 flex items-center justify-between">
+                    <div>
+                        <p className="text-sm font-bold text-gray-500 mb-1">متجاوزة للـ SLA</p>
+                        <p className="text-3xl font-black text-red-600">{overdueTicketsCount}</p>
+                    </div>
+                    <div className="w-14 h-14 bg-red-50 rounded-2xl flex items-center justify-center text-red-600"><Clock size={28} /></div>
+                </div>
+            </div>
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+                <section className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+                    <div className="p-5 border-b border-gray-100 flex items-center justify-between">
+                        <div><h2 className="font-black text-jilco-900 flex items-center gap-2"><CalendarDays size={19} className="text-purple-600" /> أقرب مواعيد الصيانة</h2><p className="text-xs text-gray-500 mt-1">تابع الزيارات القادمة وحالة الإسناد</p></div>
+                        <button onClick={() => setActiveTab('visits')} className="text-xs font-bold text-purple-700 hover:underline">عرض الكل</button>
+                    </div>
+                    <div className="p-4 space-y-2">
+                        {upcomingVisits.length === 0 ? <p className="text-center text-sm text-gray-400 py-6">لا توجد مواعيد قادمة</p> : upcomingVisits.map(visit => {
+                            const contract = contracts.find(item => item.id === visit.contractId);
+                            return <button key={visit.id} onClick={() => setActiveTab('visits')} className="w-full text-right flex items-center gap-3 p-3 rounded-xl hover:bg-purple-50 transition-colors border border-transparent hover:border-purple-100">
+                                <span className="w-10 h-10 shrink-0 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center"><Calendar size={18} /></span>
+                                <span className="min-w-0 flex-1"><span className="block font-bold text-sm truncate">{getCustomerName(contract?.customerId || '')}</span><span className="block text-xs text-gray-500 truncate">{contract?.number || 'عقد غير معروف'} · {getTechName(visit.technicianId)}</span></span>
+                                <span className="text-xs font-mono font-bold text-jilco-800">{visit.scheduledDate}</span>
+                            </button>;
+                        })}
+                    </div>
+                </section>
+                <section className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden">
+                    <div className="p-5 border-b border-gray-100 flex items-center justify-between">
+                        <div><h2 className="font-black text-jilco-900 flex items-center gap-2"><AlertTriangle size={19} className="text-red-600" /> تذاكر تحتاج متابعة</h2><p className="text-xs text-gray-500 mt-1">الأولوية العالية والحرجة أولاً</p></div>
+                        <button onClick={() => setActiveTab('tickets')} className="text-xs font-bold text-red-700 hover:underline">عرض الكل</button>
+                    </div>
+                    <div className="p-4 space-y-2">
+                        {criticalTickets.length === 0 ? <p className="text-center text-sm text-gray-400 py-6">لا توجد تذاكر عاجلة</p> : criticalTickets.map(ticket => <button key={ticket.id} onClick={() => setActiveTab('tickets')} className="w-full text-right flex items-center gap-3 p-3 rounded-xl hover:bg-red-50 transition-colors border border-transparent hover:border-red-100">
+                            <span className={`w-2 h-10 rounded-full ${ticket.priority === 'critical' ? 'bg-red-600' : 'bg-orange-400'}`} />
+                            <span className="min-w-0 flex-1"><span className="block font-bold text-sm truncate">{ticket.number} · {getCustomerName(ticket.customerId)}</span><span className="block text-xs text-gray-500 truncate">{ticket.description}</span></span>
+                            <span className={`text-[10px] font-bold px-2 py-1 rounded-full ${ticket.priority === 'critical' ? 'bg-red-100 text-red-700' : 'bg-orange-100 text-orange-700'}`}>{ticket.priority === 'critical' ? 'حرج' : 'مرتفع'}</span>
+                        </button>)}
+                    </div>
+                </section>
+            </div>
             </div>
         );
     };
@@ -279,7 +349,8 @@ export const MaintenanceModule: React.FC = () => {
                 <button onClick={() => { setCurrentContract({ number: `MC-${new Date().getFullYear()}-${String(contracts.length + 1).padStart(3, '0')}`, startDate: new Date().toISOString().split('T')[0], endDate: new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split('T')[0], visitsPerYear: 12, amount: 0, status: 'active' }); setShowContractCreator(true); }} className="bg-jilco-600 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-jilco-700 flex items-center gap-2"><Plus size={16} /> إضافة عقد صيانة</button>
             </div>
 
-            <table className="w-full text-sm text-right">
+            <div className="overflow-x-auto">
+            <table className="w-full min-w-[860px] text-sm text-right">
                 <thead className="bg-gray-100 text-gray-600">
                     <tr><th className="p-4">رقم العقد</th><th className="p-4">العميل</th><th className="p-4">من - إلى</th><th className="p-4">عدد الزيارات</th><th className="p-4">القيمة (ر.س)</th><th className="p-4">الحالة</th><th className="p-4 text-center">الإجراءات</th></tr>
                 </thead>
@@ -303,6 +374,7 @@ export const MaintenanceModule: React.FC = () => {
                     {contracts.length === 0 && <tr><td colSpan={7} className="p-8 text-center text-gray-400">لا توجد عقود صيانة مسجلة حالياً</td></tr>}
                 </tbody>
             </table>
+            </div>
         </div>
     );
 
@@ -316,7 +388,8 @@ export const MaintenanceModule: React.FC = () => {
                 <button onClick={() => { setCurrentTicket({ number: `TKT-${new Date().getFullYear()}-${String(tickets.length + 1).padStart(3, '0')}`, type: 'routine', priority: 'medium', status: 'open', reportedDate: new Date().toISOString().split('T')[0] }); setShowTicketCreator(true); }} className="bg-red-600 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-red-700 flex items-center gap-2"><Plus size={16} /> تذكرة صيانة/عطل</button>
             </div>
 
-            <table className="w-full text-sm text-right">
+            <div className="overflow-x-auto">
+            <table className="w-full min-w-[1040px] text-sm text-right">
                 <thead className="bg-gray-100 text-gray-600">
                     <tr><th className="p-4 w-12 text-center">#</th><th className="p-4">رقم التذكرة</th><th className="p-4">العميل والموقع</th><th className="p-4">النوع / الأولوية</th><th className="p-4">الوصف</th><th className="p-4">الفني المُسند</th><th className="p-4 text-center">الحالة</th><th className="p-4 text-center">إجراءات</th></tr>
                 </thead>
@@ -324,7 +397,12 @@ export const MaintenanceModule: React.FC = () => {
                     {tickets.filter(t => t.number.includes(searchTerm) || getCustomerName(t.customerId).includes(searchTerm)).map((ticket, idx) => (
                         <tr key={ticket.id} className="hover:bg-gray-50 transition-colors">
                             <td className="p-4 text-center text-gray-400 font-bold">{idx + 1}</td>
-                            <td className="p-4 font-mono font-bold text-gray-700">{ticket.number}</td>
+                            <td className="p-4 font-mono font-bold text-gray-700">
+                                <div>{ticket.number}</div>
+                                <div className={`mt-1 text-[10px] font-sans ${isTicketOverdue(ticket) ? 'text-red-600' : 'text-gray-400'}`}>
+                                    {`${isTicketOverdue(ticket) ? 'متجاوز SLA' : 'موعد الحل'}: ${getTicketDueDate(ticket)}`}
+                                </div>
+                            </td>
                             <td className="p-4">
                                 <p className="font-bold text-black">{getCustomerName(ticket.customerId)}</p>
                                 <p className="text-[10px] text-gray-500">{ticket.elevatorLocation}</p>
@@ -364,6 +442,7 @@ export const MaintenanceModule: React.FC = () => {
                     {tickets.length === 0 && <tr><td colSpan={8} className="p-8 text-center text-gray-400">لا توجد تذاكر صيانة أو أعطال</td></tr>}
                 </tbody>
             </table>
+            </div>
         </div>
     );
 
@@ -405,21 +484,21 @@ export const MaintenanceModule: React.FC = () => {
     };
 
     return (
-        <div className="flex-1 bg-gray-100 p-8 h-full overflow-auto print:block print:bg-white print:p-0 print:overflow-visible print:absolute print:inset-0 print:z-50 print:h-auto">
-            <div className="max-w-7xl mx-auto space-y-6">
+        <div className="flex-1 bg-gray-100 p-3 sm:p-5 lg:p-8 h-full overflow-auto print:block print:bg-white print:p-0 print:overflow-visible print:absolute print:inset-0 print:z-50 print:h-auto">
+            <div className="max-w-7xl mx-auto space-y-4 sm:space-y-6">
 
                 {/* Header */}
-                <div className="flex justify-between items-end mb-6">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-3 mb-4 sm:mb-6">
                     <div>
-                        <h1 className="text-3xl font-black text-jilco-900 flex items-center gap-3">
-                            <Wrench className="text-jilco-600" size={32} /> صيانة المصاعد والأعطال
+                        <h1 className="text-2xl sm:text-3xl font-black text-jilco-900 flex items-center gap-3">
+                            <Wrench className="text-jilco-600 shrink-0" size={28} /> صيانة المصاعد والأعطال
                         </h1>
                         <p className="text-gray-500 text-sm mt-2">إدارة عقود الصيانة الدورية وتذاكر الأعطال للعملاء</p>
                     </div>
                 </div>
 
                 {/* Navigation Tabs */}
-                <div className="flex gap-2 border-b border-gray-200 pb-4">
+                <div className="flex gap-2 border-b border-gray-200 pb-4 overflow-x-auto scrollbar-thin">
                     <button onClick={() => setActiveTab('dashboard')} className={`px-6 py-2.5 rounded-xl font-bold text-sm transition-all flex items-center gap-2 ${activeTab === 'dashboard' ? 'bg-jilco-900 text-white shadow-md' : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200'}`}><Factory size={18} /> لوحة المتابعة</button>
                     <button onClick={() => setActiveTab('contracts')} className={`px-6 py-2.5 rounded-xl font-bold text-sm transition-all flex items-center gap-2 ${activeTab === 'contracts' ? 'bg-jilco-900 text-white shadow-md' : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200'}`}><FileText size={18} /> عقود الصيانة</button>
                     <button onClick={() => setActiveTab('tickets')} className={`px-6 py-2.5 rounded-xl font-bold text-sm transition-all flex items-center gap-2 ${activeTab === 'tickets' ? 'bg-jilco-900 text-white shadow-md' : 'bg-white text-gray-600 hover:bg-gray-50 border border-gray-200'}`}><AlertTriangle size={18} /> تذاكر الأعطال</button>

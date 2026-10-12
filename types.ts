@@ -697,6 +697,8 @@ export interface MaintenanceTicket {
   description: string;
   technicianId?: string;   // Assigned from HR context
   reportedDate: string;
+    /** Target date for resolving the ticket, calculated from its priority. */
+    slaDueDate?: string;
   resolvedDate?: string;
   status: TicketStatus;
   elevatorLocation: string; // Information on where the elevator is located inside the property
