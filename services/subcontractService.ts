@@ -85,17 +85,20 @@ export const subcontractService = {
     if (!rows?.length) throw new Error('لم يُحذف المستند. تحقق من حالته وصلاحياتك.');
   },
   async accountStatement(company: string, subcontractId: string): Promise<SubcontractAccountEntry[]> {
-    const [contractResult, certificates, payments, vouchers] = await Promise.all([
+    const [contractResult, certificates, payments, vouchers, ledgerEntries] = await Promise.all([
       checked(supabase.from('subcontracts').select('id,number,contract_date,total_amount').eq('company_id', company).eq('id', subcontractId).single()),
       checked(supabase.from('subcontract_certificates').select('id,certificate_number,description,due_date,net_payable').eq('company_id', company).eq('subcontract_id', subcontractId)),
       checked(supabase.from('subcontract_payments').select('id,amount,payment_date,reference_number').eq('company_id', company).eq('subcontract_id', subcontractId)),
-      checked(supabase.from('subcontract_vouchers').select('id,number,description,voucher_date,amount,type,status').eq('company_id', company).eq('subcontract_id', subcontractId))
+      checked(supabase.from('subcontract_vouchers').select('id,number,description,voucher_date,amount,type,status').eq('company_id', company).eq('subcontract_id', subcontractId)),
+      checked(supabase.from('subcontract_ledger_entries').select('id,entry_date,entry_type,reference_number,description,debit,credit').eq('company_id', company).eq('subcontract_id', subcontractId))
     ]);
     const rows: SubcontractAccountEntry[] = [];
     rows.push({ date: contractResult.contract_date, number: contractResult.number, type: 'contract', description: 'قيمة عقد مقاول الباطن', debit: Number(contractResult.total_amount), credit: 0, balance: 0, referenceId: contractResult.id });
     certificates.forEach((r: any) => rows.push({ date: r.due_date, number: r.certificate_number, type: 'certificate', description: r.description, debit: Number(r.net_payable), credit: 0, balance: 0, referenceId: r.id }));
     payments.forEach((r: any) => rows.push({ date: r.payment_date, number: r.reference_number || r.id, type: 'payment', description: 'سداد مستخلص مقاول', debit: 0, credit: Number(r.amount), balance: 0, referenceId: r.id }));
-    vouchers.filter((r: any) => r.status !== 'cancelled').forEach((r: any) => rows.push({ date: r.voucher_date, number: r.number, type: 'voucher', description: r.description, debit: r.type === 'deduction' ? 0 : Number(r.amount), credit: r.type === 'deduction' ? Number(r.amount) : 0, balance: 0, referenceId: r.id }));
+    const postedVoucherRefs = new Set((ledgerEntries || []).map((r: any) => r.reference_number));
+    vouchers.filter((r: any) => r.status !== 'cancelled' && !postedVoucherRefs.has(r.number)).forEach((r: any) => rows.push({ date: r.voucher_date, number: r.number, type: 'voucher', description: r.description, debit: r.type === 'deduction' ? 0 : Number(r.amount), credit: r.type === 'deduction' ? Number(r.amount) : 0, balance: 0, referenceId: r.id }));
+    (ledgerEntries || []).forEach((r: any) => rows.push({ date: r.entry_date, number: r.reference_number, type: r.entry_type === 'deduction' ? 'deduction' : 'voucher', description: r.description, debit: Number(r.debit || 0), credit: Number(r.credit || 0), balance: 0, referenceId: r.id }));
     rows.sort((a, b) => a.date.localeCompare(b.date) || a.number.localeCompare(b.number));
     let balance = 0; return rows.map(row => ({ ...row, balance: (balance += row.debit - row.credit) }));
   },
