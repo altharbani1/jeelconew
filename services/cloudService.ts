@@ -39,7 +39,8 @@ const BUCKET = 'jilco-assets';
 const isHRCollection = (collection: string) => collection.startsWith('jilco_hr_') ||
   ['subcontractors', 'subcontracts', 'jilco_projects', 'jilco_expenses_archive',
     'jilco_maintenance_contracts', 'jilco_maintenance_tickets',
-    'jilco_maintenance_visits', 'jilco_maintenance_appointments'].includes(collection);
+    'jilco_maintenance_visits', 'jilco_maintenance_appointments',
+    'jilco_maintenance_ticket_events', 'jilco_maintenance_part_usages'].includes(collection);
 
 async function getCurrentCompanyId(): Promise<string> {
   const { data: authData, error: authError } = await supabase.auth.getUser();

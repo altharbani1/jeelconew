@@ -130,7 +130,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
                 'jilco_warranties_archive', 'jilco_hr_employees', 'jilco_hr_commissions',
                 'jilco_smart_elevators', 'jilco_suppliers', 'jilco_supplier_products',
                 'jilco_purchase_invoices', 'jilco_supplier_payments', 'jilco_inventory_transactions',
-                'jilco_maintenance_contracts', 'jilco_maintenance_tickets', 'jilco_maintenance_visits'
+                'jilco_maintenance_contracts', 'jilco_maintenance_tickets', 'jilco_maintenance_ticket_events', 'jilco_maintenance_part_usages', 'jilco_maintenance_visits'
             ];
 
             let totalMigrated = 0;
@@ -164,11 +164,11 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     // migrate its local records once after authentication. The marker prevents
     // repeated uploads while keeping the original localStorage untouched.
     useEffect(() => {
-        const migrationMarker = 'jilco_cloud_migration_v5';
+        const migrationMarker = 'jilco_cloud_migration_v6';
         if (localStorage.getItem(migrationMarker)) return;
         const sourceKeys = [
             'jilco_customers', 'jilco_projects', 'jilco_quotes_archive', 'jilco_invoices_archive', 'jilco_receipts_archive',
-            'jilco_maintenance_contracts', 'jilco_maintenance_tickets', 'jilco_maintenance_visits'
+            'jilco_maintenance_contracts', 'jilco_maintenance_tickets', 'jilco_maintenance_ticket_events', 'jilco_maintenance_part_usages', 'jilco_maintenance_visits'
         ];
         const hasLocalRecords = sourceKeys.some((key) => {
             const raw = localStorage.getItem(key);

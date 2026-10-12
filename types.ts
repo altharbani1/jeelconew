@@ -586,12 +586,17 @@ export type Permission =
   | 'view_activity_log' // New permission
   | 'view_inventory'
   | 'view_maintenance' // New view for maintenance module
+  | 'view_maintenance_reports'
   | 'view_subcontracts' // New view for subcontracting
   // Actions
   | 'manage_users' // Create/Delete Users
   | 'delete_records' // General delete permission
   | 'approve_payments' // For managers/accountants
-  | 'edit_company_settings';
+  | 'edit_company_settings'
+  | 'manage_maintenance_tickets'
+  | 'manage_maintenance_schedule'
+  | 'manage_maintenance_parts'
+  | 'close_maintenance_tickets';
 
 export interface User {
   id: string;
@@ -621,7 +626,7 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
     'view_reports', 'view_warranties', 'view_calculator', 'view_specs_manager',
     'view_documents', 'view_forms', 'view_company_profile', 'view_activity_log',
     'approve_payments', 'delete_records', 'edit_company_settings', 'view_inventory',
-    'view_maintenance', 'view_subcontracts'
+    'view_maintenance', 'view_maintenance_reports', 'manage_maintenance_tickets', 'manage_maintenance_schedule', 'manage_maintenance_parts', 'close_maintenance_tickets', 'view_subcontracts'
   ],
   sales: [
     'view_dashboard', 'view_customers', 'view_quotes', 'view_contracts',
@@ -630,11 +635,11 @@ export const ROLE_PERMISSIONS: Record<UserRole, Permission[]> = {
   accountant: [
     'view_dashboard', 'view_invoices', 'view_receipts', 'view_expenses',
     'view_purchases', 'view_claims', 'view_hr', 'view_contracts', 'view_documents', 'view_inventory',
-    'view_subcontracts'
+    'view_subcontracts', 'view_maintenance', 'view_maintenance_reports', 'manage_maintenance_parts'
   ],
   technician: [
     'view_dashboard', 'view_projects', 'view_smart_elevator', 'view_specs_manager',
-    'view_warranties', 'view_forms', 'view_documents', 'view_maintenance'
+    'view_warranties', 'view_forms', 'view_documents', 'view_maintenance', 'manage_maintenance_tickets', 'manage_maintenance_schedule'
   ]
 };
 
@@ -662,12 +667,17 @@ export const ALL_PERMISSIONS: { id: Permission, label: string, type: 'view' | 'a
   { id: 'view_users', label: 'إدارة المستخدمين', type: 'view' },
   { id: 'view_activity_log', label: 'سجل النشاطات', type: 'view' },
   { id: 'view_maintenance', label: 'الصيانة والتذاكر', type: 'view' },
+  { id: 'view_maintenance_reports', label: 'تقارير الصيانة والتكلفة', type: 'view' },
   { id: 'view_subcontracts', label: 'عقود مقاولي الباطن', type: 'view' },
 
   { id: 'manage_users', label: 'إضافة/حذف مستخدمين', type: 'action' },
   { id: 'delete_records', label: 'حذف السجلات (فواتير/عقود)', type: 'action' },
   { id: 'approve_payments', label: 'اعتماد العمولات والصرف', type: 'action' },
   { id: 'edit_company_settings', label: 'تعديل إعدادات الشركة', type: 'action' },
+  { id: 'manage_maintenance_tickets', label: 'إدارة تذاكر الصيانة', type: 'action' },
+  { id: 'manage_maintenance_schedule', label: 'إدارة مواعيد الصيانة', type: 'action' },
+  { id: 'manage_maintenance_parts', label: 'إدارة قطع غيار الصيانة والتكلفة', type: 'action' },
+  { id: 'close_maintenance_tickets', label: 'إغلاق واعتماد تذاكر الصيانة', type: 'action' },
 ];
 
 // --- Maintenance & Ticketing Types ---
@@ -684,8 +694,24 @@ export interface MaintenanceContract {
 }
 
 export type TicketPriority = 'low' | 'medium' | 'high' | 'critical';
-export type TicketStatus = 'open' | 'in_progress' | 'resolved' | 'cancelled';
+/** Ticket workflow statuses. Legacy values remain valid for old records. */
+export type TicketStatus = 'open' | 'in_progress' | 'on_hold' | 'awaiting_parts' | 'awaiting_customer' | 'resolved' | 'closed' | 'cancelled';
 export type TicketType = 'routine' | 'emergency' | 'installation';
+
+export type TicketEventType = 'created' | 'updated' | 'status_changed' | 'assigned' | 'commented' | 'resolved' | 'closed' | 'deleted';
+
+export interface MaintenanceTicketEvent {
+  id: string;
+  ticketId: string;
+  type: TicketEventType;
+  description: string;
+  actorId?: string;
+  actorName?: string;
+  fromStatus?: TicketStatus;
+  toStatus?: TicketStatus;
+  createdAt: string;
+  metadata?: Record<string, unknown>;
+}
 
 export interface MaintenanceTicket {
   id: string;
@@ -696,13 +722,35 @@ export interface MaintenanceTicket {
   priority: TicketPriority;
   description: string;
   technicianId?: string;   // Assigned from HR context
+  visitId?: string;        // Linked field visit / work order
   reportedDate: string;
     /** Target date for resolving the ticket, calculated from its priority. */
     slaDueDate?: string;
+  slaResponseDueDate?: string;
+  slaResolutionDueDate?: string;
+  firstResponseAt?: string;
+  resolvedAt?: string;
+  closedAt?: string;
+  slaBreached?: boolean;
   resolvedDate?: string;
   status: TicketStatus;
   elevatorLocation: string; // Information on where the elevator is located inside the property
+  /** Optional stable asset/elevator reference; old tickets may only have elevatorLocation. */
+  assetId?: string;
+  elevatorId?: string;
+  elevatorNumber?: string;
+  assetType?: 'elevator' | 'escalator' | 'other';
+  resolution?: string;
+  rootCause?: string;
+  closedDate?: string;
+  lastUpdatedAt?: string;
   notes?: string;
+  /** قطع الغيار والعمل الميداني المسجلان أثناء معالجة التذكرة. */
+  partsUsed?: MaintenancePartUsage[];
+  laborCost?: number;
+  actualDurationMinutes?: number;
+  attachments?: Attachment[];
+  customerSignature?: string;
 }
 
 export type VisitStatus = 'pending' | 'completed' | 'missed' | 'rescheduled';
@@ -711,8 +759,30 @@ export interface MaintenanceVisit {
   id: string;
   contractId: string;
   scheduledDate: string; // YYYY-MM-DD
+  startTime?: string; // HH:mm
+  endTime?: string; // HH:mm
   completedDate?: string; // YYYY-MM-DD
   technicianId?: string; // ID from HR
+  ticketId?: string; // Linked fault ticket / work order
+  workOrderStatus?: 'not_started' | 'in_progress' | 'completed' | 'cancelled';
+  workOrderNotes?: string;
   status: VisitStatus;
+  notes?: string;
+  partsUsed?: MaintenancePartUsage[];
+  laborCost?: number;
+  actualDurationMinutes?: number;
+  attachments?: Attachment[];
+  customerSignature?: string;
+}
+
+export interface MaintenancePartUsage {
+  id: string;
+  productId: string;
+  productName: string;
+  quantity: number;
+  unitCost: number;
+  totalCost: number;
+  recordedAt: string;
+  technicianId?: string;
   notes?: string;
 }

@@ -10,7 +10,8 @@ using (
     'jilco_maintenance_contracts',
     'jilco_maintenance_tickets',
     'jilco_maintenance_visits',
-    'jilco_maintenance_appointments'
+    'jilco_maintenance_appointments',
+    'jilco_maintenance_ticket_events'
   )
   or (
     company_id = (select au.company_id from public.app_users au where au.id = (select auth.uid()))
@@ -21,14 +22,16 @@ with check (
     'jilco_maintenance_contracts',
     'jilco_maintenance_tickets',
     'jilco_maintenance_visits',
-    'jilco_maintenance_appointments'
+    'jilco_maintenance_appointments',
+    'jilco_maintenance_ticket_events'
   )
   and company_id = (select au.company_id from public.app_users au where au.id = (select auth.uid()))
   or collection not in (
     'jilco_maintenance_contracts',
     'jilco_maintenance_tickets',
     'jilco_maintenance_visits',
-    'jilco_maintenance_appointments'
+    'jilco_maintenance_appointments',
+    'jilco_maintenance_ticket_events'
   )
 );
 
@@ -38,5 +41,6 @@ create index if not exists jilco_realtime_maintenance_tenant_idx
     'jilco_maintenance_contracts',
     'jilco_maintenance_tickets',
     'jilco_maintenance_visits',
-    'jilco_maintenance_appointments'
+    'jilco_maintenance_appointments',
+    'jilco_maintenance_ticket_events'
   );

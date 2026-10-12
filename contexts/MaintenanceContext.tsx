@@ -1,10 +1,12 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
-import { MaintenanceContract, MaintenanceTicket, MaintenanceVisit } from '../types';
+import { MaintenanceContract, MaintenanceTicket, MaintenanceTicketEvent, MaintenanceVisit, MaintenancePartUsage, TicketEventType } from '../types';
 import { useCloudSync } from '../lib/useCloudSync';
 
 interface MaintenanceContextType {
     contracts: MaintenanceContract[];
     tickets: MaintenanceTicket[];
+    ticketEvents: MaintenanceTicketEvent[];
+    partUsages: MaintenancePartUsage[];
     visits: MaintenanceVisit[];
     addContract: (contract: MaintenanceContract) => Promise<void>;
     updateContract: (id: string, contract: Partial<MaintenanceContract>) => Promise<void>;
@@ -12,6 +14,8 @@ interface MaintenanceContextType {
     addTicket: (ticket: MaintenanceTicket) => Promise<void>;
     updateTicket: (id: string, ticket: Partial<MaintenanceTicket>) => Promise<void>;
     deleteTicket: (id: string) => Promise<void>;
+    getTicketEvents: (ticketId: string) => MaintenanceTicketEvent[];
+    addPartUsage: (usage: MaintenancePartUsage, target: { ticketId?: string; visitId?: string }) => Promise<void>;
     updateVisit: (id: string, visit: Partial<MaintenanceVisit>) => Promise<void>;
     addVisit: (visit: MaintenanceVisit) => Promise<void>;
     syncStatus: 'idle' | 'syncing' | 'synced' | 'error';
@@ -19,9 +23,26 @@ interface MaintenanceContextType {
 
 const MaintenanceContext = createContext<MaintenanceContextType | undefined>(undefined);
 
+const overlaps = (a: MaintenanceVisit, b: MaintenanceVisit) => {
+    if (a.scheduledDate !== b.scheduledDate || !a.technicianId || a.technicianId !== b.technicianId) return false;
+    // Existing date-only visits remain compatible; only reject an overlap when both visits have times.
+    if (!a.startTime || !a.endTime || !b.startTime || !b.endTime) return false;
+    return a.startTime < b.endTime && b.startTime < a.endTime;
+};
+
+const assertNoTechnicianConflict = (candidate: MaintenanceVisit, visits: MaintenanceVisit[]) => {
+    if (candidate.startTime && candidate.endTime && candidate.startTime >= candidate.endTime) {
+        throw new Error('وقت نهاية الموعد يجب أن يكون بعد وقت البداية');
+    }
+    const conflict = visits.find(existing => existing.id !== candidate.id && existing.status !== 'missed' && overlaps(candidate, existing));
+    if (conflict) throw new Error(`الفني مرتبط بموعد متعارض في ${conflict.scheduledDate} من ${conflict.startTime} إلى ${conflict.endTime}`);
+};
+
 export const MaintenanceProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const [contracts, setContracts] = useState<MaintenanceContract[]>([]);
     const [tickets, setTickets] = useState<MaintenanceTicket[]>([]);
+    const [ticketEvents, setTicketEvents] = useState<MaintenanceTicketEvent[]>([]);
+    const [partUsages, setPartUsages] = useState<MaintenancePartUsage[]>([]);
     const [visits, setVisits] = useState<MaintenanceVisit[]>([]);
 
     // Keep the existing localStorage keys as a fast offline cache while syncing
@@ -29,6 +50,8 @@ export const MaintenanceProvider: React.FC<{ children: ReactNode }> = ({ childre
     const modules = [
         { collection: 'jilco_maintenance_contracts', stateSetter: setContracts as React.Dispatch<React.SetStateAction<any[]>> },
         { collection: 'jilco_maintenance_tickets', stateSetter: setTickets as React.Dispatch<React.SetStateAction<any[]>> },
+        { collection: 'jilco_maintenance_ticket_events', stateSetter: setTicketEvents as React.Dispatch<React.SetStateAction<any[]>> },
+        { collection: 'jilco_maintenance_part_usages', stateSetter: setPartUsages as React.Dispatch<React.SetStateAction<any[]>> },
         { collection: 'jilco_maintenance_visits', stateSetter: setVisits as React.Dispatch<React.SetStateAction<any[]>> }
     ];
     const { syncStatus, saveRecord, deleteRecord } = useCloudSync(modules);
@@ -153,22 +176,65 @@ export const MaintenanceProvider: React.FC<{ children: ReactNode }> = ({ childre
         await Promise.all(linkedVisits.map(visit => deleteRecord('jilco_maintenance_visits', visit.id)));
     };
 
+    const saveTicketEvent = async (ticketId: string, type: TicketEventType, description: string, details: Partial<MaintenanceTicketEvent> = {}) => {
+        const event: MaintenanceTicketEvent = {
+            id: `TKE-${ticketId}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+            ticketId,
+            type,
+            description,
+            createdAt: new Date().toISOString(),
+            ...details
+        };
+        await saveRecord('jilco_maintenance_ticket_events', event.id, event);
+    };
+
     const addTicket = async (ticket: MaintenanceTicket) => {
-        setTickets(prev => [...prev, ticket]);
-        await saveRecord('jilco_maintenance_tickets', ticket.id, ticket);
+        const normalized: MaintenanceTicket = {
+            ...ticket,
+            lastUpdatedAt: ticket.lastUpdatedAt || new Date().toISOString(),
+            slaResolutionDueDate: ticket.slaResolutionDueDate || ticket.slaDueDate
+        };
+        setTickets(prev => [...prev, normalized]);
+        const saved = await saveRecord('jilco_maintenance_tickets', normalized.id, normalized);
+        if (!saved) throw new Error('تعذر حفظ تذكرة الصيانة');
+        await saveTicketEvent(normalized.id, 'created', 'تم إنشاء التذكرة', { toStatus: normalized.status });
     };
 
     const updateTicket = async (id: string, updatedFields: Partial<MaintenanceTicket>) => {
         const current = tickets.find(ticket => ticket.id === id);
         if (!current) return;
-        const updated = { ...current, ...updatedFields };
+        const updated: MaintenanceTicket = {
+            ...current,
+            ...updatedFields,
+            lastUpdatedAt: new Date().toISOString(),
+            slaResolutionDueDate: updatedFields.slaResolutionDueDate || current.slaResolutionDueDate || updatedFields.slaDueDate || current.slaDueDate
+        };
         setTickets(prev => prev.map(t => t.id === id ? updated : t));
-        await saveRecord('jilco_maintenance_tickets', id, updated);
+        const saved = await saveRecord('jilco_maintenance_tickets', id, updated);
+        if (!saved) throw new Error('تعذر تحديث تذكرة الصيانة');
+        const changedStatus = updated.status !== current.status;
+        await saveTicketEvent(id, changedStatus ? 'status_changed' : 'updated', changedStatus ? `تغيرت حالة التذكرة إلى ${updated.status}` : 'تم تحديث بيانات التذكرة', {
+            fromStatus: current.status,
+            toStatus: updated.status,
+            metadata: { changedFields: Object.keys(updatedFields) }
+        });
     };
 
     const deleteTicket = async (id: string) => {
+        const current = tickets.find(t => t.id === id);
+        if (current) await saveTicketEvent(id, 'deleted', 'تم حذف التذكرة', { fromStatus: current.status });
         setTickets(prev => prev.filter(t => t.id !== id));
         await deleteRecord('jilco_maintenance_tickets', id);
+    };
+
+    const getTicketEvents = (ticketId: string) => ticketEvents
+        .filter(event => event.ticketId === ticketId)
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+
+    const addPartUsage = async (usage: MaintenancePartUsage, target: { ticketId?: string; visitId?: string }) => {
+        const record = { ...usage, ...target } as MaintenancePartUsage;
+        const saved = await saveRecord('jilco_maintenance_part_usages', usage.id, record);
+        if (!saved) throw new Error('تعذر حفظ صرف قطعة الغيار');
     };
 
     const updateVisit = async (id: string, updatedFields: Partial<MaintenanceVisit>) => {
@@ -182,20 +248,22 @@ export const MaintenanceProvider: React.FC<{ children: ReactNode }> = ({ childre
                 ? (updatedFields.completedDate || current.completedDate || new Date().toISOString().split('T')[0])
                 : updatedFields.status ? undefined : (updatedFields.completedDate ?? current.completedDate)
         };
+        assertNoTechnicianConflict(updated, visits);
         setVisits(prev => prev.map(v => v.id === id ? updated : v));
         await saveRecord('jilco_maintenance_visits', id, updated);
     };
 
     const addVisit = async (visit: MaintenanceVisit) => {
+        assertNoTechnicianConflict(visit, visits);
         setVisits(prev => [...prev, visit]);
         await saveRecord('jilco_maintenance_visits', visit.id, visit);
     };
 
     return (
         <MaintenanceContext.Provider value={{
-            contracts, tickets, visits,
+            contracts, tickets, ticketEvents, partUsages, visits,
             addContract, updateContract, deleteContract,
-            addTicket, updateTicket, deleteTicket,
+            addTicket, updateTicket, deleteTicket, getTicketEvents, addPartUsage,
             updateVisit, addVisit,
             syncStatus
         }}>
