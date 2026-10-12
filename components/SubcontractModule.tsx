@@ -79,6 +79,9 @@ export const SubcontractModule: React.FC = () => {
         (contractStatusFilter === 'all' || c.status === contractStatusFilter) &&
         [c.number, c.subcontractorName, c.projectName, c.scopeOfWork].some(v => v?.toLowerCase().includes(searchTerm.trim().toLowerCase()))
     ), [subcontracts, contractStatusFilter, searchTerm]);
+    const filteredSubcontractors = useMemo(() => subcontractors.filter(s =>
+        [s.name, s.specialty, s.contactPerson].some(v => v?.toLowerCase().includes(searchTerm.trim().toLowerCase()))
+    ), [subcontractors, searchTerm]);
 
     // --- SUBCONTRACTOR ACTIONS ---
     const handleSaveSubcontractor = async () => {
@@ -638,29 +641,32 @@ export const SubcontractModule: React.FC = () => {
 
                 {/* Subcontractors Tab */}
                 {activeTab === 'subcontractors' && (
-                    <div className="animate-fade-in bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                        <table className="w-full text-sm">
-                            <thead className="bg-gray-50 text-gray-500 font-bold border-b border-gray-200">
+                    <div className="animate-fade-in overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 bg-slate-50/70 p-4"><div><h2 className="font-black text-slate-900">دليل المقاولين</h2><p className="mt-1 text-xs font-bold text-slate-500">بيانات التواصل والتخصص والتقييم والحالة</p></div><span className="rounded-full bg-jilco-50 px-3 py-1.5 text-xs font-black text-jilco-700">{filteredSubcontractors.length} مقاول</span></div>
+                        <div className="overflow-x-auto"><table className="w-full min-w-[760px] text-sm">
+                            <thead className="bg-slate-50 text-slate-500 font-bold border-b border-slate-200">
                                 <tr>
                                     <th className="p-4">اسم المقاول</th>
                                     <th className="p-4">التخصص</th>
                                     <th className="p-4">التواصل</th>
+                                    <th className="p-4 text-center">العقود</th>
                                     <th className="p-4 text-center">التقييم</th>
                                     <th className="p-4 text-center">الحالة</th>
                                     <th className="p-4 text-center">إجراءات</th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-gray-100 font-bold text-gray-700">
-                                {subcontractors.filter(s => [s.name, s.specialty, s.contactPerson].some(v => v?.toLowerCase().includes(searchTerm.trim().toLowerCase()))).map(sub => (
-                                    <tr key={sub.id} className="hover:bg-gray-50 transition-colors">
+                            <tbody className="divide-y divide-slate-100 font-bold text-slate-700">
+                                {filteredSubcontractors.map(sub => (
+                                    <tr key={sub.id} className="transition-colors hover:bg-jilco-50/40">
                                         <td className="p-4">
-                                            <p className="text-jilco-900 border-r-2 border-jilco-500 pr-2">{sub.name}</p>
+                                            <div className="flex items-center gap-3"><span className="flex h-9 w-9 items-center justify-center rounded-xl bg-jilco-50 font-black text-jilco-800">{sub.name?.trim().charAt(0) || 'م'}</span><p className="border-r-2 border-jilco-500 pr-2 text-jilco-900">{sub.name}</p></div>
                                         </td>
                                         <td className="p-4">{sub.specialty}</td>
                                         <td className="p-4">
                                             <p className="text-xs">{sub.contactPerson}</p>
                                             <p className="font-mono text-xs mt-1" dir="ltr">{sub.phone}</p>
                                         </td>
+                                        <td className="p-4 text-center"><span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-700">{subcontracts.filter(c => c.subcontractorId === sub.id).length}</span></td>
                                         <td className="p-4 text-center">
                                             <div className="flex justify-center text-amber-500">
                                                 {[...Array(5)].map((_, i) => (
@@ -682,11 +688,11 @@ export const SubcontractModule: React.FC = () => {
                                         </td>
                                     </tr>
                                 ))}
-                                {subcontractors.length === 0 && (
-                                    <tr><td colSpan={6} className="p-8 text-center text-gray-400">لا يوجد بيانات لعرضها</td></tr>
+                                {filteredSubcontractors.length === 0 && (
+                                    <tr><td colSpan={7} className="p-10 text-center text-slate-400">لا توجد نتائج مطابقة. جرّب تغيير البحث أو أضف مقاولًا جديدًا.</td></tr>
                                 )}
                             </tbody>
-                        </table>
+                        </table></div>
                     </div>
                 )}
 
