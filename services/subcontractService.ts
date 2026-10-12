@@ -99,6 +99,9 @@ export const subcontractService = {
     rows.sort((a, b) => a.date.localeCompare(b.date) || a.number.localeCompare(b.number));
     let balance = 0; return rows.map(row => ({ ...row, balance: (balance += row.debit - row.credit) }));
   },
+  async postVoucher(id: string) {
+    return checked(supabase.rpc('post_subcontract_voucher', { p_voucher_id: id }));
+  },
   async save(table: 'subcontractors' | 'subcontracts', company: string, value: any, existing?: any) {
     const fields = table === 'subcontractors' ? contractorFields : contractFields;
     const saveValue = table === 'subcontracts' && !existing

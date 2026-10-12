@@ -99,6 +99,10 @@ function useSubcontractState() {
             if (!canFinance) throw new Error('هذه العملية تتطلب صلاحية محاسب أو مدير.');
             await subcontractService.saveDocument('subcontract_vouchers', company!, { ...data, id: data.id || crypto.randomUUID(), companyId: company }, existing);
         }),
+        postVoucher: (id: string) => run(async () => {
+            if (!canFinance) throw new Error('ترحيل السند يتطلب صلاحية محاسب أو مدير.');
+            await subcontractService.postVoucher(id);
+        }),
         deleteWorkOrder: (id: string) => run(() => subcontractService.removeDocument('subcontract_work_orders', company!, id)),
         deleteReceipt: (id: string) => run(() => subcontractService.removeDocument('subcontract_receipts', company!, id)),
         deleteVoucher: (id: string) => run(async () => { if (!canManage) throw new Error('هذه العملية تتطلب صلاحية مدير.'); await subcontractService.removeDocument('subcontract_vouchers', company!, id); }),
