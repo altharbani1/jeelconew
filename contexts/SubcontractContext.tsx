@@ -44,7 +44,13 @@ function useSubcontractState() {
             await action();
             try { await refresh(); } catch { setError('تم الحفظ، لكن تعذر تحديث العرض. اضغط تحديث.'); }
             window.dispatchEvent(new Event('subcontract-data-changed')); return true;
-        } catch (e: any) { setError(e.message || 'تعذر تنفيذ العملية'); return false; }
+        } catch (e: any) {
+            const rawMessage = e?.message || '';
+            const message = /completion requires 100 percent progress/i.test(rawMessage)
+                ? 'لا يمكن اعتماد العقد كمكتمل قبل تسجيل نسبة إنجاز 100٪.'
+                : (rawMessage || 'تعذر تنفيذ العملية');
+            setError(message); return false;
+        }
         finally { locked.current = false; setBusy(false); }
     };
     const manage = () => { if (!canManage) throw new Error('هذه العملية تتطلب صلاحية مدير.'); };

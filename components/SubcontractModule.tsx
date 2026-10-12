@@ -99,6 +99,10 @@ export const SubcontractModule: React.FC = () => {
         if (!currentSubcontract.startDate || !currentSubcontract.endDate || currentSubcontract.endDate <= currentSubcontract.startDate) {
             alert('يجب أن يكون تاريخ الانتهاء بعد تاريخ البدء'); return;
         }
+        if (currentSubcontract.status === 'completed' && Number(currentSubcontract.progressPercentage || 0) !== 100) {
+            alert('لا يمكن وضع العقد كمكتمل قبل تسجيل نسبة إنجاز 100٪. استخدم حالة «نشط» أثناء التنفيذ.');
+            return;
+        }
         const subc = subcontractors.find(s => s.id === currentSubcontract.subcontractorId);
         const proj = projects.find(p => p.id === currentSubcontract.projectId);
 
@@ -336,7 +340,7 @@ export const SubcontractModule: React.FC = () => {
 
                     <div className="grid grid-cols-2 gap-4">
                         <label>حالة العقد
-                            <select title="حالة العقد" className="w-full p-2 border rounded" value={currentSubcontract.status || 'draft'} onChange={e => setCurrentSubcontract({ ...currentSubcontract, status: e.target.value as Subcontract['status'] })}>
+                            <select title="حالة العقد" className="w-full p-2 border rounded" value={currentSubcontract.status || 'draft'} onChange={e => { const status = e.target.value as Subcontract['status']; setCurrentSubcontract({ ...currentSubcontract, status, progressPercentage: status === 'completed' ? 100 : currentSubcontract.progressPercentage }); }}>
                                 <option value="draft">مسودة</option><option value="active">نشط</option><option value="completed">مكتمل</option><option value="cancelled">ملغي</option>
                             </select>
                         </label>
@@ -506,7 +510,7 @@ export const SubcontractModule: React.FC = () => {
                             </button>
                         )}
                         {activeTab === 'contracts' && (
-                            <button disabled={!canManage || busy} onClick={() => { setCurrentSubcontract({ status: 'draft', date: new Date().toISOString().split('T')[0] }); setShowSubcontractForm(true); }} className="bg-jilco-900 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 hover:bg-jilco-800 shadow-md text-sm disabled:opacity-50 disabled:cursor-not-allowed">
+                            <button disabled={!canManage || busy} onClick={() => { setCurrentSubcontract({ status: 'draft', progressPercentage: 0, payments: [], date: new Date().toISOString().split('T')[0] }); setShowSubcontractForm(true); }} className="bg-jilco-900 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 hover:bg-jilco-800 shadow-md text-sm disabled:opacity-50 disabled:cursor-not-allowed">
                                 <Plus size={18} /> عقد جديد
                             </button>
                         )}
