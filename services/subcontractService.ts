@@ -105,6 +105,9 @@ export const subcontractService = {
   async postVoucher(id: string) {
     return checked(supabase.rpc('post_subcontract_voucher', { p_voucher_id: id }));
   },
+  async postCertificate(id: string) {
+    return checked(supabase.rpc('post_subcontract_certificate', { p_certificate_id: id }));
+  },
   async save(table: 'subcontractors' | 'subcontracts', company: string, value: any, existing?: any) {
     const fields = table === 'subcontractors' ? contractorFields : contractFields;
     const saveValue = table === 'subcontracts' && !existing

@@ -85,7 +85,11 @@ function useSubcontractState() {
         savePayment: (contractId: string, payment: Partial<SubcontractPayment>) => run(() =>
             subcontractService.certificate(payment.id ? 'update' : 'create', payment.id || crypto.randomUUID(), { ...payment, subcontractId: contractId })),
         deletePayment: (id: string) => run(() => subcontractService.certificate('delete', id)),
-        approvePayment: (payment: SubcontractPayment) => run(() => subcontractService.certificate(payment.engineerApprovedAt ? 'finance' : 'engineer', payment.id)),
+        approvePayment: (payment: SubcontractPayment) => run(async () => {
+            const financeApproval = Boolean(payment.engineerApprovedAt);
+            await subcontractService.certificate(financeApproval ? 'finance' : 'engineer', payment.id);
+            if (financeApproval) await subcontractService.postCertificate(payment.id);
+        }),
         payPayment: (payment: SubcontractPayment, details: any) => run(() => subcontractService.pay(payment.id, details)),
         saveWorkOrder: (data: Partial<SubcontractWorkOrder>, existing?: SubcontractWorkOrder) => run(async () => {
             if (!canEngineer) throw new Error('هذه العملية تتطلب صلاحية فني أو مدير.');
