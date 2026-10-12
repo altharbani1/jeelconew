@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Wrench, Calendar, CalendarDays, FileText, AlertTriangle, Plus, Search, Filter, CheckCircle2, Factory, Trash2, Edit, Printer, Clock, MapPin, UserRound, BarChart3 } from 'lucide-react';
+import { Wrench, Calendar, CalendarDays, FileText, AlertTriangle, Plus, Search, Filter, CheckCircle2, Factory, Trash2, Edit, Printer, Share2, Clock, MapPin, UserRound, BarChart3 } from 'lucide-react';
 import { useMaintenance } from '../contexts/MaintenanceContext';
 import { useSales } from '../contexts/SalesContext';
 import { useHR } from '../contexts/HRContext';
@@ -289,6 +289,50 @@ export const MaintenanceModule: React.FC = () => {
     const isTicketOverdue = (ticket: MaintenanceTicket) =>
         Boolean(getTicketDueDate(ticket) < today && !['resolved', 'closed', 'cancelled'].includes(ticket.status));
 
+    const ticketStatusLabel = (status: TicketStatus) => ({
+        open: 'مفتوحة', in_progress: 'جاري العمل', on_hold: 'معلّقة', awaiting_parts: 'بانتظار قطع الغيار',
+        awaiting_customer: 'بانتظار العميل', resolved: 'تم الحل', closed: 'مغلقة', cancelled: 'ملغاة'
+    }[status] || status);
+
+    const escapeHtml = (value: unknown) => String(value ?? '')
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+
+    const buildTicketPrintHtml = (ticket: MaintenanceTicket) => {
+        const customer = customers.find(c => c.id === ticket.customerId);
+        const events = getTicketEvents(ticket.id);
+        const eventRows = events.length
+            ? events.map(event => `<li><strong>${escapeHtml(event.description)}</strong><span>${escapeHtml(new Date(event.createdAt).toLocaleString('ar-SA'))}</span></li>`).join('')
+            : '<li>لا توجد أحداث مسجلة</li>';
+        return `<!doctype html><html lang="ar" dir="rtl"><head><meta charset="utf-8"><title>تذكرة عطل ${escapeHtml(ticket.number)}</title>
+        <style>@page{size:A4;margin:14mm}*{box-sizing:border-box}body{font-family:Arial,"Tahoma",sans-serif;color:#172033;margin:0;line-height:1.7}.page{max-width:780px;margin:auto}.header{display:flex;justify-content:space-between;gap:20px;border-bottom:4px solid #b91c1c;padding-bottom:18px}.brand{font-size:22px;font-weight:800;color:#173b5c}.title{font-size:25px;font-weight:800;color:#b91c1c}.muted{color:#64748b;font-size:12px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:20px}.card{border:1px solid #dbe2ea;border-radius:10px;padding:14px;background:#f8fafc}.label{color:#64748b;font-size:11px;font-weight:700}.value{font-weight:700;white-space:pre-wrap}.description{margin-top:14px;border:1px solid #dbe2ea;border-radius:10px;padding:14px;min-height:90px}.section{margin-top:22px}.section h2{font-size:16px;border-bottom:2px solid #e2e8f0;padding-bottom:6px}.events{list-style:none;padding:0;margin:0}.events li{display:flex;justify-content:space-between;gap:16px;border-bottom:1px solid #edf2f7;padding:7px 0;font-size:12px}.footer{margin-top:35px;border-top:1px solid #cbd5e1;padding-top:10px;display:flex;justify-content:space-between;color:#64748b;font-size:11px}@media print{.no-print{display:none}}</style></head><body><main class="page">
+        <header class="header"><div><div class="title">تذكرة بلاغ عطل</div><div class="muted">رقم التذكرة: ${escapeHtml(ticket.number)}</div></div><div class="brand">شركة جيلكو للمصاعد<div class="muted">نظام إدارة الصيانة</div></div></header>
+        <section class="grid"><div class="card"><div class="label">العميل</div><div class="value">${escapeHtml(customer?.fullName || 'غير محدد')}</div><div class="muted">${escapeHtml(customer?.phone || '')}</div></div><div class="card"><div class="label">الموقع / الأصل</div><div class="value">${escapeHtml(ticket.elevatorLocation)}</div><div class="muted">${escapeHtml(ticket.elevatorNumber || ticket.assetId || 'غير محدد')}</div></div><div class="card"><div class="label">الأولوية والحالة</div><div class="value">${escapeHtml(ticket.priority === 'critical' ? 'حرج' : ticket.priority === 'high' ? 'مرتفع' : ticket.priority === 'medium' ? 'متوسط' : 'منخفض')} · ${escapeHtml(ticketStatusLabel(ticket.status))}</div></div><div class="card"><div class="label">الفني المسؤول</div><div class="value">${escapeHtml(getTechName(ticket.technicianId))}</div><div class="muted">تاريخ البلاغ: ${escapeHtml(ticket.reportedDate)}</div></div><div class="card"><div class="label">موعد استجابة SLA</div><div class="value">${escapeHtml(ticket.slaResponseDueDate || 'غير محدد')}</div></div><div class="card"><div class="label">موعد حل SLA</div><div class="value">${escapeHtml(getTicketDueDate(ticket))}</div></div></section>
+        <section class="description"><div class="label">وصف العطل</div><div class="value">${escapeHtml(ticket.description)}</div></section>
+        ${ticket.rootCause || ticket.resolution ? `<section class="grid"><div class="card"><div class="label">السبب الجذري</div><div class="value">${escapeHtml(ticket.rootCause || 'لم يحدد بعد')}</div></div><div class="card"><div class="label">الحل / الإجراء المنفذ</div><div class="value">${escapeHtml(ticket.resolution || 'لم يحدد بعد')}</div></div></section>` : ''}
+        <section class="section"><h2>سجل حالة التذكرة</h2><ul class="events">${eventRows}</ul></section><footer class="footer"><span>طُبع بواسطة نظام جيلكو</span><span>${escapeHtml(new Date().toLocaleString('ar-SA'))}</span></footer></main><script>window.onload=function(){window.print();};<\/script></body></html>`;
+    };
+
+    const handlePrintTicket = (ticket: MaintenanceTicket) => {
+        const printWindow = window.open('', '_blank', 'width=900,height=800');
+        if (!printWindow) return alert('يرجى السماح بالنوافذ المنبثقة لإتمام الطباعة');
+        printWindow.document.write(buildTicketPrintHtml(ticket));
+        printWindow.document.close();
+    };
+
+    const handleShareTicket = async (ticket: MaintenanceTicket) => {
+        const customer = customers.find(c => c.id === ticket.customerId);
+        const text = [`تذكرة عطل ${ticket.number}`, `العميل: ${customer?.fullName || 'غير محدد'}`, `الموقع: ${ticket.elevatorLocation}`, `الأولوية: ${ticket.priority}`, `الحالة: ${ticketStatusLabel(ticket.status)}`, `الفني: ${getTechName(ticket.technicianId)}`, `موعد الحل SLA: ${getTicketDueDate(ticket)}`, `الوصف: ${ticket.description}`].join('\n');
+        try {
+            if (navigator.share) await navigator.share({ title: `تذكرة عطل ${ticket.number}`, text });
+            else throw new Error('share-unavailable');
+        } catch (error) {
+            if (error instanceof Error && error.name === 'AbortError') return;
+            try { await navigator.clipboard.writeText(text); alert('تم نسخ بيانات التذكرة. يمكنك لصقها وإرسالها عبر واتساب أو البريد.'); }
+            catch { handlePrintTicket(ticket); }
+        }
+    };
+
     const renderDashboard = () => {
         const activeContractsCount = contracts.filter(c => c.status === 'active').length;
         const openTicketsCount = tickets.filter(t => t.status === 'open' || t.status === 'in_progress').length;
@@ -421,7 +465,7 @@ export const MaintenanceModule: React.FC = () => {
                     <Search className="absolute right-3 top-2.5 text-gray-400" size={18} />
                     <input title="بحث التذاكر" type="text" placeholder="بحث التذاكر..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full pr-10 pl-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-jilco-500 outline-none" />
                 </div>
-                <button onClick={() => { setCurrentTicket({ number: `TKT-${new Date().getFullYear()}-${String(tickets.length + 1).padStart(3, '0')}`, type: 'routine', priority: 'medium', status: 'open', reportedDate: new Date().toISOString().split('T')[0] }); setShowTicketCreator(true); }} className="bg-red-600 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-red-700 flex items-center gap-2"><Plus size={16} /> تذكرة صيانة/عطل</button>
+                {hasPermission('manage_maintenance_tickets') && <button onClick={() => { setCurrentTicket({ number: `TKT-${new Date().getFullYear()}-${String(tickets.length + 1).padStart(3, '0')}`, type: 'routine', priority: 'medium', status: 'open', reportedDate: new Date().toISOString().split('T')[0] }); setShowTicketCreator(true); }} className="bg-red-600 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-red-700 flex items-center gap-2"><Plus size={16} /> تذكرة صيانة/عطل</button>}
             </div>
 
             <div className="overflow-x-auto">
@@ -452,7 +496,7 @@ export const MaintenanceModule: React.FC = () => {
                             <td className="p-4 text-xs text-gray-600 max-w-[200px] truncate" title={ticket.description}>{ticket.description}</td>
                             <td className="p-4 font-bold text-jilco-800">{getTechName(ticket.technicianId)}</td>
                             <td className="p-4 text-center">
-                                <select
+                                {hasPermission('manage_maintenance_tickets') ? <select
                                     title="تحديث حالة التذكرة"
                                     value={ticket.status}
                                     onChange={(e) => updateTicket(ticket.id, { status: e.target.value as TicketStatus, resolvedDate: e.target.value === 'resolved' ? new Date().toISOString().split('T')[0] : undefined })}
@@ -469,13 +513,15 @@ export const MaintenanceModule: React.FC = () => {
                                     <option value="awaiting_parts">بانتظار قطع الغيار</option>
                                     <option value="awaiting_customer">بانتظار العميل</option>
                                     <option value="resolved">تم الحل</option>
-                                    <option value="closed">مغلقة</option>
+                                    {hasPermission('close_maintenance_tickets') && <option value="closed">مغلقة</option>}
                                     <option value="cancelled">ملغاة</option>
-                                </select>
+                                </select> : <span className="text-xs font-bold text-gray-700">{ticketStatusLabel(ticket.status)}</span>}
                             </td>
                             <td className="p-4 flex gap-2 justify-center">
-                                <button title="تعديل" onClick={() => { setCurrentTicket(ticket); setShowTicketCreator(true); }} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded"><Edit size={16} /></button>
-                                <button title="حذف" onClick={() => { if (window.confirm('حذف التذكرة؟')) deleteTicket(ticket.id); }} className="p-1.5 text-red-500 hover:bg-red-50 rounded"><Trash2 size={16} /></button>
+                                <button title="طباعة التذكرة" onClick={() => handlePrintTicket(ticket)} className="p-1.5 text-gray-700 hover:bg-gray-100 rounded"><Printer size={16} /></button>
+                                <button title="مشاركة التذكرة" onClick={() => void handleShareTicket(ticket)} className="p-1.5 text-emerald-700 hover:bg-emerald-50 rounded"><Share2 size={16} /></button>
+                                {hasPermission('manage_maintenance_tickets') && <button title="تعديل" onClick={() => { setCurrentTicket(ticket); setShowTicketCreator(true); }} className="p-1.5 text-blue-600 hover:bg-blue-50 rounded"><Edit size={16} /></button>}
+                                {hasPermission('delete_records') && <button title="حذف" onClick={() => { if (window.confirm('حذف التذكرة؟')) deleteTicket(ticket.id); }} className="p-1.5 text-red-500 hover:bg-red-50 rounded"><Trash2 size={16} /></button>}
                             </td>
                         </tr>
                     ))}
@@ -770,3 +816,4 @@ export const MaintenanceModule: React.FC = () => {
         </div>
     );
 };
+
