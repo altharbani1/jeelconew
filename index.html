@@ -179,6 +179,27 @@
         print-color-adjust: exact !important;
       }
 
+      /* Subcontract documents: keep a professional A4 frame while allowing
+         long descriptions to flow naturally without clipping the footer. */
+      .subcontract-print-document {
+        direction: rtl !important;
+        min-height: 297mm !important;
+        padding: 14mm !important;
+        box-sizing: border-box !important;
+        overflow: visible !important;
+        page-break-after: avoid !important;
+        break-after: avoid !important;
+      }
+
+      .subcontract-print-document h1,
+      .subcontract-print-document h2,
+      .subcontract-print-document h3,
+      .subcontract-print-document p,
+      .subcontract-print-document div {
+        print-color-adjust: exact !important;
+        -webkit-print-color-adjust: exact !important;
+      }
+
       .a4-page {
         visibility: visible !important;
         position: relative !important;
