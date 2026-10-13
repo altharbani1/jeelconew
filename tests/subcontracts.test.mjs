@@ -63,5 +63,40 @@ await db.query("update app_users set role='staff' where id=$1",[uid]); await db.
 await assert.rejects(action('create','staff',payment),/Management permission/);
 await assert.rejects(action('finance','collision'),/Finance permission/);
 await assert.rejects(db.exec("update subcontracts set total_amount=2000 where id='contract'"),/Management permission/);
-console.log('PASS: tenant identity, role guards, approvals, payment idempotency, immutable vouchers, rollback on voucher failure');
+await db.exec('reset role');
+for (const migration of ['20261012180000_subcontract_documents_and_ledger.sql','20261012193000_subcontract_accounting_foundation.sql','20261013133423_repair_subcontract_accounting.sql']) {
+  await db.exec(readFileSync(new URL('../supabase/migrations/'+migration,import.meta.url),'utf8'));
+}
+await db.query("update app_users set role='admin' where id=$1",[uid]);
+await db.query("insert into accounting_periods(id,company_id,period_start,period_end) values('period',$1,'2026-01-01','2026-12-31')",[tenant]);
+for (const code of ['5100','1400','2100','2120','1300','1100','1110']) {
+  await db.query("insert into chart_of_accounts(id,company_id,code,name,account_type) values($1,$2,$1,$1,'asset')",[code,tenant]);
+}
+await db.exec('set role authenticated');
+await action('create','accounting-cert',payment);
+await action('engineer','accounting-cert');
+await action('finance','accounting-cert');
+assert.equal((await db.query("select count(*)::int n from accounting_journals where source_id='accounting-cert' and status='posted'")).rows[0].n,1);
+await db.query("select public.pay_subcontract_certificate('accounting-cert','cash','2026-09-06',null)");
+await db.query("select public.pay_subcontract_certificate('accounting-cert','cash','2026-09-06',null)");
+assert.equal((await db.query("select count(*)::int n from accounting_journals where id='jp-SUB-accounting-cert'")).rows[0].n,1);
+await assert.rejects(db.exec("update accounting_entry_lines set debit=500 where id='line-jc-accounting-cert-gross'"),/immutable/);
+await assert.rejects(db.exec("delete from accounting_journals where id='jc-accounting-cert'"),/immutable/);
+await db.query("insert into subcontract_vouchers(id,company_id,subcontract_id,number,type,status,amount,voucher_date,description) values('voucher',$1,'contract','PV-test','payment','draft',50,'2026-09-06','Payment')",[tenant]);
+await db.query("select public.subcontract_voucher_action('voucher','approve',null)");
+await assert.rejects(db.query("select public.post_subcontract_voucher('voucher')"),/approved/);
+await db.query("select public.subcontract_voucher_action('voucher','pay','cash')");
+assert.equal((await db.query("select credit::int n from subcontract_ledger_entries where id='ledger-voucher'")).rows[0].n,50);
+await assert.rejects(db.exec("update subcontract_vouchers set amount=51 where id='voucher'"),/immutable/);
+await action('create','closed-period-cert',payment);
+await action('engineer','closed-period-cert');
+await db.exec("update accounting_periods set status='closed' where id='period'");
+await assert.rejects(action('finance','closed-period-cert'),/open accounting period/);
+assert.equal((await db.query("select finance_approved_at from subcontract_certificates where id='closed-period-cert'")).rows[0].finance_approved_at,null);
+await db.exec('reset role');
+await db.query("update app_users set role='staff' where id=$1",[uid]);
+await db.exec('set role authenticated');
+await assert.rejects(db.query("select public.post_subcontract_certificate('accounting-cert')"),/Finance permission/);
+await assert.rejects(db.exec("update chart_of_accounts set name='forged' where code='2100'"),/Finance permission/);
+console.log('PASS: tenant guards, atomic approval/payment posting, idempotency, immutable journal lines, restricted finance access');
 await db.close();

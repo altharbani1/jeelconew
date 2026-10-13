@@ -30,7 +30,7 @@ function useSubcontractState() {
                 const documents = await subcontractService.loadDocuments(company);
                 if (version !== generation.current) return;
                 setWorkOrders(documents.workOrders); setReceipts(documents.receipts); setVouchers(documents.vouchers);
-            } catch { setWorkOrders([]); setReceipts([]); setVouchers([]); }
+            } catch (e) { throw e; }
             setSyncStatus('synced'); setError(null);
         } catch (e: any) {
             if (version !== generation.current) return;
@@ -58,6 +58,12 @@ function useSubcontractState() {
                 ? 'لا يمكن اعتماد العقد كمكتمل قبل تسجيل نسبة إنجاز 100٪.'
                 : /activate the contract first/i.test(rawMessage)
                     ? 'يجب تفعيل العقد أولاً قبل إضافة المستخلص أو اعتماد الدفعات.'
+                : /no open accounting period/i.test(rawMessage)
+                    ? 'لا توجد فترة محاسبية مفتوحة لتاريخ العملية. لم يتم إتمام العملية المالية.'
+                : /posted.*immutable/i.test(rawMessage)
+                    ? 'المستند أو القيد مرحّل ومقفل؛ لا يمكن تعديله أو حذفه.'
+                : /voucher must be approved/i.test(rawMessage)
+                    ? 'اعتمد السند ثم سجّل السداد لترحيله محاسبيًا.'
                 : /null value in column "subcontract_id" of relation "subcontract_vouchers"/i.test(rawMessage)
                     ? 'يجب اختيار عقد مقاول الباطن قبل حفظ سند الصرف.'
                 : (rawMessage || 'تعذر تنفيذ العملية');
@@ -90,7 +96,6 @@ function useSubcontractState() {
         approvePayment: (payment: SubcontractPayment) => run(async () => {
             const financeApproval = Boolean(payment.engineerApprovedAt);
             await subcontractService.certificate(financeApproval ? 'finance' : 'engineer', payment.id);
-            if (financeApproval) await subcontractService.postCertificate(payment.id);
         }),
         payPayment: (payment: SubcontractPayment, details: any) => run(() => subcontractService.pay(payment.id, details)),
         saveWorkOrder: (data: Partial<SubcontractWorkOrder>, existing?: SubcontractWorkOrder) => run(async () => {
@@ -108,6 +113,10 @@ function useSubcontractState() {
         postVoucher: (id: string) => run(async () => {
             if (!canFinance) throw new Error('ترحيل السند يتطلب صلاحية محاسب أو مدير.');
             await subcontractService.postVoucher(id);
+        }),
+        voucherAction: (id: string, action: 'approve' | 'pay', method?: string) => run(async () => {
+            if (!canFinance) throw new Error('هذه العملية تتطلب صلاحية محاسب أو مدير.');
+            await subcontractService.voucherAction(id, action, method);
         }),
         deleteWorkOrder: (id: string) => run(() => subcontractService.removeDocument('subcontract_work_orders', company!, id)),
         deleteReceipt: (id: string) => run(() => subcontractService.removeDocument('subcontract_receipts', company!, id)),
