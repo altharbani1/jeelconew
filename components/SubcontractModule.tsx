@@ -6,6 +6,7 @@ import { useProject } from '../contexts/ProjectContext';
 import { subcontractService } from '../services/subcontractService';
 import { SubcontractDocumentsPanel } from './SubcontractDocumentsPanel';
 import { SubcontractStatement } from './SubcontractStatement';
+import { SubcontractRegister } from './SubcontractRegister';
 
 export const SubcontractModule: React.FC = () => {
     const {
@@ -18,12 +19,13 @@ export const SubcontractModule: React.FC = () => {
         updateSubcontract,
         deleteSubcontract,
         uploadSubcontractAttachment, savePayment, deletePayment, approvePayment, payPayment,
-        busy, error, canManage, canEngineer, canFinance, refresh
+        busy, error, canManage, canEngineer, canFinance, refresh, syncStatus
     } = useSubcontract();
 
     const { projects } = useProject();
 
     const [activeTab, setActiveTab] = useState<'dashboard' | 'subcontractors' | 'contracts' | 'documents'>('dashboard');
+    const [expandedContractId, setExpandedContractId] = useState<string | null>(null);
     const [statementSubcontractor, setStatementSubcontractor] = useState<Subcontractor | null>(null);
     const [printingPayment, setPrintingPayment] = useState<{ contract: Subcontract, payment: SubcontractPayment } | null>(null);
 
@@ -503,7 +505,7 @@ export const SubcontractModule: React.FC = () => {
 
     return (
         <div className="flex-1 overflow-auto bg-slate-100 p-4 text-right sm:p-6 lg:p-8 print:block print:bg-white print:p-0 print:overflow-visible print:absolute print:inset-0 print:z-50 print:h-auto" dir="rtl">
-            <div className="print:hidden mb-5 flex flex-wrap items-center gap-3">
+            <div className={`print:hidden mb-5 max-w-7xl mx-auto flex flex-wrap items-center gap-3 ${activeTab === 'contracts' || activeTab === 'documents' ? 'hidden' : ''}`}>
                 <div className="relative min-w-[220px] flex-1"><Search size={16} className="absolute right-3 top-3 text-slate-400" /><input aria-label="بحث في عقود الباطن" placeholder="بحث بالاسم أو رقم العقد" className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pr-9 pl-3 text-sm font-bold outline-none focus:border-jilco-500 focus:ring-2 focus:ring-jilco-100" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} /></div>
                 <select aria-label="تصفية حالة العقد" className="rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-sm font-bold outline-none focus:border-jilco-500" value={contractStatusFilter} onChange={e => setContractStatusFilter(e.target.value as any)}>
                     <option value="all">كل الحالات</option><option value="draft">مسودة</option><option value="active">نشط</option><option value="completed">مكتمل</option><option value="cancelled">ملغي</option>
@@ -513,18 +515,20 @@ export const SubcontractModule: React.FC = () => {
             </div>
             {error && <div role="alert" className="print:hidden fixed top-4 right-4 max-w-lg z-[10000] p-3 mb-4 bg-red-50 text-red-800 border border-red-300 rounded">{error}</div>}
 
-            <div className={`max-w-6xl mx-auto transition-opacity ${statementSubcontractor || printingPayment ? 'print:hidden' : ''}`}>
+            <div className={`max-w-7xl mx-auto transition-opacity ${statementSubcontractor || printingPayment ? 'print:hidden' : ''}`}>
 
                 {/* Header */}
-                <div className="mb-6 flex flex-wrap items-center justify-between gap-4">
+                <div className="mb-5 rounded-xl border border-slate-200 bg-white p-5 flex flex-wrap items-center justify-between gap-4">
                     <div>
-                        <div className="mb-2 inline-flex items-center gap-2 rounded-full bg-jilco-50 px-3 py-1 text-[11px] font-black text-jilco-700"><span className="h-1.5 w-1.5 rounded-full bg-emerald-500" /> إدارة المشاريع والموردين</div>
+                        <div className="mb-2 text-xs text-slate-500">جيلكو للمصاعد / إدارة العقود</div>
                         <h1 className="flex items-center gap-2 text-2xl font-black tracking-tight text-slate-900">
                             <span className="rounded-xl bg-jilco-900 p-2 text-white shadow-sm"><Users size={21} /></span> مقاولو الباطن
                         </h1>
-                        <p className="mt-2 text-sm font-bold text-slate-500">إدارة العقود والدفعات والتقدم ومستندات التنفيذ من لوحة واحدة</p>
+                        <p className="mt-2 text-sm text-slate-500">العقود والمستخلصات ومستندات التنفيذ</p>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap items-center gap-3">
+                        <span className="text-xs text-slate-500" role="status">{busy ? 'جارٍ الحفظ…' : syncStatus === 'syncing' ? 'جارٍ تحديث البيانات…' : syncStatus === 'error' ? 'تعذر تحديث البيانات' : 'البيانات محدثة'}</span>
+                        <button onClick={() => void refresh().catch(() => {})} disabled={busy} className="border border-slate-200 bg-white rounded-lg px-4 py-2.5 text-sm text-slate-700 disabled:opacity-50">تحديث</button>
                         {activeTab === 'subcontractors' && (
                             <button disabled={!canManage || busy} onClick={() => { setCurrentSubcontractor({ status: 'active', rating: 3 }); setShowSubcontractorForm(true); }} className="flex items-center gap-2 rounded-xl bg-jilco-900 px-4 py-2.5 text-sm font-black text-white shadow-md transition hover:bg-jilco-800 disabled:cursor-not-allowed disabled:opacity-50">
                                 <Plus size={18} /> مقاول جديد
@@ -540,34 +544,34 @@ export const SubcontractModule: React.FC = () => {
 
                 {/* Dashboard Stats */}
                 <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
-                    <div className="rounded-2xl border border-slate-200 border-r-4 border-r-jilco-500 bg-white p-4 shadow-sm">
+                    <div className="rounded-xl border border-slate-200 bg-white p-4">
                         <p className="text-xs font-bold text-gray-500 mb-1">عقود باطن نشطة</p>
                         <p className="text-2xl font-black text-jilco-900">{stats.activeContracts}</p>
                     </div>
-                    <div className="rounded-2xl border border-slate-200 border-r-4 border-r-blue-500 bg-white p-4 shadow-sm">
+                    <div className="rounded-xl border border-slate-200 bg-white p-4">
                         <p className="text-xs font-bold text-gray-500 mb-1">إجمالي الالتزامات (ر.س)</p>
                         <p className="text-2xl font-black text-jilco-900 font-mono">{stats.totalCommitted.toLocaleString()}</p>
                     </div>
-                    <div className="rounded-2xl border border-slate-200 border-r-4 border-r-green-500 bg-white p-4 shadow-sm">
+                    <div className="rounded-xl border border-slate-200 bg-white p-4">
                         <p className="text-xs font-bold text-gray-500 mb-1">إجمالي المستخلص المنصرف</p>
                         <p className="text-2xl font-black text-green-600 font-mono">{stats.totalPaid.toLocaleString()}</p>
                     </div>
-                    <div className="rounded-2xl border border-slate-200 border-r-4 border-r-amber-500 bg-white p-4 shadow-sm">
+                    <div className="rounded-xl border border-slate-200 bg-white p-4">
                         <p className="text-xs font-bold text-gray-500 mb-1">دفعات قيد الانتظار</p>
                         <p className="text-2xl font-black text-amber-600 font-mono">{stats.totalPending.toLocaleString()}</p>
                     </div>
-                    <div className="rounded-2xl border border-slate-200 border-r-4 border-r-purple-500 bg-white p-4 shadow-sm">
+                    <div className="rounded-xl border border-slate-200 bg-white p-4">
                         <p className="text-xs font-bold text-gray-500 mb-1">بانتظار الاعتماد الهندسي</p>
                         <p className="text-2xl font-black text-purple-600 font-mono">{stats.pendingEngineering}</p>
                     </div>
-                    <div className="rounded-2xl border border-slate-200 border-r-4 border-r-orange-500 bg-white p-4 shadow-sm">
+                    <div className="rounded-xl border border-slate-200 bg-white p-4">
                         <p className="text-xs font-bold text-gray-500 mb-1">بانتظار الاعتماد المالي</p>
                         <p className="text-2xl font-black text-orange-600 font-mono">{stats.pendingFinance}</p>
                     </div>
                 </div>
 
                 {/* Navigation Tabs */}
-                <div className="mb-6 flex w-full max-w-4xl overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
+                <div className="mb-5 flex w-full overflow-x-auto rounded-xl border border-slate-200 bg-white [&>button]:min-w-[145px] [&>button]:whitespace-nowrap [&>button]:px-4">
                     <button onClick={() => setActiveTab('dashboard')} className={`flex-1 py-3 text-sm font-bold flex justify-center items-center gap-2 transition-colors ${activeTab === 'dashboard' ? 'bg-jilco-50 text-jilco-800 border-b-4 border-jilco-600' : 'text-gray-500 hover:bg-gray-50'}`}><FileText size={18} /> نظرة عامة</button>
                     <button onClick={() => setActiveTab('subcontractors')} className={`flex-1 py-3 text-sm font-bold flex justify-center items-center gap-2 transition-colors ${activeTab === 'subcontractors' ? 'bg-jilco-50 text-jilco-800 border-b-4 border-jilco-600' : 'text-gray-500 hover:bg-gray-50'}`}><Building2 size={18} /> قائمة المقاولين</button>
                     <button onClick={() => setActiveTab('contracts')} className={`flex-1 py-3 text-sm font-bold flex justify-center items-center gap-2 transition-colors ${activeTab === 'contracts' ? 'bg-jilco-50 text-jilco-800 border-b-4 border-jilco-600' : 'text-gray-500 hover:bg-gray-50'}`}><Wrench size={18} /> سجل العقود</button>
@@ -577,9 +581,9 @@ export const SubcontractModule: React.FC = () => {
                 {activeTab === 'documents' && <SubcontractDocumentsPanel subcontracts={subcontracts} subcontractors={subcontractors} canManage={canManage} />}
 
                 {activeTab === 'contracts' && <div className="mb-5 rounded-2xl border border-slate-200 bg-white shadow-sm overflow-hidden animate-fade-in">
-                    <div className="p-4 md:p-5 bg-gradient-to-l from-jilco-950 to-jilco-800 text-white flex flex-wrap items-center justify-between gap-4">
-                        <div><h2 className="text-lg font-black">سجل عقود مقاولي الباطن</h2><p className="text-xs text-white/70 mt-1">متابعة القيمة والإنجاز والالتزامات في شاشة واحدة</p></div>
-                        <div className="flex items-center gap-2 text-xs font-bold"><span className="px-3 py-1.5 rounded-full bg-white/15">{filteredContracts.length} عقد ظاهر</span><span className="px-3 py-1.5 rounded-full bg-white/15">{filteredContracts.reduce((sum, c) => sum + Number(c.totalAmount || 0), 0).toLocaleString('ar-SA')} ر.س</span></div>
+                    <div className="p-4 md:p-5 border-b border-slate-100 text-slate-800 flex flex-wrap items-center justify-between gap-4">
+                        <div><h2 className="text-lg font-semibold">سجل عقود مقاولي الباطن</h2><p className="text-xs text-slate-500 mt-1">متابعة العقود والإنجاز والمستخلصات</p></div>
+                        <span className="text-xs border border-slate-200 rounded-md px-3 py-1.5">{filteredContracts.length} عقد ظاهر</span>
                     </div>
                     <div className="p-4 grid grid-cols-2 md:grid-cols-4 gap-3 border-b border-slate-100">
                         {[['all','كل العقود',subcontracts.length,'text-slate-700'],['active','قيد التنفيذ',subcontracts.filter(c => c.status === 'active').length,'text-blue-700'],['draft','مسودات',subcontracts.filter(c => c.status === 'draft').length,'text-amber-700'],['completed','مكتملة',subcontracts.filter(c => c.status === 'completed').length,'text-emerald-700']].map(([value,label,count,color]) => <button key={value} onClick={() => setContractStatusFilter(value as any)} className={`text-right p-3 rounded-xl border transition ${contractStatusFilter === value ? 'border-jilco-500 ring-2 ring-jilco-100 bg-jilco-50' : 'border-slate-200 hover:bg-slate-50'}`}><span className="block text-xs font-bold text-slate-500">{label}</span><strong className={`text-xl font-black ${color}`}>{count}</strong></button>)}
@@ -587,6 +591,7 @@ export const SubcontractModule: React.FC = () => {
                     <div className="px-4 py-3 flex flex-wrap gap-3 items-center bg-slate-50/70">
                         <div className="relative flex-1 min-w-[220px]"><Search size={16} className="absolute right-3 top-3 text-slate-400" /><input aria-label="بحث متقدم في سجل العقود" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} placeholder="ابحث برقم العقد أو المقاول أو المشروع" className="w-full rounded-xl border border-slate-200 bg-white py-2.5 pr-9 pl-3 text-sm font-bold outline-none focus:border-jilco-500" /></div>
                         <button onClick={() => { setSearchTerm(''); setContractStatusFilter('all'); }} className="px-4 py-2.5 rounded-xl border border-slate-200 bg-white text-slate-600 text-sm font-bold hover:bg-slate-100">إعادة ضبط</button>
+                        <select aria-label="حالة العقد في السجل" value={contractStatusFilter} onChange={e => setContractStatusFilter(e.target.value as typeof contractStatusFilter)} className="border border-slate-200 bg-white rounded-lg px-3 py-2.5 text-sm"><option value="all">كل الحالات</option><option value="draft">مسودة</option><option value="active">قيد التنفيذ</option><option value="completed">مكتمل</option><option value="cancelled">ملغي</option></select>
                     </div>
                 </div>}
 
@@ -702,19 +707,21 @@ export const SubcontractModule: React.FC = () => {
                 {/* Contracts Tab */}
                 {activeTab === 'contracts' && (
                     <div className="animate-fade-in space-y-4">
-                        {filteredContracts.map(contract => (
-                            <div key={contract.id} className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-                                <div className="p-4 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
+                        <SubcontractRegister contracts={filteredContracts} selectedId={expandedContractId} onSelect={setExpandedContractId} />
+                        {filteredContracts.filter(c => c.id === expandedContractId).map(contract => (
+                            <div id="subcontract-detail" key={contract.id} className="bg-white rounded-xl border border-slate-200 overflow-hidden">
+                                <div className="p-4 border-b border-slate-100 bg-slate-50 flex flex-wrap gap-3 justify-between items-center">
                                     <div className="flex items-center gap-4">
                                         <h3 className="font-bold text-lg text-jilco-900 font-mono border-r-4 border-jilco-600 pr-3">{contract.number}</h3>
                                         <span className={`px-2 py-1 rounded text-xs font-bold ${contract.status === 'active' ? 'bg-blue-100 text-blue-700' :
                                             contract.status === 'completed' ? 'bg-green-100 text-green-700' :
                                                 contract.status === 'draft' ? 'bg-gray-200 text-gray-700' : 'bg-red-100 text-red-700'
                                             }`}>
-                                            {contract.status === 'active' ? 'قيد التنفيذ' : contract.status === 'completed' ? 'مكتمل' : 'مسودة'}
+                                            {contract.status === 'active' ? 'قيد التنفيذ' : contract.status === 'completed' ? 'مكتمل' : contract.status === 'cancelled' ? 'ملغي' : 'مسودة'}
                                         </span>
                                     </div>
-                                    <div className="flex gap-2">
+                                    <div className="flex flex-wrap gap-2">
+                                        <button aria-label="إغلاق تفاصيل العقد" onClick={() => setExpandedContractId(null)} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"><X size={16} /></button>
                                         {contract.status === 'draft' && <button disabled={busy || !canManage} onClick={() => void updateSubcontract(contract.id, { status: 'active' })} className="text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1 hover:bg-emerald-100 disabled:opacity-50"><CheckCircle2 size={14} /> تفعيل العقد</button>}
                                         <button onClick={() => { setCurrentSubcontract(contract); setShowSubcontractForm(true); }} className="text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1 hover:bg-blue-100"><Edit size={14} /> تعديل</button>
                                         <button disabled={busy || !canManage} onClick={() => { if (window.confirm('هل أنت متأكد من حذف هذا العقد؟')) deleteSubcontract(contract.id); }} className="text-red-600 bg-red-50 px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1 hover:bg-red-100"><Trash2 size={14} /> حذف</button>
