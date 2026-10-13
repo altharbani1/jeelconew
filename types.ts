@@ -365,6 +365,7 @@ export interface SubcontractPayment {
 }
 
 export interface Subcontract {
+  advancePaymentAmount?: number;
   updatedAt?: string;
   id: string;
   number: string; // e.g., SUB-2024-001
@@ -440,6 +441,7 @@ export interface SubcontractVoucher {
   status: SubcontractVoucherStatus;
   amount: number;
   voucherDate: string;
+  paymentDate?: string;
   paymentMethod?: 'cash' | 'transfer' | 'check';
   referenceNumber?: string;
   description: string;
@@ -450,6 +452,7 @@ export interface SubcontractVoucher {
 }
 
 export interface SubcontractAccountEntry {
+  bucket?: 'payable' | 'advance' | 'retention';
   date: string;
   number: string;
   type: 'contract' | 'certificate' | 'payment' | 'voucher' | 'deduction';

@@ -336,6 +336,8 @@ export const SubcontractModule: React.FC = () => {
                                 value={currentSubcontract.totalAmount || ''}
                                 onChange={e => setCurrentSubcontract({ ...currentSubcontract, totalAmount: parseFloat(e.target.value) })}
                             />
+                            <label className="block text-xs font-bold mt-3 mb-1">حد الدفعة المقدمة المتفق عليها (ر.س)</label>
+                            <input type="number" min="0" aria-label="حد الدفعة المقدمة" value={currentSubcontract.advancePaymentAmount || 0} onChange={e => setCurrentSubcontract({ ...currentSubcontract, advancePaymentAmount: Number(e.target.value) })} className="w-full p-2 border rounded" />
                         </div>
                     </div>
 

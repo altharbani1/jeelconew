@@ -64,7 +64,7 @@ await assert.rejects(action('create','staff',payment),/Management permission/);
 await assert.rejects(action('finance','collision'),/Finance permission/);
 await assert.rejects(db.exec("update subcontracts set total_amount=2000 where id='contract'"),/Management permission/);
 await db.exec('reset role');
-for (const migration of ['20261012180000_subcontract_documents_and_ledger.sql','20261012193000_subcontract_accounting_foundation.sql','20261013133423_repair_subcontract_accounting.sql']) {
+for (const migration of ['20261012180000_subcontract_documents_and_ledger.sql','20261012193000_subcontract_accounting_foundation.sql','20261013133423_repair_subcontract_accounting.sql','20261013145241_harden_subcontract_financial_cycle.sql']) {
   await db.exec(readFileSync(new URL('../supabase/migrations/'+migration,import.meta.url),'utf8'));
 }
 await db.query("update app_users set role='admin' where id=$1",[uid]);
@@ -88,6 +88,19 @@ await assert.rejects(db.query("select public.post_subcontract_voucher('voucher')
 await db.query("select public.subcontract_voucher_action('voucher','pay','cash')");
 assert.equal((await db.query("select credit::int n from subcontract_ledger_entries where id='ledger-voucher'")).rows[0].n,50);
 await assert.rejects(db.exec("update subcontract_vouchers set amount=51 where id='voucher'"),/immutable/);
+assert.equal((await db.query("select count(*)::int n from accounting_entry_lines where subcontract_id='contract' and cost_center_id is null")).rows[0].n,0);
+await assert.rejects(db.query("insert into subcontract_vouchers(id,company_id,subcontract_id,number,type,status,amount,voucher_date,description,payment_method,paid_at) values('direct-paid',$1,'contract','PV-direct','payment','paid',10,'2026-09-06','Direct','cash',now())",[tenant]),/Journal does not match/);
+await assert.rejects(db.query("insert into subcontract_vouchers(id,company_id,subcontract_id,number,type,status,amount,voucher_date,description,payment_method,paid_at) values('excess-paid',$1,'contract','PV-excess','payment','paid',9999,'2026-09-06','Excess','cash',now())",[tenant]),/exceeds/);
+await assert.rejects(db.query("select public.post_subcontract_certificate('missing')"),/Certificate not found/);
+await db.query("insert into subcontract_vouchers(id,company_id,subcontract_id,number,type,status,amount,voucher_date,description) values('reserved',$1,'contract','PV-reserved','payment','approved',10,'2026-09-06','Reserved')",[tenant]);
+await db.query("insert into accounting_journals(id,company_id,period_id,number,journal_date,description,source_type,source_id,status) values('jv-reserved',$1,'period','JV-reserved','2026-09-06','Unposted','subcontract_voucher','reserved','draft')",[tenant]);
+await assert.rejects(db.query("select public.subcontract_voucher_action('reserved','pay','cash')"),/immutable|does not match/);
+await assert.rejects(db.query("select public.assert_subcontract_journal('jv-reserved',$1,'subcontract_voucher','reserved','contract',10,'2026-09-06')",[tenant]),/does not match/);
+assert.equal((await db.query("select status from subcontract_vouchers where id='reserved'")).rows[0].status,'approved');
+for (const type of ['advance','retention_release']) {
+  await assert.rejects(db.query("insert into subcontract_vouchers(id,company_id,subcontract_id,number,type,status,amount,voucher_date,description,payment_method,paid_at) values($1,$2,'contract',$1,$1,'paid',1,'2026-09-06','Limit','cash',now())",[type,tenant]),/exceeds/);
+}
+assert.equal((await db.query("select count(*)::int n from subcontract_vouchers v join accounting_journals j on j.source_id=v.id and j.source_type='subcontract_voucher' where v.id='voucher' and j.journal_date=v.payment_date")).rows[0].n,1);
 await action('create','closed-period-cert',payment);
 await action('engineer','closed-period-cert');
 await db.exec("update accounting_periods set status='closed' where id='period'");

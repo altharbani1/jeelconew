@@ -14,8 +14,8 @@ export function SubcontractStatement({ contractor, contracts, onClose }: { contr
     void Promise.all(contracts.filter(c => c.subcontractorId === contractor.id).map(c => subcontractService.accountStatement(user.company_id!, c.id)))
       .then(results => {
         if (cancelled) return;
-        let balance = 0;
-        setRows(results.flat().sort((a,b) => a.date.localeCompare(b.date) || a.number.localeCompare(b.number)).map(row => ({...row, balance: balance += row.debit - row.credit})));
+        const balances = { payable: 0, advance: 0, retention: 0 };
+        setRows(results.flat().sort((a,b) => a.date.localeCompare(b.date) || a.number.localeCompare(b.number)).map(row => { const bucket = row.bucket || 'payable'; return {...row, bucket, balance: balances[bucket] += row.debit - row.credit}; }));
       }).catch(e => { if (!cancelled) setError(e.message || 'تعذر تحميل الكشف'); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
@@ -28,8 +28,8 @@ export function SubcontractStatement({ contractor, contracts, onClose }: { contr
         <h1 className="text-2xl font-black text-jilco-900">جيلكو للمصاعد</h1><h2 className="text-xl mt-3">كشف حساب: {contractor.name}</h2>
         <p className="text-sm text-slate-500 my-3">المستخلصات المعتمدة والسداد والخصومات • ر.س</p>
         {loading ? <p>جارٍ تحميل الحركات…</p> : error ? <p role="alert" className="text-red-700">{error}</p> : <>
-          <p className="my-4 font-bold">الرصيد المستحق: {format(rows.at(-1)?.balance || 0)}</p>
-          <div className="overflow-x-auto"><table className="w-full text-sm text-right"><thead><tr>{['التاريخ','المرجع','البيان','استحقاق','سداد / خصم','الرصيد'].map(h => <th key={h} className="border p-2">{h}</th>)}</tr></thead><tbody>{rows.map(r => <tr key={r.type+'-'+r.referenceId}><td className="border p-2">{r.date}</td><td className="border p-2">{r.number}</td><td className="border p-2">{r.description}</td><td className="border p-2">{format(r.debit)}</td><td className="border p-2">{format(r.credit)}</td><td className="border p-2">{format(r.balance)}</td></tr>)}</tbody></table></div>
+          <div className="grid grid-cols-3 gap-3 my-4">{(['payable', 'advance', 'retention'] as const).map(bucket => <p key={bucket} className="font-bold border rounded p-3">{bucket === 'payable' ? 'الذمم المستحقة' : bucket === 'advance' ? 'المقدم غير المسترد' : 'الاستبقاء المحتجز'}: {format(rows.filter(r => (r.bucket || 'payable') === bucket).reduce((sum,r) => sum+r.debit-r.credit,0))}</p>)}</div>
+          <div className="overflow-x-auto"><table className="w-full text-sm text-right"><thead><tr>{['التاريخ','المرجع','البيان','استحقاق','سداد / خصم','الرصيد'].map(h => <th key={h} className="border p-2">{h}</th>)}</tr></thead><tbody>{rows.map(r => <tr key={r.type+'-'+r.referenceId}><td className="border p-2">{r.date}</td><td className="border p-2">{r.number}</td><td className="border p-2"><span className="block text-xs text-slate-500">{r.bucket === 'advance' ? 'دفعات مقدمة' : r.bucket === 'retention' ? 'استبقاء' : 'ذمم'}</span>{r.description}</td><td className="border p-2">{format(r.debit)}</td><td className="border p-2">{format(r.credit)}</td><td className="border p-2">{format(r.balance)}</td></tr>)}</tbody></table></div>
           {!rows.length && <p className="p-6 text-center">لا توجد حركات معتمدة بعد</p>}
         </>}
       </section>

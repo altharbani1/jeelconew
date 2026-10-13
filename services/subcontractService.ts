@@ -9,7 +9,7 @@ const contractorFields: Record<string, string> = {
 const contractFields: Record<string, string> = {
   number: 'number', subcontractorId: 'subcontractor_id', projectId: 'project_legacy_id', projectName: 'project_name',
   date: 'contract_date', totalAmount: 'total_amount', scopeOfWork: 'scope_of_work', startDate: 'start_date',
-  endDate: 'end_date', status: 'status', notes: 'notes', progressPercentage: 'progress_percentage'
+  endDate: 'end_date', status: 'status', notes: 'notes', progressPercentage: 'progress_percentage', advancePaymentAmount: 'advance_payment_amount'
 };
 const workOrderFields: Record<string, string> = {
   subcontractId: 'subcontract_id', subcontractorId: 'subcontractor_id', number: 'number', title: 'title',
@@ -23,7 +23,7 @@ const receiptFields: Record<string, string> = {
 };
 const voucherFields: Record<string, string> = {
   subcontractId: 'subcontract_id', certificateId: 'certificate_id', number: 'number', type: 'type', status: 'status', amount: 'amount',
-  voucherDate: 'voucher_date', paymentMethod: 'payment_method', referenceNumber: 'reference_number', description: 'description',
+  voucherDate: 'voucher_date', paymentDate: 'payment_date', paymentMethod: 'payment_method', referenceNumber: 'reference_number', description: 'description',
   approvedBy: 'approved_by', paidAt: 'paid_at'
 };
 const decode = (row: any, fields: Record<string, string>) => Object.fromEntries(Object.entries(fields).map(([key, column]) => [key, row[column]]));
@@ -86,17 +86,22 @@ export const subcontractService = {
   },
   async accountStatement(company: string, subcontractId: string): Promise<SubcontractAccountEntry[]> {
     const [certificates, payments, vouchers] = await Promise.all([
-      checked(supabase.from('subcontract_certificates').select('id,certificate_number,description,due_date,net_payable,finance_approved_at').eq('company_id', company).eq('subcontract_id', subcontractId)),
+      checked(supabase.from('subcontract_certificates').select('id,certificate_number,description,due_date,net_payable,finance_approved_at,retention_amount,advance_recovery_amount').eq('company_id', company).eq('subcontract_id', subcontractId)),
       checked(supabase.from('subcontract_payments').select('id,amount,payment_date,reference_number').eq('company_id', company).eq('subcontract_id', subcontractId)),
-      checked(supabase.from('subcontract_vouchers').select('id,number,description,voucher_date,paid_at,amount,type,status,certificate_id').eq('company_id', company).eq('subcontract_id', subcontractId))
+      checked(supabase.from('subcontract_vouchers').select('id,number,description,voucher_date,payment_date,paid_at,amount,type,status,certificate_id').eq('company_id', company).eq('subcontract_id', subcontractId))
     ]);
     // Contract value is a commitment, not a payable. Count each source once.
     const rows: SubcontractAccountEntry[] = [];
     certificates.filter((r: any) => r.finance_approved_at).forEach((r: any) => rows.push({ date: r.due_date, number: r.certificate_number, type: 'certificate', description: r.description, debit: Number(r.net_payable), credit: 0, balance: 0, referenceId: r.id }));
     payments.forEach((r: any) => rows.push({ date: r.payment_date, number: r.reference_number || r.id, type: 'payment', description: 'سداد مستخلص مقاول', debit: 0, credit: Number(r.amount), balance: 0, referenceId: r.id }));
-    vouchers.filter((r: any) => !r.certificate_id && (r.status === 'paid' || (r.type === 'deduction' && r.status === 'approved'))).forEach((r: any) => rows.push({ date: r.paid_at?.slice(0, 10) || r.voucher_date, number: r.number, type: r.type === 'deduction' ? 'deduction' : 'voucher', description: r.description, debit: 0, credit: Number(r.amount), balance: 0, referenceId: r.id }));
+    certificates.filter((r: any) => r.finance_approved_at).forEach((r: any) => {
+      if (Number(r.retention_amount) > 0) rows.push({ bucket: 'retention', date: r.due_date, number: r.certificate_number, type: 'certificate', description: 'استبقاء محتجز', debit: Number(r.retention_amount), credit: 0, balance: 0, referenceId: r.id + '-retention' });
+      if (Number(r.advance_recovery_amount) > 0) rows.push({ bucket: 'advance', date: r.due_date, number: r.certificate_number, type: 'certificate', description: 'استرداد دفعة مقدمة', debit: 0, credit: Number(r.advance_recovery_amount), balance: 0, referenceId: r.id + '-advance' });
+    });
+    vouchers.filter((r: any) => !r.certificate_id && (r.status === 'paid' || (r.type === 'deduction' && r.status === 'approved'))).forEach((r: any) => rows.push({ bucket: r.type === 'advance' ? 'advance' : r.type === 'retention_release' ? 'retention' : 'payable', date: r.payment_date || r.voucher_date, number: r.number, type: r.type === 'deduction' ? 'deduction' : 'voucher', description: r.description, debit: r.type === 'advance' ? Number(r.amount) : 0, credit: r.type === 'advance' ? 0 : Number(r.amount), balance: 0, referenceId: r.id }));
     rows.sort((a, b) => a.date.localeCompare(b.date) || a.number.localeCompare(b.number));
-    let balance = 0; return rows.map(row => ({ ...row, balance: (balance += row.debit - row.credit) }));
+    const balances = { payable: 0, advance: 0, retention: 0 };
+    return rows.map(row => { const bucket = row.bucket || 'payable'; return { ...row, bucket, balance: (balances[bucket] += row.debit - row.credit) }; });
   },
   async postVoucher(id: string) {
     return checked(supabase.rpc('post_subcontract_voucher', { p_voucher_id: id }));
