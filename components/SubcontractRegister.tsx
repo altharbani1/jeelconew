@@ -8,7 +8,8 @@ const statuses = {
   completed: { label: 'مكتمل', style: 'bg-emerald-50 text-emerald-700 border-emerald-100' },
   cancelled: { label: 'ملغي', style: 'bg-red-50 text-red-700 border-red-100' }
 };
-export function SubcontractRegister({ contracts, selectedId, onSelect }: {
+export function SubcontractRegister({ contracts, selectedId, onSelect, onRemove, canManage, busy }: {
+  onRemove: (contract: Subcontract) => void; canManage: boolean; busy: boolean;
   contracts: Subcontract[]; selectedId: string | null; onSelect: (id: string | null) => void;
 }) {
   const money = (value: number) => Number(value || 0).toLocaleString('ar-SA', { maximumFractionDigits: 2 });
@@ -31,7 +32,7 @@ export function SubcontractRegister({ contracts, selectedId, onSelect }: {
           <td className="p-4 tabular-nums text-slate-600 whitespace-nowrap">{money(paid(c))}</td>
           <td className="p-4 min-w-[110px]"><div className="text-xs tabular-nums mb-1">{progress}%</div><div role="progressbar" aria-label={'إنجاز العقد '+c.number} aria-valuenow={progress} aria-valuemin={0} aria-valuemax={100} className="h-1.5 rounded-full bg-slate-100 overflow-hidden"><div className="h-full bg-jilco-700" style={{width:progress+'%'}} /></div></td>
           <td className="p-4 text-xs tabular-nums whitespace-nowrap" dir="ltr">{c.endDate || '—'}</td>
-          <td className="p-4"><button aria-expanded={selectedId === c.id} aria-controls="subcontract-detail" onClick={() => onSelect(selectedId === c.id ? null : c.id)} className="inline-flex gap-1 items-center border border-slate-200 rounded-lg px-3 py-2 text-xs font-semibold text-jilco-900 hover:bg-white focus-visible:ring-2 focus-visible:ring-jilco-500">{selectedId === c.id ? 'إغلاق' : 'فتح العقد'}<ChevronDown size={14}/></button></td>
+          <td className="p-4"><button aria-expanded={selectedId === c.id} aria-controls="subcontract-detail" onClick={() => onSelect(selectedId === c.id ? null : c.id)} className="inline-flex gap-1 items-center border border-slate-200 rounded-lg px-3 py-2 text-xs font-semibold text-jilco-900 hover:bg-white focus-visible:ring-2 focus-visible:ring-jilco-500">{selectedId === c.id ? 'إغلاق' : 'فتح العقد'}<ChevronDown size={14}/></button><button disabled={!canManage || busy} onClick={() => onRemove(c)} className="mr-2 text-xs text-red-700 disabled:opacity-50">{c.archived ? 'استعادة' : 'إزالة'}</button></td>
         </tr>;
       })}</tbody>
     </table></div>
@@ -39,7 +40,7 @@ export function SubcontractRegister({ contracts, selectedId, onSelect }: {
       <div className="flex justify-between gap-3"><span className="font-semibold text-jilco-900" dir="ltr">{c.number}</span><span className={'border rounded-md px-2 py-1 text-xs '+(statuses[c.status] || statuses.draft).style}>{(statuses[c.status] || statuses.draft).label}</span></div>
       <p className="text-sm">{c.subcontractorName} <span className="text-slate-500">· {c.projectName}</span></p>
       <div className="flex justify-between text-xs text-slate-500"><span>القيمة <b className="text-slate-800">{money(c.totalAmount)}</b></span><span>الإنجاز {Math.min(100,Math.max(0,c.progressPercentage || 0))}%</span></div>
-      <button aria-expanded={selectedId === c.id} onClick={() => onSelect(selectedId === c.id ? null : c.id)} className="w-full border rounded-lg py-2 text-sm text-jilco-900">{selectedId === c.id ? 'إغلاق التفاصيل' : 'فتح تفاصيل العقد'}</button>
+      <button aria-expanded={selectedId === c.id} onClick={() => onSelect(selectedId === c.id ? null : c.id)} className="w-full border rounded-lg py-2 text-sm text-jilco-900">{selectedId === c.id ? 'إغلاق التفاصيل' : 'فتح تفاصيل العقد'}</button><button disabled={!canManage || busy} onClick={() => onRemove(c)} className="text-xs text-red-700 disabled:opacity-50">{c.archived ? 'استعادة العقد' : 'حذف / أرشفة'}</button>
     </div>)}</div>
     {!contracts.length && <div className="py-12 text-center"><FolderOpen size={32} className="mx-auto text-slate-300 mb-3"/><p className="font-semibold text-slate-600">لا توجد عقود مطابقة</p><p className="mt-1 text-xs text-slate-500">غيّر البحث أو حالة العقد لعرض النتائج.</p></div>}
     <div className="px-5 py-3 bg-slate-50 border-t border-slate-100 text-xs text-slate-500">{contracts.length} عقد · إجمالي قيمة العقود الظاهرة: <span className="font-semibold text-slate-700">{money(contracts.reduce((sum,c) => sum+Number(c.totalAmount || 0),0))}</span> ر.س</div>

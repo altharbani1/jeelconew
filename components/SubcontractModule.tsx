@@ -19,13 +19,15 @@ export const SubcontractModule: React.FC = () => {
         updateSubcontract,
         deleteSubcontract,
         uploadSubcontractAttachment, savePayment, deletePayment, approvePayment, payPayment,
-        busy, error, canManage, canEngineer, canFinance, refresh, syncStatus
+        busy, error, canManage, canEngineer, canFinance, refresh, syncStatus, setArchive, workOrders, receipts, vouchers
     } = useSubcontract();
 
     const { projects } = useProject();
 
     const [activeTab, setActiveTab] = useState<'dashboard' | 'subcontractors' | 'contracts' | 'documents'>('dashboard');
     const [expandedContractId, setExpandedContractId] = useState<string | null>(null);
+    const [showArchivedContracts, setShowArchivedContracts] = useState(false);
+    const [showArchivedPayments, setShowArchivedPayments] = useState(false);
     const [statementSubcontractor, setStatementSubcontractor] = useState<Subcontractor | null>(null);
     const [printingPayment, setPrintingPayment] = useState<{ contract: Subcontract, payment: SubcontractPayment } | null>(null);
 
@@ -79,9 +81,10 @@ export const SubcontractModule: React.FC = () => {
     }, [subcontracts]);
 
     const filteredContracts = useMemo(() => subcontracts.filter(c =>
+        Boolean(c.archived) === showArchivedContracts &&
         (contractStatusFilter === 'all' || c.status === contractStatusFilter) &&
         [c.number, c.subcontractorName, c.projectName, c.scopeOfWork].some(v => v?.toLowerCase().includes(searchTerm.trim().toLowerCase()))
-    ), [subcontracts, contractStatusFilter, searchTerm]);
+    ), [subcontracts, contractStatusFilter, searchTerm, showArchivedContracts]);
     const filteredSubcontractors = useMemo(() => subcontractors.filter(s =>
         [s.name, s.specialty, s.contactPerson].some(v => v?.toLowerCase().includes(searchTerm.trim().toLowerCase()))
     ), [subcontractors, searchTerm]);
@@ -162,16 +165,25 @@ export const SubcontractModule: React.FC = () => {
     };
 
     const handleDeletePayment = async (contractId: string, paymentId: string) => {
-        if (!window.confirm('هل أنت متأكد من حذف هذه الدفعة نهائياً؟')) return;
-
         const contract = subcontracts.find(c => c.id === contractId);
         if (!contract) return;
 
         const payment = contract.payments?.find(p => p.id === paymentId);
         if (!payment) return;
 
-        if (payment.status !== 'pending' || payment.engineerApprovedAt) { alert('لا يمكن حذف مستخلص معتمد أو مصروف'); return; }
-        await deletePayment(paymentId);
+        if (payment.archived) { await setArchive('certificate', paymentId, false); return; }
+        const protectedPayment = payment.status !== 'pending' || !!payment.engineerApprovedAt;
+        if (!window.confirm(protectedPayment ? 'إزالة الدفعة من القائمة وأرشفتها؟ ستبقى الحركة المالية في كشف الحساب ويمكن استعادتها.' : 'حذف مسودة الدفعة نهائيًا؟')) return;
+        if (protectedPayment) await setArchive('certificate', paymentId, true);
+        else await deletePayment(paymentId);
+    };
+
+    const handleRemoveContract = async (contract: Subcontract) => {
+        if (contract.archived) { await setArchive('contract', contract.id, false); return; }
+        const linked = contract.status !== 'draft' || !!contract.payments?.length || !!contract.attachments?.length || [...workOrders, ...receipts, ...vouchers].some(d => d.subcontractId === contract.id);
+        if (!window.confirm(linked ? 'أرشفة العقد وإزالته من القائمة؟ ستبقى قيوده وكشف حسابه محفوظة ويمكن استعادته.' : 'حذف مسودة العقد غير المرتبطة نهائيًا؟')) return;
+        const ok = linked ? await setArchive('contract', contract.id, true) : await deleteSubcontract(contract.id);
+        if (ok) setExpandedContractId(null);
     };
 
     const updatePaymentStatus = async (contractId: string, paymentId: string, newStatus: SubcontractPayment['status'], extraData?: any) => {
@@ -707,7 +719,8 @@ export const SubcontractModule: React.FC = () => {
                 {/* Contracts Tab */}
                 {activeTab === 'contracts' && (
                     <div className="animate-fade-in space-y-4">
-                        <SubcontractRegister contracts={filteredContracts} selectedId={expandedContractId} onSelect={setExpandedContractId} />
+                        <div className="flex flex-wrap gap-3 items-center text-sm"><label className="inline-flex gap-2 items-center"><input type="checkbox" checked={showArchivedContracts} onChange={e => { setShowArchivedContracts(e.target.checked); setExpandedContractId(null); }} /> العقود المؤرشفة ({subcontracts.filter(c => c.archived).length})</label><span className="text-xs text-slate-500">الأرشفة تخفي السجل وتحافظ على بياناته المالية.</span></div>
+                        <SubcontractRegister contracts={filteredContracts} selectedId={expandedContractId} onSelect={setExpandedContractId} onRemove={c => void handleRemoveContract(c)} canManage={canManage} busy={busy} />
                         {filteredContracts.filter(c => c.id === expandedContractId).map(contract => (
                             <div id="subcontract-detail" key={contract.id} className="bg-white rounded-xl border border-slate-200 overflow-hidden">
                                 <div className="p-4 border-b border-slate-100 bg-slate-50 flex flex-wrap gap-3 justify-between items-center">
@@ -724,7 +737,7 @@ export const SubcontractModule: React.FC = () => {
                                         <button aria-label="إغلاق تفاصيل العقد" onClick={() => setExpandedContractId(null)} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"><X size={16} /></button>
                                         {contract.status === 'draft' && <button disabled={busy || !canManage} onClick={() => void updateSubcontract(contract.id, { status: 'active' })} className="text-emerald-700 bg-emerald-50 px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1 hover:bg-emerald-100 disabled:opacity-50"><CheckCircle2 size={14} /> تفعيل العقد</button>}
                                         <button onClick={() => { setCurrentSubcontract(contract); setShowSubcontractForm(true); }} className="text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1 hover:bg-blue-100"><Edit size={14} /> تعديل</button>
-                                        <button disabled={busy || !canManage} onClick={() => { if (window.confirm('هل أنت متأكد من حذف هذا العقد؟')) deleteSubcontract(contract.id); }} className="text-red-600 bg-red-50 px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1 hover:bg-red-100"><Trash2 size={14} /> حذف</button>
+                                        <button disabled={busy || !canManage} onClick={() => void handleRemoveContract(contract)} className="text-red-600 bg-red-50 px-3 py-1.5 rounded-lg text-sm font-bold flex items-center gap-1 hover:bg-red-100"><Trash2 size={14} /> {contract.archived ? 'استعادة العقد' : 'حذف / أرشفة'}</button>
                                     </div>
                                 </div>
 
@@ -789,7 +802,8 @@ export const SubcontractModule: React.FC = () => {
                                             <Plus size={14} /> إضافة دفعة مستحقة
                                         </button>
                                     </div>
-                                    {(!contract.payments || contract.payments.length === 0) ? (
+                                    <label className="inline-flex gap-2 items-center text-xs mb-3"><input type="checkbox" checked={showArchivedPayments} onChange={e => setShowArchivedPayments(e.target.checked)} /> عرض الدفعات المؤرشفة</label>
+                                    {(!contract.payments || contract.payments.filter(p => Boolean(p.archived) === showArchivedPayments).length === 0) ? (
                                         <p className="text-xs text-center text-gray-400 font-bold py-4 bg-gray-50 rounded">لا توجد دفعات مسجلة</p>
                                     ) : (
                                         <div className="overflow-x-auto">
@@ -805,7 +819,7 @@ export const SubcontractModule: React.FC = () => {
                                                     </tr>
                                                 </thead>
                                                 <tbody className="divide-y divide-gray-100">
-                                                    {contract.payments.map(payment => (
+                                                    {contract.payments.filter(p => Boolean(p.archived) === showArchivedPayments).map(payment => (
                                                         <tr key={payment.id}>
                                                             <td className="p-2 text-gray-800">{payment.description}</td>
                                                             <td className="p-2 font-mono">{payment.dueDate}</td>
@@ -821,10 +835,10 @@ export const SubcontractModule: React.FC = () => {
                                                             </td>
                                                             <td className="p-2 text-center flex justify-center gap-1">
                                                                 <button title="طباعة" onClick={() => { setPrintingPayment({ contract, payment }); setTimeout(() => window.print(), 300); }} className="bg-gray-50 text-gray-600 px-2 py-1 rounded hover:bg-gray-100 border border-gray-200"><Printer size={16} /></button>
-                                                                {payment.status === 'pending' && (payment.engineerApprovedAt ? canFinance : canEngineer) && (
+                                                                {!payment.archived && payment.status === 'pending' && (payment.engineerApprovedAt ? canFinance : canEngineer) && (
                                                                     <button title="اعتماد" onClick={() => updatePaymentStatus(contract.id, payment.id, 'approved')} className="bg-blue-50 text-blue-600 px-2 py-1 rounded hover:bg-blue-100 border border-blue-100">{payment.engineerApprovedAt ? 'اعتماد مالي' : 'اعتماد هندسي'}</button>
                                                                 )}
-                                                                {payment.status === 'approved' && canFinance && (
+                                                                {!payment.archived && payment.status === 'approved' && canFinance && (
                                                                     <button title="تحويل كمنصرف" onClick={() => setPayingPayment({
                                                                         contractId: contract.id,
                                                                         paymentId: payment.id,
@@ -834,7 +848,7 @@ export const SubcontractModule: React.FC = () => {
                                                                         paymentDate: new Date().toISOString().split('T')[0]
                                                                     })} className="bg-green-50 text-green-600 px-2 py-1 rounded hover:bg-green-100 border border-green-100">تحويل كمنصرف</button>
                                                                 )}
-                                                                <button disabled={busy || !canManage || payment.status !== 'pending' || !!payment.engineerApprovedAt} title="حذف الدفعة" onClick={() => handleDeletePayment(contract.id, payment.id)} className="bg-red-50 text-red-600 px-2 py-1 rounded hover:bg-red-100 border border-red-100"><Trash2 size={16} /></button>
+                                                                <button disabled={busy || !canManage} title={payment.archived ? 'استعادة الدفعة' : 'حذف / أرشفة الدفعة'} onClick={() => handleDeletePayment(contract.id, payment.id)} className="bg-red-50 text-red-600 px-2 py-1 rounded hover:bg-red-100 border border-red-100">{payment.archived ? 'استعادة' : <Trash2 size={16} />}</button>
                                                             </td>
                                                         </tr>
                                                     ))}

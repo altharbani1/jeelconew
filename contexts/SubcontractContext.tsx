@@ -90,6 +90,7 @@ function useSubcontractState() {
             await subcontractService.save('subcontracts', company!, data, old);
         }),
         deleteSubcontract: (id: string) => run(async () => { manage(); await subcontractService.remove('subcontracts', company!, id); }),
+        setArchive: (type: 'contract' | 'certificate', id: string, archived: boolean) => run(async () => { manage(); await subcontractService.setArchive(type, id, archived); }),
         savePayment: (contractId: string, payment: Partial<SubcontractPayment>) => run(() =>
             subcontractService.certificate(payment.id ? 'update' : 'create', payment.id || crypto.randomUUID(), { ...payment, subcontractId: contractId })),
         deletePayment: (id: string) => run(() => subcontractService.certificate('delete', id)),

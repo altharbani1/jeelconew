@@ -34,17 +34,17 @@ async function checked(query: any) {
 }
 export const subcontractService = {
   async load(company: string) {
-    const [contractors, contracts, certificates, attachments] = await Promise.all(
-      ['subcontractors', 'subcontracts', 'subcontract_certificates', 'subcontract_attachments'].map(table =>
-        checked(supabase.from(table).select('*').eq('company_id', company).order('created_at', { ascending: false }))));
+    const [contractors, contracts, certificates, attachments, archives] = await Promise.all(
+      ['subcontractors', 'subcontracts', 'subcontract_certificates', 'subcontract_attachments', 'subcontract_record_archives'].map(table =>
+        checked(supabase.from(table).select('*').eq('company_id', company).order(table === 'subcontract_record_archives' ? 'changed_at' : 'created_at', { ascending: false }))));
     return {
       subcontractors: contractors.map((r: any) => ({ ...decode(r, contractorFields), id: r.id, createdAt: r.created_at, updatedAt: r.updated_at })) as Subcontractor[],
       subcontracts: contracts.map((r: any) => ({
-        ...decode(r, contractFields), id: r.id, updatedAt: r.updated_at,
+        ...decode(r, contractFields), id: r.id, updatedAt: r.updated_at, archived: archives.some((a: any) => a.archived && a.record_type === 'contract' && a.record_id === r.id),
         totalAmount: Number(r.total_amount), progressPercentage: Number(r.progress_percentage),
         subcontractorName: contractors.find((s: any) => s.id === r.subcontractor_id)?.name || '',
         payments: certificates.filter((p: any) => p.subcontract_id === r.id).map((p: any) => ({
-          id: p.id, subcontractId: p.subcontract_id, amount: Number(p.net_payable), description: p.description,
+          id: p.id, subcontractId: p.subcontract_id, amount: Number(p.net_payable), description: p.description, archived: archives.some((a: any) => a.archived && a.record_type === 'certificate' && a.record_id === p.id),
           dueDate: p.due_date, status: p.status, paymentMethod: p.payment_method, paymentDate: p.payment_date,
           referenceNumber: p.reference_number, progressPercentage: p.progress_percentage == null ? undefined : Number(p.progress_percentage),
           notes: p.notes, engineerApprovedAt: p.engineer_approved_at, financeApprovedAt: p.finance_approved_at, updatedAt: p.updated_at
@@ -105,6 +105,9 @@ export const subcontractService = {
   },
   async postVoucher(id: string) {
     return checked(supabase.rpc('post_subcontract_voucher', { p_voucher_id: id }));
+  },
+  async setArchive(type: 'contract' | 'certificate', id: string, archived: boolean) {
+    return checked(supabase.rpc('set_subcontract_archive', { p_type: type, p_id: id, p_archived: archived }));
   },
   async voucherAction(id: string, action: string, method?: string) {
     return checked(supabase.rpc('subcontract_voucher_action', { p_id: id, p_action: action, p_method: method || null }));

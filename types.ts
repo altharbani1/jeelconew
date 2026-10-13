@@ -348,6 +348,7 @@ export type SubcontractStatus = 'draft' | 'active' | 'completed' | 'cancelled';
 export type SubcontractPaymentStatus = 'pending' | 'approved' | 'paid';
 
 export interface SubcontractPayment {
+  archived?: boolean;
   engineerApprovedAt?: string;
   financeApprovedAt?: string;
   updatedAt?: string;
@@ -365,6 +366,7 @@ export interface SubcontractPayment {
 }
 
 export interface Subcontract {
+  archived?: boolean;
   advancePaymentAmount?: number;
   updatedAt?: string;
   id: string;
