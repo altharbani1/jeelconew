@@ -89,13 +89,16 @@ export const subcontractService = {
   },
   async accountStatement(company: string, subcontractId: string): Promise<SubcontractAccountEntry[]> {
     const [certificates, payments, vouchers] = await Promise.all([
-      checked(supabase.from('subcontract_certificates').select('id,certificate_number,description,due_date,net_payable,finance_approved_at,retention_amount,advance_recovery_amount').eq('company_id', company).eq('subcontract_id', subcontractId)),
+      checked(supabase.from('subcontract_certificates').select('id,certificate_number,description,due_date,net_payable,gross_work_value,vat_amount,retention_amount,advance_recovery_amount,deductions_amount,finance_approved_at').eq('company_id', company).eq('subcontract_id', subcontractId)),
       checked(supabase.from('subcontract_payments').select('id,amount,payment_date,reference_number').eq('company_id', company).eq('subcontract_id', subcontractId)),
       checked(supabase.from('subcontract_vouchers').select('id,number,description,voucher_date,payment_date,paid_at,amount,type,status,certificate_id').eq('company_id', company).eq('subcontract_id', subcontractId))
     ]);
     // Contract value is a commitment, not a payable. Count each source once.
     const rows: SubcontractAccountEntry[] = [];
-    certificates.filter((r: any) => r.finance_approved_at).forEach((r: any) => rows.push({ date: r.due_date, number: r.certificate_number, type: 'certificate', description: r.description, debit: Number(r.net_payable), credit: 0, balance: 0, referenceId: r.id }));
+    certificates.filter((r: any) => r.finance_approved_at).forEach((r: any) => rows.push({ date: r.due_date, number: r.certificate_number, type: 'certificate', description: r.description, debit: Number(r.net_payable), credit: 0, balance: 0, referenceId: r.id, certificateBreakdown: {
+      grossWorkValue: Number(r.gross_work_value || 0), vatAmount: Number(r.vat_amount || 0), retentionAmount: Number(r.retention_amount || 0),
+      advanceRecoveryAmount: Number(r.advance_recovery_amount || 0), deductionsAmount: Number(r.deductions_amount || 0)
+    } }));
     payments.forEach((r: any) => rows.push({ date: r.payment_date, number: r.reference_number || r.id, type: 'payment', description: 'سداد مستخلص مقاول', debit: 0, credit: Number(r.amount), balance: 0, referenceId: r.id }));
     certificates.filter((r: any) => r.finance_approved_at).forEach((r: any) => {
       if (Number(r.retention_amount) > 0) rows.push({ bucket: 'retention', date: r.due_date, number: r.certificate_number, type: 'certificate', description: 'استبقاء محتجز', debit: Number(r.retention_amount), credit: 0, balance: 0, referenceId: r.id + '-retention' });

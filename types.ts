@@ -463,12 +463,21 @@ export interface SubcontractAccountEntry {
   bucket?: 'payable' | 'advance' | 'retention';
   date: string;
   number: string;
+  contractNumber?: string;
+  projectName?: string;
   type: 'contract' | 'certificate' | 'payment' | 'voucher' | 'deduction';
   description: string;
   debit: number;
   credit: number;
   balance: number;
   referenceId: string;
+  certificateBreakdown?: {
+    grossWorkValue: number;
+    vatAmount: number;
+    retentionAmount: number;
+    advanceRecoveryAmount: number;
+    deductionsAmount: number;
+  };
 }
 
 // --- CUSTOMER MANAGEMENT TYPES ---
