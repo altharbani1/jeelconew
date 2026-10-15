@@ -64,7 +64,7 @@ await assert.rejects(action('create','staff',payment),/Management permission/);
 await assert.rejects(action('finance','collision'),/Finance permission/);
 await assert.rejects(db.exec("update subcontracts set total_amount=2000 where id='contract'"),/Management permission/);
 await db.exec('reset role');
-for (const migration of ['20261012180000_subcontract_documents_and_ledger.sql','20261012193000_subcontract_accounting_foundation.sql','20261013133423_repair_subcontract_accounting.sql','20261013145241_harden_subcontract_financial_cycle.sql','20261013151409_subcontract_record_archiving.sql','20261013153027_subcontract_voucher_archiving.sql','20261015170000_subcontract_detailed_certificates.sql']) {
+for (const migration of ['20261012180000_subcontract_documents_and_ledger.sql','20261012193000_subcontract_accounting_foundation.sql','20261013133423_repair_subcontract_accounting.sql','20261013145241_harden_subcontract_financial_cycle.sql','20261013151409_subcontract_record_archiving.sql','20261013153027_subcontract_voucher_archiving.sql','20261015160151_subcontract_detailed_certificates.sql']) {
   await db.exec(readFileSync(new URL('../supabase/migrations/'+migration,import.meta.url),'utf8'));
 }
 await db.query("update app_users set role='admin' where id=$1",[uid]);

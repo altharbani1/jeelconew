@@ -3,7 +3,10 @@ import { createClient } from '@supabase/supabase-js';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
-console.log('env ok?', !!import.meta.env.VITE_SUPABASE_URL);
+
+if (!supabaseUrl || !supabaseKey) {
+	throw new Error('إعدادات الاتصال السحابي ناقصة. أضف VITE_SUPABASE_URL و VITE_SUPABASE_ANON_KEY إلى بيئة البناء ثم أعد النشر.');
+}
 
 export const supabase = createClient(supabaseUrl, supabaseKey);
 
