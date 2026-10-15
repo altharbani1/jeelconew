@@ -434,6 +434,7 @@ export interface SubcontractReceipt {
 export type SubcontractVoucherType = 'payment' | 'advance' | 'retention_release' | 'deduction';
 export type SubcontractVoucherStatus = 'draft' | 'approved' | 'paid' | 'cancelled';
 export interface SubcontractVoucher {
+  archived?: boolean;
   id: string;
   companyId: string;
   subcontractId: string;

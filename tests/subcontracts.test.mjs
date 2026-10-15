@@ -64,7 +64,7 @@ await assert.rejects(action('create','staff',payment),/Management permission/);
 await assert.rejects(action('finance','collision'),/Finance permission/);
 await assert.rejects(db.exec("update subcontracts set total_amount=2000 where id='contract'"),/Management permission/);
 await db.exec('reset role');
-for (const migration of ['20261012180000_subcontract_documents_and_ledger.sql','20261012193000_subcontract_accounting_foundation.sql','20261013133423_repair_subcontract_accounting.sql','20261013145241_harden_subcontract_financial_cycle.sql','20261013151409_subcontract_record_archiving.sql']) {
+for (const migration of ['20261012180000_subcontract_documents_and_ledger.sql','20261012193000_subcontract_accounting_foundation.sql','20261013133423_repair_subcontract_accounting.sql','20261013145241_harden_subcontract_financial_cycle.sql','20261013151409_subcontract_record_archiving.sql','20261013153027_subcontract_voucher_archiving.sql']) {
   await db.exec(readFileSync(new URL('../supabase/migrations/'+migration,import.meta.url),'utf8'));
 }
 await db.query("update app_users set role='admin' where id=$1",[uid]);
@@ -107,6 +107,16 @@ await db.exec("update accounting_periods set status='closed' where id='period'")
 await assert.rejects(action('finance','closed-period-cert'),/open accounting period/);
 assert.equal((await db.query("select finance_approved_at from subcontract_certificates where id='closed-period-cert'")).rows[0].finance_approved_at,null);
 const financialBefore = (await db.query("select sum(amount)::text amount,count(*)::int n from subcontract_payments")).rows[0];
+const journalsBefore = (await db.query("select sum(debit)::text debit,sum(credit)::text credit,count(*)::int n from accounting_entry_lines")).rows[0];
+await db.query("select public.set_subcontract_archive('voucher','voucher',true)");
+assert.equal((await db.query("select archived from subcontract_record_archives where record_type='voucher' and record_id='voucher'")).rows[0].archived,true);
+assert.deepEqual((await db.query("select sum(debit)::text debit,sum(credit)::text credit,count(*)::int n from accounting_entry_lines")).rows[0],journalsBefore);
+await db.query("select public.set_subcontract_archive('voucher','voucher',false)");
+assert.equal((await db.query("select archived from subcontract_record_archives where record_type='voucher' and record_id='voucher'")).rows[0].archived,false);
+await assert.rejects(db.query("select public.set_subcontract_archive('voucher','missing',true)"),/Voucher not found/);
+await db.query("insert into subcontract_vouchers(id,company_id,subcontract_id,number,amount,voucher_date,description) values('delete-draft',$1,'contract','PV-delete',10,'2026-09-06','Draft')",[tenant]);
+await db.exec("delete from subcontract_vouchers where id='delete-draft'");
+assert.equal((await db.query("select count(*)::int n from subcontract_vouchers where id='delete-draft'")).rows[0].n,0);
 await db.query("select public.set_subcontract_archive('contract','contract',true)");
 await db.query("select public.set_subcontract_archive('certificate','accounting-cert',true)");
 assert.equal((await db.query("select count(*)::int n from subcontract_record_archives where archived")).rows[0].n,2);
@@ -119,6 +129,7 @@ await db.query("update app_users set role='staff' where id=$1",[uid]);
 await db.exec('set role authenticated');
 await assert.rejects(db.query("select public.post_subcontract_certificate('accounting-cert')"),/Finance permission/);
 await assert.rejects(db.query("select public.set_subcontract_archive('contract','contract',true)"),/Management permission/);
+await assert.rejects(db.query("select public.set_subcontract_archive('voucher','voucher',true)"),/Management permission/);
 await assert.rejects(db.exec("update chart_of_accounts set name='forged' where code='2100'"),/Finance permission/);
 console.log('PASS: tenant guards, atomic approval/payment posting, idempotency, immutable journal lines, restricted finance access');
 await db.close();

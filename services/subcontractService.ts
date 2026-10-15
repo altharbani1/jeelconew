@@ -57,15 +57,16 @@ export const subcontractService = {
     };
   },
   async loadDocuments(company: string) {
-    const [orders, receipts, vouchers] = await Promise.all([
+    const [orders, receipts, vouchers, archives] = await Promise.all([
       checked(supabase.from('subcontract_work_orders').select('*').eq('company_id', company).order('issue_date', { ascending: false })),
       checked(supabase.from('subcontract_receipts').select('*').eq('company_id', company).order('receipt_date', { ascending: false })),
-      checked(supabase.from('subcontract_vouchers').select('*').eq('company_id', company).order('voucher_date', { ascending: false }))
+      checked(supabase.from('subcontract_vouchers').select('*').eq('company_id', company).order('voucher_date', { ascending: false })),
+      checked(supabase.from('subcontract_record_archives').select('record_id,archived').eq('company_id', company).eq('record_type', 'voucher'))
     ]);
     return {
       workOrders: orders.map((r: any) => ({ ...decode(r, workOrderFields), id: r.id, companyId: r.company_id, estimatedAmount: Number(r.estimated_amount || 0), actualAmount: r.actual_amount == null ? undefined : Number(r.actual_amount), createdAt: r.created_at, updatedAt: r.updated_at })) as SubcontractWorkOrder[],
       receipts: receipts.map((r: any) => ({ ...decode(r, receiptFields), id: r.id, companyId: r.company_id, quantity: r.quantity == null ? undefined : Number(r.quantity), amount: r.amount == null ? undefined : Number(r.amount), createdAt: r.created_at, updatedAt: r.updated_at })) as SubcontractReceipt[],
-      vouchers: vouchers.map((r: any) => ({ ...decode(r, voucherFields), id: r.id, companyId: r.company_id, amount: Number(r.amount), createdAt: r.created_at, updatedAt: r.updated_at })) as SubcontractVoucher[]
+      vouchers: vouchers.map((r: any) => ({ ...decode(r, voucherFields), id: r.id, companyId: r.company_id, amount: Number(r.amount), archived: archives.some((a: any) => a.record_id === r.id && a.archived), createdAt: r.created_at, updatedAt: r.updated_at })) as SubcontractVoucher[]
     };
   },
   async saveDocument(table: 'subcontract_work_orders' | 'subcontract_receipts' | 'subcontract_vouchers', company: string, value: any, existing?: any) {
@@ -106,7 +107,7 @@ export const subcontractService = {
   async postVoucher(id: string) {
     return checked(supabase.rpc('post_subcontract_voucher', { p_voucher_id: id }));
   },
-  async setArchive(type: 'contract' | 'certificate', id: string, archived: boolean) {
+  async setArchive(type: 'contract' | 'certificate' | 'voucher', id: string, archived: boolean) {
     return checked(supabase.rpc('set_subcontract_archive', { p_type: type, p_id: id, p_archived: archived }));
   },
   async voucherAction(id: string, action: string, method?: string) {
