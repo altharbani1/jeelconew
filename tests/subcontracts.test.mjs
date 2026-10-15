@@ -64,7 +64,7 @@ await assert.rejects(action('create','staff',payment),/Management permission/);
 await assert.rejects(action('finance','collision'),/Finance permission/);
 await assert.rejects(db.exec("update subcontracts set total_amount=2000 where id='contract'"),/Management permission/);
 await db.exec('reset role');
-for (const migration of ['20261012180000_subcontract_documents_and_ledger.sql','20261012193000_subcontract_accounting_foundation.sql','20261013133423_repair_subcontract_accounting.sql','20261013145241_harden_subcontract_financial_cycle.sql','20261013151409_subcontract_record_archiving.sql','20261013153027_subcontract_voucher_archiving.sql']) {
+for (const migration of ['20261012180000_subcontract_documents_and_ledger.sql','20261012193000_subcontract_accounting_foundation.sql','20261013133423_repair_subcontract_accounting.sql','20261013145241_harden_subcontract_financial_cycle.sql','20261013151409_subcontract_record_archiving.sql','20261013153027_subcontract_voucher_archiving.sql','20261015170000_subcontract_detailed_certificates.sql']) {
   await db.exec(readFileSync(new URL('../supabase/migrations/'+migration,import.meta.url),'utf8'));
 }
 await db.query("update app_users set role='admin' where id=$1",[uid]);
@@ -101,6 +101,14 @@ for (const type of ['advance','retention_release']) {
   await assert.rejects(db.query("insert into subcontract_vouchers(id,company_id,subcontract_id,number,type,status,amount,voucher_date,description,payment_method,paid_at) values($1,$2,'contract',$1,$1,'paid',1,'2026-09-06','Limit','cash',now())",[type,tenant]),/exceeds/);
 }
 assert.equal((await db.query("select count(*)::int n from subcontract_vouchers v join accounting_journals j on j.source_id=v.id and j.source_type='subcontract_voucher' where v.id='voucher' and j.journal_date=v.payment_date")).rows[0].n,1);
+await action('create','detailed-cert',{subcontractId:'contract',grossWorkValue:200,vatAmount:30,retentionAmount:20,advanceRecoveryAmount:15,deductionsAmount:5,description:'Detailed certificate',dueDate:'2026-09-10',progressPercentage:40});
+assert.equal(Number((await db.query("select net_payable::text n from subcontract_certificates where id='detailed-cert'")).rows[0].n),190);
+await action('engineer','detailed-cert'); await action('finance','detailed-cert');
+assert.deepEqual((await db.query("select a.code,l.debit::text debit,l.credit::text credit from accounting_entry_lines l join chart_of_accounts a on a.id=l.account_id where l.journal_id='jc-detailed-cert' order by a.code")).rows.map(r=>[r.code,r.debit,r.credit]),[
+  ['1300','0.00','15.00'],['1400','30.00','0.00'],['2100','0.00','190.00'],['2120','0.00','20.00'],['5100','200.00','0.00'],['5100','0.00','5.00']
+]);
+await assert.rejects(action('create','bad-detailed',{subcontractId:'contract',grossWorkValue:100,vatAmount:0,retentionAmount:0,advanceRecoveryAmount:0,deductionsAmount:100,description:'Zero net',dueDate:'2026-09-10'}),/Valid positive certificate amounts/);
+await assert.rejects(action('create','bad-progress',{...payment,progressPercentage:101}),/Valid positive certificate amounts/);
 await action('create','closed-period-cert',payment);
 await action('engineer','closed-period-cert');
 await db.exec("update accounting_periods set status='closed' where id='period'");

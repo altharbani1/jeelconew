@@ -355,6 +355,11 @@ export interface SubcontractPayment {
   id: string;
   subcontractId: string;
   amount: number;
+  grossWorkValue?: number;
+  vatAmount?: number;
+  retentionAmount?: number;
+  advanceRecoveryAmount?: number;
+  deductionsAmount?: number;
   description: string; // e.g., 'الدفعة الأولى', 'إنجاز 50%'
   dueDate: string;
   status: SubcontractPaymentStatus;

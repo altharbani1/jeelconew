@@ -148,17 +148,21 @@ export const SubcontractModule: React.FC = () => {
 
     // --- PAYMENT ACTIONS ---
     const handleSavePayment = async () => {
-        if (!selectedContractId || !currentPayment.amount || !currentPayment.description) {
-            return alert('وصف الدفعة والمبلغ مطلوبان');
+        if (!selectedContractId || !currentPayment.description?.trim()) {
+            return alert('وصف المستخلص مطلوب');
         }
 
         const contract = subcontracts.find(c => c.id === selectedContractId);
         if (!contract) return;
 
-        if (!Number.isFinite(currentPayment.amount) || currentPayment.amount! <= 0 || !currentPayment.dueDate) {
-            alert('أدخل مبلغاً موجباً وتاريخ استحقاق صحيحاً'); return;
+        const gross = Number(currentPayment.grossWorkValue ?? currentPayment.amount ?? 0);
+        const vat = Number(currentPayment.vatAmount || 0), retention = Number(currentPayment.retentionAmount || 0);
+        const advance = Number(currentPayment.advanceRecoveryAmount || 0), deductions = Number(currentPayment.deductionsAmount || 0);
+        const net = Math.round((gross + vat - retention - advance - deductions + Number.EPSILON) * 100) / 100;
+        if (![gross, vat, retention, advance, deductions].every(v => Number.isFinite(v) && v >= 0 && Math.round(v * 100) / 100 === v) || gross <= 0 || net <= 0 || !currentPayment.dueDate) {
+            alert('تحقق من المبالغ: يجب أن تكون موجبة أو صفرًا بدقة هللتين، وصافي المستحق أكبر من صفر.'); return;
         }
-        if (!await savePayment(selectedContractId, currentPayment)) return;
+        if (!await savePayment(selectedContractId, { ...currentPayment, amount: net, grossWorkValue: gross, vatAmount: vat, retentionAmount: retention, advanceRecoveryAmount: advance, deductionsAmount: deductions })) return;
         setShowPaymentForm(false);
         setCurrentPayment({ status: 'pending', dueDate: new Date().toISOString().split('T')[0] });
         setSelectedContractId('');
@@ -400,54 +404,31 @@ export const SubcontractModule: React.FC = () => {
         </div>
     );
 
-    const renderPaymentForm = () => (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6 animate-fade-in">
-                <h3 className="font-bold text-lg mb-4 text-jilco-900 flex items-center gap-2">
-                    <DollarSign size={20} /> تسجيل دفعة باطن
-                </h3>
-                <div className="space-y-4">
-                    <div>
-                        <label className="block text-xs font-bold mb-1">وصف الدفعة</label>
-                        <input title="الوصف" type="text" className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold"
-                            placeholder="مثال: دفعة مقدمة، أو إنجاز 50%"
-                            value={currentPayment.description || ''}
-                            onChange={e => setCurrentPayment({ ...currentPayment, description: e.target.value })}
-                        />
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-xs font-bold mb-1">المبلغ (ر.س)</label>
-                            <input title="المبلغ" type="number" className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold"
-                                value={currentPayment.amount || ''}
-                                onChange={e => setCurrentPayment({ ...currentPayment, amount: parseFloat(e.target.value) })}
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-xs font-bold mb-1">تاريخ الاستحقاق</label>
-                            <input title="الاستحقاق" type="date" className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold"
-                                value={currentPayment.dueDate || ''}
-                                onChange={e => setCurrentPayment({ ...currentPayment, dueDate: e.target.value })}
-                            />
-                        </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-xs font-bold mb-1">نسبة الإنجاز المقترنة % (اختياري)</label>
-                            <input title="نسبة الإنجاز" type="number" className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold"
-                                value={currentPayment.progressPercentage || ''}
-                                onChange={e => setCurrentPayment({ ...currentPayment, progressPercentage: parseFloat(e.target.value) })}
-                            />
-                        </div>
-                    </div>
+    const renderPaymentForm = () => {
+        const linkedContract = subcontracts.find(contract => contract.id === selectedContractId);
+        const value = (key: 'grossWorkValue' | 'vatAmount' | 'retentionAmount' | 'advanceRecoveryAmount' | 'deductionsAmount') => Number(currentPayment[key] || (key === 'grossWorkValue' ? currentPayment.amount : 0) || 0);
+        const net = Math.round((value('grossWorkValue') + value('vatAmount') - value('retentionAmount') - value('advanceRecoveryAmount') - value('deductionsAmount') + Number.EPSILON) * 100) / 100;
+        const money = (n: number) => n.toLocaleString('ar-SA', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const amountField = (key: 'grossWorkValue' | 'vatAmount' | 'retentionAmount' | 'advanceRecoveryAmount' | 'deductionsAmount', label: string, hint?: string) => (
+            <label className="block text-sm font-bold text-slate-700">{label}{hint && <span className="block text-[11px] font-medium text-slate-400">{hint}</span>}
+                <div className="relative mt-1"><input aria-label={label} type="number" min="0" step="0.01" inputMode="decimal" className="w-full rounded-lg border border-slate-300 bg-white p-3 pl-12 font-mono font-bold text-slate-900 outline-none focus:border-jilco-500 focus:ring-2 focus:ring-jilco-100" value={currentPayment[key] ?? (key === 'grossWorkValue' ? currentPayment.amount ?? '' : '')} onChange={e => setCurrentPayment({ ...currentPayment, [key]: e.target.value === '' ? 0 : Number(e.target.value) })} /><span className="absolute left-3 top-3 text-xs text-slate-400">ر.س</span></div>
+            </label>
+        );
+        return <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/60 p-3 sm:p-6" onMouseDown={e => { if (e.target === e.currentTarget) setShowPaymentForm(false); }}>
+            <div role="dialog" aria-modal="true" aria-labelledby="certificate-form-title" className="max-h-[94vh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-white shadow-2xl">
+                <div className="sticky top-0 z-10 flex items-start justify-between border-b bg-white/95 p-5 backdrop-blur"><div><span className="text-xs font-bold text-jilco-600">دورة مستخلص مقاول الباطن · {linkedContract?.number}</span><h3 id="certificate-form-title" className="mt-1 flex items-center gap-2 text-xl font-black text-jilco-950"><DollarSign size={21} /> {currentPayment.id ? 'تعديل مسودة مستخلص' : 'مستخلص جديد'}</h3><p className="mt-1 text-xs text-slate-500">{linkedContract?.subcontractorName} — {linkedContract?.projectName}</p><p className="mt-1 text-xs text-slate-500">أدخل قيمة الأعمال ثم الاستقطاعات؛ يحسب النظام صافي المستحق تلقائيًا.</p></div><button aria-label="إغلاق" onClick={() => setShowPaymentForm(false)} className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"><X /></button></div>
+                <div className="space-y-5 p-5 sm:p-7">
+                    <div className="grid gap-4 sm:grid-cols-2"><label className="text-sm font-bold text-slate-700">بيان المستخلص<input className="mt-1 w-full rounded-lg border border-slate-300 p-3 font-semibold text-slate-900" placeholder="مثال: مستخلص أعمال تركيب — المرحلة الأولى" value={currentPayment.description || ''} onChange={e => setCurrentPayment({ ...currentPayment, description: e.target.value })} /></label><label className="text-sm font-bold text-slate-700">تاريخ الاستحقاق<input type="date" className="mt-1 w-full rounded-lg border border-slate-300 p-3 font-semibold text-slate-900" value={currentPayment.dueDate || ''} onChange={e => setCurrentPayment({ ...currentPayment, dueDate: e.target.value })} /></label></div>
+                    <div className="rounded-xl border border-slate-200 p-4 sm:p-5"><div className="mb-4 flex items-center justify-between"><div><h4 className="font-black text-slate-900">تفاصيل الاحتساب</h4><p className="text-xs text-slate-500">المبالغ بالريال السعودي، حتى منزلتين عشريتين</p></div><span className="rounded-lg bg-slate-100 px-3 py-1 text-xs font-bold text-slate-600">قيمة الأعمال والضريبة</span></div><div className="grid gap-4 sm:grid-cols-2">{amountField('grossWorkValue','قيمة الأعمال المنفذة قبل الضريبة','تدخل في تكلفة المشروع وقيمة المستخلص')}{amountField('vatAmount','ضريبة القيمة المضافة','صفر إذا لا تنطبق')}</div></div>
+                    <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-4 sm:p-5"><div className="mb-4"><h4 className="font-black text-slate-900">الحسميات والاستقطاعات</h4><p className="text-xs text-slate-500">تظهر كحسابات مستقلة عند اعتماد وترحيل المستخلص</p></div><div className="grid gap-4 sm:grid-cols-2">{amountField('retentionAmount','استبقاء محتجز','يُسجل ضمن ذمم الاستبقاء')}{amountField('advanceRecoveryAmount','استرداد دفعة مقدمة','يخفض رصيد الدفعات المقدمة')}{amountField('deductionsAmount','خصومات وغرامات','تُسجل كتخفيض لقيمة المستخلص')}</div></div>
+                    <div className="grid gap-4 sm:grid-cols-2"><label className="text-sm font-bold text-slate-700">نسبة الإنجاز المرتبطة % <span className="font-medium text-slate-400">(اختياري)</span><input type="number" min="0" max="100" step="0.01" className="mt-1 w-full rounded-lg border border-slate-300 p-3 font-mono font-bold text-slate-900" value={currentPayment.progressPercentage ?? ''} onChange={e => setCurrentPayment({ ...currentPayment, progressPercentage: e.target.value === '' ? undefined : Number(e.target.value) })} /></label><label className="text-sm font-bold text-slate-700">ملاحظات<input className="mt-1 w-full rounded-lg border border-slate-300 p-3 font-semibold text-slate-900" value={currentPayment.notes || ''} onChange={e => setCurrentPayment({ ...currentPayment, notes: e.target.value })} placeholder="مرجع محضر الاستلام أو ملاحظات إضافية" /></label></div>
+                    <div className="overflow-hidden rounded-xl border border-jilco-200"><div className="flex items-center justify-between bg-jilco-900 px-5 py-4 text-white"><div><div className="text-xs text-jilco-100">صافي المستحق للمقاول</div><div className="mt-1 text-2xl font-black tabular-nums">{money(net)} <span className="text-xs font-semibold">ر.س</span></div></div><CheckCircle2 size={26} className="text-emerald-300" /></div><div className="grid grid-cols-2 gap-x-5 gap-y-2 bg-slate-50 p-4 text-xs sm:grid-cols-3"><div>قيمة الأعمال <b className="float-left">{money(value('grossWorkValue'))}</b></div><div>الضريبة <b className="float-left">+ {money(value('vatAmount'))}</b></div><div>الاستبقاء <b className="float-left">− {money(value('retentionAmount'))}</b></div><div>استرداد المقدّم <b className="float-left">− {money(value('advanceRecoveryAmount'))}</b></div><div>الخصومات <b className="float-left">− {money(value('deductionsAmount'))}</b></div></div></div>
+                    {net <= 0 && <p role="alert" className="rounded-lg bg-red-50 p-3 text-sm font-bold text-red-700">يجب أن يكون صافي المستحق أكبر من صفر.</p>}
                 </div>
-                <div className="flex justify-end gap-2 mt-6 pt-4 border-t border-gray-100">
-                    <button onClick={() => setShowPaymentForm(false)} className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded font-bold text-sm">إلغاء</button>
-                    <button disabled={busy || !canManage} onClick={handleSavePayment} className="px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700 font-bold text-sm shadow-md">حفظ الدفعة</button>
-                </div>
+                <div className="sticky bottom-0 flex justify-end gap-2 border-t bg-white p-4"><button onClick={() => setShowPaymentForm(false)} className="rounded-lg border px-5 py-2.5 font-bold text-slate-600">إلغاء</button><button disabled={busy || !canManage || net <= 0} onClick={handleSavePayment} className="rounded-lg bg-jilco-900 px-6 py-2.5 font-bold text-white shadow-sm hover:bg-jilco-800 disabled:cursor-not-allowed disabled:opacity-50">{busy ? 'جارٍ الحفظ…' : 'حفظ المستخلص كمسودة'}</button></div>
             </div>
-        </div>
-    );
+        </div>;
+    };
 
     const renderPayPaymentForm = () => {
         if (!payingPayment) return null;
@@ -797,7 +778,7 @@ export const SubcontractModule: React.FC = () => {
                                 {/* Payments / المستخلصات */}
                                 <div className="p-4 border-t border-gray-100 bg-white">
                                     <div className="flex justify-between items-center mb-3">
-                                        <h4 className="font-bold text-sm text-gray-800 flex items-center gap-2"><DollarSign size={16} className="text-green-600" /> سجل الدفعات والمستخلصات</h4>
+                                        <h4 className="font-bold text-sm text-gray-800 flex items-center gap-2"><DollarSign size={16} className="text-green-600" /> سجل المستخلصات</h4>
                                         <button disabled={!canManage || busy || contract.status !== 'active'} title={contract.status !== 'active' ? 'فعّل العقد أولاً' : 'إضافة دفعة مستحقة'} onClick={() => { setSelectedContractId(contract.id); setCurrentPayment({ status: 'pending', dueDate: new Date().toISOString().split('T')[0] }); setShowPaymentForm(true); }} className="text-xs font-bold bg-green-50 text-green-700 px-3 py-1.5 rounded-lg border border-green-200 hover:bg-green-100 flex items-center gap-1 disabled:opacity-50 disabled:cursor-not-allowed">
                                             <Plus size={14} /> إضافة دفعة مستحقة
                                         </button>
@@ -813,7 +794,9 @@ export const SubcontractModule: React.FC = () => {
                                                         <th className="p-2">الوصف</th>
                                                         <th className="p-2">تاريخ الاستحقاق</th>
                                                         <th className="p-2">نسبة معتمدة</th>
-                                                        <th className="p-2">المبلغ (ر.س)</th>
+                                                        <th className="p-2">الأعمال</th>
+                                                        <th className="p-2">الاستقطاعات</th>
+                                                        <th className="p-2">صافي المستحق</th>
                                                         <th className="p-2 text-center">الحالة</th>
                                                         <th className="p-2 text-center">إجراءات</th>
                                                     </tr>
@@ -824,7 +807,9 @@ export const SubcontractModule: React.FC = () => {
                                                             <td className="p-2 text-gray-800">{payment.description}</td>
                                                             <td className="p-2 font-mono">{payment.dueDate}</td>
                                                             <td className="p-2 font-mono text-jilco-600">{payment.progressPercentage ? `${payment.progressPercentage}%` : '-'}</td>
-                                                            <td className="p-2 text-jilco-900 font-mono">{payment.amount.toLocaleString()}</td>
+                                                            <td className="p-2 text-slate-700 font-mono">{Number(payment.grossWorkValue ?? payment.amount).toLocaleString('ar-SA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                                            <td className="p-2 text-amber-700 font-mono">{(Number(payment.retentionAmount || 0) + Number(payment.advanceRecoveryAmount || 0) + Number(payment.deductionsAmount || 0)).toLocaleString('ar-SA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
+                                                            <td className="p-2 text-jilco-900 font-black font-mono">{payment.amount.toLocaleString('ar-SA', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                                                             <td className="p-2 text-center">
                                                                 <span className={`px-2 py-0.5 rounded text-[10px] ${payment.status === 'paid' ? 'bg-green-100 text-green-700 border border-green-200' :
                                                                     payment.status === 'approved' ? 'bg-blue-100 text-blue-700 border border-blue-200' :
@@ -838,6 +823,7 @@ export const SubcontractModule: React.FC = () => {
                                                                 {!payment.archived && payment.status === 'pending' && (payment.engineerApprovedAt ? canFinance : canEngineer) && (
                                                                     <button title="اعتماد" onClick={() => updatePaymentStatus(contract.id, payment.id, 'approved')} className="bg-blue-50 text-blue-600 px-2 py-1 rounded hover:bg-blue-100 border border-blue-100">{payment.engineerApprovedAt ? 'اعتماد مالي' : 'اعتماد هندسي'}</button>
                                                                 )}
+                                                                {!payment.archived && payment.status === 'pending' && !payment.engineerApprovedAt && canManage && <button title="تعديل المسودة" onClick={() => { setSelectedContractId(contract.id); setCurrentPayment(payment); setShowPaymentForm(true); }} className="rounded border border-slate-200 bg-white px-2 py-1 text-slate-600 hover:bg-slate-50"><Edit size={15} /></button>}
                                                                 {!payment.archived && payment.status === 'approved' && canFinance && (
                                                                     <button title="تحويل كمنصرف" onClick={() => setPayingPayment({
                                                                         contractId: contract.id,
@@ -936,6 +922,16 @@ export const SubcontractModule: React.FC = () => {
                                             {printingPayment.payment.progressPercentage ? ` بنسبة إنجاز (${printingPayment.payment.progressPercentage}%)` : ''}
                                         </span>
                                     </div>
+                                </div>
+                                <div className="rounded-xl border border-gray-200 overflow-hidden text-sm">
+                                    <div className="grid grid-cols-2 gap-3 p-4 sm:grid-cols-3">
+                                        <div>قيمة الأعمال <b className="block font-mono">{Number(printingPayment.payment.grossWorkValue ?? printingPayment.payment.amount).toLocaleString('ar-SA', { minimumFractionDigits: 2 })} ر.س</b></div>
+                                        <div>ضريبة القيمة المضافة <b className="block font-mono">{Number(printingPayment.payment.vatAmount || 0).toLocaleString('ar-SA', { minimumFractionDigits: 2 })} ر.س</b></div>
+                                        <div>الاستبقاء <b className="block font-mono">{Number(printingPayment.payment.retentionAmount || 0).toLocaleString('ar-SA', { minimumFractionDigits: 2 })} ر.س</b></div>
+                                        <div>استرداد المقدّم <b className="block font-mono">{Number(printingPayment.payment.advanceRecoveryAmount || 0).toLocaleString('ar-SA', { minimumFractionDigits: 2 })} ر.س</b></div>
+                                        <div>خصومات وغرامات <b className="block font-mono">{Number(printingPayment.payment.deductionsAmount || 0).toLocaleString('ar-SA', { minimumFractionDigits: 2 })} ر.س</b></div>
+                                    </div>
+                                    <div className="flex justify-between bg-jilco-900 px-4 py-3 font-black text-white"><span>صافي المستحق</span><span className="font-mono">{printingPayment.payment.amount.toLocaleString('ar-SA', { minimumFractionDigits: 2 })} ر.س</span></div>
                                 </div>
                             </div>
 

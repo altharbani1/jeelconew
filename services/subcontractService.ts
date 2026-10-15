@@ -45,6 +45,8 @@ export const subcontractService = {
         subcontractorName: contractors.find((s: any) => s.id === r.subcontractor_id)?.name || '',
         payments: certificates.filter((p: any) => p.subcontract_id === r.id).map((p: any) => ({
           id: p.id, subcontractId: p.subcontract_id, amount: Number(p.net_payable), description: p.description, archived: archives.some((a: any) => a.archived && a.record_type === 'certificate' && a.record_id === p.id),
+          grossWorkValue: Number(p.gross_work_value || 0), vatAmount: Number(p.vat_amount || 0), retentionAmount: Number(p.retention_amount || 0),
+          advanceRecoveryAmount: Number(p.advance_recovery_amount || 0), deductionsAmount: Number(p.deductions_amount || 0),
           dueDate: p.due_date, status: p.status, paymentMethod: p.payment_method, paymentDate: p.payment_date,
           referenceNumber: p.reference_number, progressPercentage: p.progress_percentage == null ? undefined : Number(p.progress_percentage),
           notes: p.notes, engineerApprovedAt: p.engineer_approved_at, financeApprovedAt: p.finance_approved_at, updatedAt: p.updated_at
