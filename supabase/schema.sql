@@ -109,6 +109,7 @@ create table invoices (
   project_id uuid references projects(id),
   customer_id uuid references customers(id),
   total numeric,
+  paid_amount numeric not null default 0,
   status text,
   due_date date,
   created_at timestamptz default now()
@@ -148,6 +149,8 @@ create table receipts (
   id uuid primary key default gen_random_uuid(),
   company_id uuid references companies(id) on delete cascade,
   project_id uuid references projects(id),
+  invoice_number text,
+  customer_legacy_id text,
   amount numeric,
   received_at date,
   created_at timestamptz default now()

@@ -92,7 +92,7 @@ const DEFAULT_DURATION = `60 يوماً`;
 
 export const QuoteModule: React.FC = () => {
     const { currentUser } = useAuth();
-    const { quotes, saveQuote, deleteQuote } = useSales();
+    const { quotes, setQuotes, saveQuote, deleteQuote } = useSales();
     const { config: globalConfig } = useData();
     const [viewMode, setViewMode] = useState<'list' | 'editor'>('list');
     const [searchTerm, setSearchTerm] = useState('');
@@ -195,7 +195,13 @@ export const QuoteModule: React.FC = () => {
             }
             alert('تم حفظ العرض بنجاح عبر السحابة!');
         } else {
-            alert('حدث خطأ أثناء رفع العرض للسحابة. تأكد من اتصالك بالإنترنت وسيتم المزامنة لاحقاً.');
+            setQuotes(quotes);
+            try {
+                localStorage.setItem('jilco_quotes_archive', JSON.stringify(quotes));
+            } catch (error) {
+                console.error('Could not restore the quote cache after a failed save:', error);
+            }
+            alert('تعذر حفظ العرض في السحابة. ما زالت تعديلاتك في المحرر؛ تحقق من الاتصال ثم أعد الحفظ.');
         }
     };
 

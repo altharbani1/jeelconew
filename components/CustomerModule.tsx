@@ -420,25 +420,25 @@ export const CustomerModule: React.FC<{ statementOnly?: boolean }> = ({ statemen
           <div className="p-8 space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="md:col-span-2">
-                <label className="block text-xs font-black text-gray-500 mb-2 uppercase">الاسم الكامل <span className="text-red-500">*</span></label>
-                <input type="text" value={formData.fullName} onChange={e => setFormData({ ...formData, fullName: e.target.value })} className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-jilco-500 outline-none font-bold text-black" placeholder="اسم العميل أو الشركة" />
+                <label htmlFor="customer-full-name" className="block text-xs font-black text-gray-500 mb-2 uppercase">الاسم الكامل <span className="text-red-500">*</span></label>
+                <input id="customer-full-name" type="text" value={formData.fullName} onChange={e => setFormData({ ...formData, fullName: e.target.value })} className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-jilco-500 outline-none font-bold text-black" placeholder="اسم العميل أو الشركة" />
               </div>
               <div>
-                <label className="block text-xs font-black text-gray-500 mb-2 uppercase">رقم الجوال <span className="text-red-500">*</span></label>
-                <input type="text" value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value })} className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-jilco-500 outline-none font-mono font-bold text-black" dir="ltr" placeholder="05xxxxxxxx" />
+                <label htmlFor="customer-phone" className="block text-xs font-black text-gray-500 mb-2 uppercase">رقم الجوال <span className="text-red-500">*</span></label>
+                <input id="customer-phone" type="text" value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value })} className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-jilco-500 outline-none font-mono font-bold text-black" dir="ltr" placeholder="05xxxxxxxx" />
               </div>
               <div>
-                <label className="block text-xs font-black text-gray-500 mb-2 uppercase">البريد الإلكتروني</label>
-                <input type="email" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-jilco-500 outline-none font-bold text-black" dir="ltr" placeholder="mail@example.com" />
+                <label htmlFor="customer-email" className="block text-xs font-black text-gray-500 mb-2 uppercase">البريد الإلكتروني</label>
+                <input id="customer-email" type="email" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-jilco-500 outline-none font-bold text-black" dir="ltr" placeholder="mail@example.com" />
               </div>
               <div className="md:col-span-2">
-                <label className="block text-xs font-black text-gray-500 mb-2 uppercase">العنوان / الموقع</label>
-                <input type="text" value={formData.address} onChange={e => setFormData({ ...formData, address: e.target.value })} className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-jilco-500 outline-none font-bold text-black" placeholder="المدينة، الحي" />
+                <label htmlFor="customer-address" className="block text-xs font-black text-gray-500 mb-2 uppercase">العنوان / الموقع</label>
+                <input id="customer-address" type="text" value={formData.address} onChange={e => setFormData({ ...formData, address: e.target.value })} className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-jilco-500 outline-none font-bold text-black" placeholder="المدينة، الحي" />
               </div>
-              <div><label className="block text-xs font-black text-gray-500 mb-2 uppercase">رقم الهوية / السجل التجاري</label><input title="رقم الهوية" placeholder="رقم الهوية أو السجل التجاري" type="text" value={formData.nationalId || ''} onChange={e => setFormData({ ...formData, nationalId: e.target.value })} className="w-full p-3 border border-gray-300 rounded-xl font-bold text-black" /></div>
-              <div><label className="block text-xs font-black text-gray-500 mb-2 uppercase flex items-center gap-1">🔢 الرقم الضريبي (VAT)</label><input title="الرقم الضريبي" placeholder="مثال: 300xxxxxxxxx" type="text" dir="ltr" value={formData.vatNumber || ''} onChange={e => setFormData({ ...formData, vatNumber: e.target.value })} className="w-full p-3 border border-amber-300 bg-amber-50 rounded-xl font-mono font-bold text-black focus:ring-2 focus:ring-amber-400 outline-none" /></div>
-              <div><label className="block text-xs font-black text-gray-500 mb-2 uppercase">الحالة</label>
-                <select title="حالة العميل" value={formData.status} onChange={e => setFormData({ ...formData, status: e.target.value as any })} className="w-full p-3 border border-gray-300 rounded-xl font-bold text-black bg-white outline-none">
+              <div><label htmlFor="customer-national-id" className="block text-xs font-black text-gray-500 mb-2 uppercase">رقم الهوية / السجل التجاري</label><input id="customer-national-id" placeholder="رقم الهوية أو السجل التجاري" type="text" value={formData.nationalId || ''} onChange={e => setFormData({ ...formData, nationalId: e.target.value })} className="w-full p-3 border border-gray-300 rounded-xl font-bold text-black" /></div>
+              <div><label htmlFor="customer-vat-number" className="block text-xs font-black text-gray-500 mb-2 uppercase flex items-center gap-1">الرقم الضريبي (VAT)</label><input id="customer-vat-number" placeholder="مثال: 300xxxxxxxxx" type="text" dir="ltr" value={formData.vatNumber || ''} onChange={e => setFormData({ ...formData, vatNumber: e.target.value })} className="w-full p-3 border border-amber-300 bg-amber-50 rounded-xl font-mono font-bold text-black focus:ring-2 focus:ring-amber-400 outline-none" /></div>
+              <div><label htmlFor="customer-status" className="block text-xs font-black text-gray-500 mb-2 uppercase">الحالة</label>
+                <select id="customer-status" title="حالة العميل" value={formData.status} onChange={e => setFormData({ ...formData, status: e.target.value as any })} className="w-full p-3 border border-gray-300 rounded-xl font-bold text-black bg-white outline-none">
                   {Object.entries(STATUS_LABELS).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
                 </select>
               </div>

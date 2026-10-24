@@ -126,29 +126,63 @@ export const useCloudSync = (modules: SyncModule[]) => {
         }
     };
 
+    const applyInvoicePaymentUpdates = (updates: any[]) => {
+        if (!updates.length) return;
+        const invoiceModule = modulesRef.current.find(m => m.collection === 'jilco_invoices_archive');
+        const apply = (records: any[]) => records.map(invoice => {
+            const update = updates.find((item: any) =>
+                (item.number && item.number === invoice.number)
+                || (item.id && item.id === (invoice.id || invoice.number))
+            );
+            return update ? { ...invoice, paidAmount: Number(update.paidAmount) || 0, status: update.status } : invoice;
+        });
+
+        invoiceModule?.stateSetter(prev => apply(prev));
+        try {
+            const localInvoices = JSON.parse(localStorage.getItem('jilco_invoices_archive') || '[]');
+            localStorage.setItem('jilco_invoices_archive', JSON.stringify(apply(Array.isArray(localInvoices) ? localInvoices : [])));
+        } catch (error) {
+            console.error('Failed to update cached invoice payment totals:', error);
+        }
+    };
+
+    const matchesRecordId = (record: any, collection: string, id: string) =>
+        collection === 'jilco_receipts_archive'
+            ? (record.number || record.id) === id || record.id === id
+            : (record.id || record.number) === id;
+
     const saveRecord = async (collection: string, id: string, data: any): Promise<boolean> => {
         setSyncStatus('syncing');
         try {
             const mod = modulesRef.current.find(m => m.collection === collection);
             if (mod) {
                 mod.stateSetter(prev => {
-                    const exists = prev.find((q: any) => (q.id || q.number) === id);
-                    const newArr = exists ? prev.map((q: any) => (q.id || q.number) === id ? data : q) : [data, ...prev];
+                    const exists = prev.find((q: any) => matchesRecordId(q, collection, id));
+                    const newArr = exists ? prev.map((q: any) => matchesRecordId(q, collection, id) ? data : q) : [data, ...prev];
                     return sortNewestFirst(newArr);
                 });
             }
 
             const localArr = JSON.parse(localStorage.getItem(collection) || '[]');
-            const exists = localArr.find((q: any) => (q.id || q.number) === id);
+            const exists = localArr.find((q: any) => matchesRecordId(q, collection, id));
             const updated = exists
-                ? localArr.map((q: any) => (q.id || q.number) === id ? data : q)
+                ? localArr.map((q: any) => matchesRecordId(q, collection, id) ? data : q)
                 : [data, ...localArr];
             localStorage.setItem(collection, JSON.stringify(updated));
 
-            const success = await cloudService.saveRecord(collection, id, data);
+            const result = collection === 'jilco_receipts_archive'
+                ? await cloudService.saveReceiptWithInvoiceRecalculation(id, data)
+                : collection === 'jilco_invoices_archive'
+                    ? await cloudService.saveInvoiceRecord(id, data).then(invoiceResult => ({
+                        success: invoiceResult.success,
+                        invoices: invoiceResult.invoice ? [invoiceResult.invoice] : []
+                    }))
+                : { success: await cloudService.saveRecord(collection, id, data), invoices: [] };
 
-            setSyncStatus(success ? 'synced' : 'error');
-            return success;
+            if (result.success) applyInvoicePaymentUpdates(result.invoices);
+
+            setSyncStatus(result.success ? 'synced' : 'error');
+            return result.success;
         } catch (e) {
             setSyncStatus('error');
             return false;
@@ -158,24 +192,38 @@ export const useCloudSync = (modules: SyncModule[]) => {
     const deleteRecord = async (collection: string, id: string): Promise<boolean> => {
         setSyncStatus('syncing');
         try {
-            const success = await cloudService.deleteRecord(collection, id);
-            if (!success) {
+            const result = collection === 'jilco_receipts_archive'
+                ? await cloudService.deleteReceiptWithInvoiceRecalculation(id)
+                : { success: await cloudService.deleteRecord(collection, id), invoices: [] };
+            if (!result.success) {
                 setSyncStatus('error');
                 return false;
             }
 
             const mod = modulesRef.current.find(m => m.collection === collection);
             if (mod) {
-                mod.stateSetter(prev => prev.filter((q: any) => (q.id || q.number) !== id));
+                mod.stateSetter(prev => prev.filter((q: any) => !matchesRecordId(q, collection, id)));
             }
 
-            const localArr = JSON.parse(localStorage.getItem(collection) || '[]');
-            localStorage.setItem(collection, JSON.stringify(
-                localArr.filter((q: any) => (q.id || q.number) !== id)
-            ));
+            if (collection === 'jilco_receipts_archive') {
+                try {
+                    const localArr = JSON.parse(localStorage.getItem(collection) || '[]');
+                    localStorage.setItem(collection, JSON.stringify(
+                        localArr.filter((q: any) => !matchesRecordId(q, collection, id))
+                    ));
+                } catch (error) {
+                    console.error('Receipt was deleted in the cloud but the local cache could not be updated:', error);
+                }
+                applyInvoicePaymentUpdates(result.invoices);
+            } else {
+                const localArr = JSON.parse(localStorage.getItem(collection) || '[]');
+                localStorage.setItem(collection, JSON.stringify(
+                    localArr.filter((q: any) => !matchesRecordId(q, collection, id))
+                ));
+            }
 
-            setSyncStatus(success ? 'synced' : 'error');
-            return success;
+            setSyncStatus('synced');
+            return true;
         } catch (e) {
             setSyncStatus('error');
             return false;
@@ -186,6 +234,7 @@ export const useCloudSync = (modules: SyncModule[]) => {
         syncStatus,
         saveRecord,
         deleteRecord,
+        reserveInvoiceNumber: (year: number) => cloudService.reserveInvoiceNumber(year),
         loadAll: () => loadAllInternal(modulesRef.current)
     };
 };

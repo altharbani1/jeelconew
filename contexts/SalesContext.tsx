@@ -12,6 +12,7 @@ interface SalesContextType {
     setReceipts: React.Dispatch<React.SetStateAction<any[]>>;
     saveSalesRecord: (collection: string, id: string, data: any) => Promise<boolean>;
     deleteSalesRecord: (collection: string, id: string) => Promise<boolean>;
+    reserveInvoiceNumber: (year: number) => Promise<string>;
     saveQuote: (id: string, quote: any) => Promise<boolean>;
     deleteQuote: (id: string) => Promise<boolean>;
     syncStatus: 'idle' | 'syncing' | 'synced' | 'error';
@@ -32,7 +33,7 @@ export const SalesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         { collection: 'jilco_receipts_archive', stateSetter: setReceipts }
     ];
 
-    const { syncStatus, saveRecord, deleteRecord } = useCloudSync(modules);
+    const { syncStatus, saveRecord, deleteRecord, reserveInvoiceNumber } = useCloudSync(modules);
 
     const saveSalesRecord = (collection: string, id: string, data: any) =>
         saveRecord(collection, id, data);
@@ -50,7 +51,7 @@ export const SalesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         <SalesContext.Provider value={{
             quotes, customers, invoices, receipts,
             setQuotes, setCustomers, setInvoices, setReceipts,
-            saveSalesRecord, deleteSalesRecord, saveQuote, deleteQuote, syncStatus
+            saveSalesRecord, deleteSalesRecord, reserveInvoiceNumber, saveQuote, deleteQuote, syncStatus
         }}>
             {children}
         </SalesContext.Provider>

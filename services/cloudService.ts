@@ -55,11 +55,123 @@ async function getCurrentCompanyId(): Promise<string> {
   return data.company_id;
 }
 
+const normalizeReceiptRecord = (recordId: string, record: any) => {
+  const d = record?.data && typeof record.data === 'object' ? record.data : record;
+  return {
+    legacy_id: record?.id || d?.number || recordId,
+    number: d?.number || recordId,
+    date: d?.date || null,
+    received_from: d?.receivedFrom || '',
+    amount: Number(d?.amount) || 0,
+    amount_in_words: d?.amountInWords || '',
+    payment_method: d?.paymentMethod || 'transfer',
+    bank_name: d?.bankName || null,
+    check_number: d?.checkNumber || null,
+    for_reason: d?.forReason || '',
+    attachments: Array.isArray(d?.attachments) ? d.attachments : [],
+    invoice_number: d?.invoiceId || null,
+    customer_legacy_id: d?.customerId || null
+  };
+};
+
+async function saveReceiptWithInvoiceRecalculation(recordId: string, record: any) {
+  try {
+    const { data, error } = await supabase.rpc('save_receipt_with_invoice_recalculation', {
+      p_receipt: normalizeReceiptRecord(recordId, record)
+    });
+    if (error) throw error;
+    return { success: true, invoices: Array.isArray(data) ? data : [] };
+  } catch (error) {
+    console.error(`Atomic receipt save failed for ${recordId}:`, error);
+    return { success: false, invoices: [] };
+  }
+}
+
+async function deleteReceiptWithInvoiceRecalculation(recordId: string) {
+  try {
+    const { data, error } = await supabase.rpc('delete_receipt_with_invoice_recalculation', {
+      p_receipt_legacy_id: recordId
+    });
+    if (error) throw error;
+    return { success: true, invoices: Array.isArray(data) ? data : [] };
+  } catch (error) {
+    console.error(`Atomic receipt delete failed for ${recordId}:`, error);
+    return { success: false, invoices: [] };
+  }
+}
+
+const normalizeInvoiceRecord = (recordId: string, record: any) => {
+  const d = record?.data && typeof record.data === 'object' ? record.data : record;
+  const items = Array.isArray(d?.items) ? d.items : [];
+  const itemsTotal = items.reduce((sum: number, item: any) => sum + (Number(item?.total) || 0), 0);
+  const discount = Math.max(0, Number(d?.discountAmount) || 0);
+  const grandTotal = Number(d?.grandTotal);
+  const total = d?.grandTotal !== undefined && d?.grandTotal !== null && Number.isFinite(grandTotal)
+    ? Math.max(0, grandTotal)
+    : Math.max(0, itemsTotal - discount) * (d?.isTaxInclusive === false ? 1.15 : 1);
+  return {
+    legacy_id: record?.id || d?.id || d?.number || recordId,
+    number: d?.number || recordId,
+    date: d?.date || null,
+    due_date: d?.dueDate || null,
+    customer_name: d?.customerName || '',
+    customer_vat_number: d?.customerVatNumber || null,
+    items,
+    total,
+    discount_amount: discount,
+    is_tax_inclusive: d?.isTaxInclusive !== false
+  };
+};
+
+async function saveInvoiceRecord(recordId: string, record: any) {
+  try {
+    const { data, error } = await supabase.rpc('save_invoice_record', {
+      p_invoice: normalizeInvoiceRecord(recordId, record)
+    });
+    if (error) throw error;
+    if (!data || typeof data !== 'object') throw new Error('The invoice save returned no updated totals');
+    return { success: true, invoice: data };
+  } catch (error) {
+    console.error(`Invoice save failed for ${recordId}:`, error);
+    return { success: false, invoice: null };
+  }
+}
+
 // ========== مساعد: مفتاح النسخة الاحتياطية حسب المستخدم ==========
 const getBackupKey = (username?: string) =>
   username ? `backup_${username}` : 'backup_default';
 
 export const cloudService = {
+
+  async reserveInvoiceNumber(year: number): Promise<string> {
+    const { data, error } = await supabase.rpc('reserve_invoice_number', { p_year: year });
+    if (error) throw error;
+    if (typeof data !== 'string' || !new RegExp(`^INV-${year}-\\d{3,}$`).test(data)) {
+      throw new Error('The server returned an invalid invoice number');
+    }
+    return data;
+  },
+
+  async reserveExistingInvoiceNumber(legacyId: string, number: string): Promise<boolean> {
+    const { data, error } = await supabase.rpc('reserve_existing_invoice_number', {
+      p_legacy_id: legacyId,
+      p_number: number
+    });
+    if (error) throw error;
+    return data === true;
+  },
+
+  async saveReceiptWithInvoiceRecalculation(recordId: string, record: any) {
+    return saveReceiptWithInvoiceRecalculation(recordId, record);
+  },
+
+  async saveInvoiceRecord(recordId: string, record: any) {
+    return saveInvoiceRecord(recordId, record);
+  },
+
+  async deleteReceiptWithInvoiceRecalculation(recordId: string) {
+    return deleteReceiptWithInvoiceRecalculation(recordId);
+  },
 
   // 1. اختبار الاتصال
   async testConnection() {
@@ -392,6 +504,7 @@ export const cloudService = {
                   id: row.legacy_id || row.id, number: row.number, date: row.date, dueDate: row.due_date,
                   customerName: row.customer_name, customerVatNumber: row.customer_vat_number,
                   items: row.items || [], status: row.status, grandTotal: Number(row.total) || 0,
+                  paidAmount: Number(row.paid_amount) || 0,
                   discountAmount: Number(row.discount_amount) || 0,
                   isTaxInclusive: row.is_tax_inclusive
               })
@@ -402,7 +515,8 @@ export const cloudService = {
                   id: row.legacy_id || row.id, number: row.number, date: row.date, receivedFrom: row.received_from,
                   amount: Number(row.amount), amountInWords: row.amount_in_words, paymentMethod: row.payment_method,
                   bankName: row.bank_name, checkNumber: row.check_number, forReason: row.for_reason,
-                  attachments: row.attachments || []
+                  attachments: row.attachments || [], invoiceId: row.invoice_number || undefined,
+                  customerId: row.customer_legacy_id || undefined
               })
           }
       };
@@ -435,6 +549,13 @@ export const cloudService = {
 
   // 11. إضافة أو تحديث سجل واحد فقط (Upsert Record)
   async saveRecord(collection: string, recordId: string, dataObj: any) {
+    if (collection === 'jilco_receipts_archive') {
+      return (await saveReceiptWithInvoiceRecalculation(recordId, dataObj)).success;
+    }
+    if (collection === 'jilco_invoices_archive') {
+      return (await saveInvoiceRecord(recordId, dataObj)).success;
+    }
+
     try {
       if (collection === 'jilco_customers') {
         const payload = {
@@ -487,66 +608,43 @@ export const cloudService = {
             total: (qData.items || []).reduce((sum: number, item: any) => sum + (Number(item.total) || 0), 0)
          };
 
-         const { data: savedQuote, error: quoteError } = await supabase
-           .from('quotes')
-           .upsert(quotePayload, { onConflict: 'legacy_id' })
-           .select('id')
-           .single();
-         if (quoteError || !savedQuote) throw quoteError || new Error('تعذر حفظ عرض السعر');
+         const itemsPayload = (qData.items || []).map((item: any) => ({
+             legacy_id: item.id || crypto.randomUUID(),
+             quote_legacy_id: qData.id || d.number,
+             description: item.description,
+             details: item.details,
+             quantity: Number(item.quantity) || 0,
+             unit_price: Number(item.unitPrice) || 0,
+             total: Number(item.total) || 0
+         }));
 
-         const qId = savedQuote.id;
-         const { error: deleteItemsError } = await supabase.from('quote_items').delete().eq('quote_id', qId);
-         if (deleteItemsError) throw deleteItemsError;
-         if (qData.items?.length > 0) {
-            const itemsPayload = qData.items.map((item: any) => ({
-                legacy_id: item.id || crypto.randomUUID(),
-                quote_id: qId,
-                quote_legacy_id: qData.id || d.number,
-                description: item.description,
-                details: item.details,
-                quantity: Number(item.quantity) || 0,
-                unit_price: Number(item.unitPrice) || 0,
-                total: Number(item.total) || 0
-            }));
-            const { error: itemsError } = await supabase.from('quote_items').insert(itemsPayload);
-            if (itemsError) throw itemsError;
-         }
+         const specsPayload = qData.techSpecs ? {
+             quote_legacy_id: qData.id,
+             elevator_type: qData.techSpecs.elevatorType,
+             capacity: qData.techSpecs.capacity,
+             speed: qData.techSpecs.speed,
+             stops: qData.techSpecs.stops,
+             drive_type: qData.techSpecs.driveType,
+             control_system: qData.techSpecs.controlSystem,
+             power_supply: qData.techSpecs.powerSupply,
+             cabin: qData.techSpecs.cabin,
+             doors: qData.techSpecs.doors,
+             external_doors: qData.techSpecs.externalDoors,
+             machine_room: qData.techSpecs.machineRoom,
+             rails: qData.techSpecs.rails,
+             ropes: qData.techSpecs.ropes,
+             safety: qData.techSpecs.safety,
+             emergency: qData.techSpecs.emergency
+         } : null;
 
-         if (qData.techSpecs) {
-            const specsPayload = {
-                quote_id: qId,
-                quote_legacy_id: qData.id,
-                elevator_type: qData.techSpecs.elevatorType,
-                capacity: qData.techSpecs.capacity,
-                speed: qData.techSpecs.speed,
-                stops: qData.techSpecs.stops,
-                drive_type: qData.techSpecs.driveType,
-                control_system: qData.techSpecs.controlSystem,
-                power_supply: qData.techSpecs.powerSupply,
-                cabin: qData.techSpecs.cabin,
-                doors: qData.techSpecs.doors,
-                external_doors: qData.techSpecs.externalDoors,
-                machine_room: qData.techSpecs.machineRoom,
-                rails: qData.techSpecs.rails,
-                ropes: qData.techSpecs.ropes,
-                safety: qData.techSpecs.safety,
-                emergency: qData.techSpecs.emergency
-            };
-            // Keep the existing specification row until its replacement succeeds.
-            // This avoids losing all specs when a follow-up insert fails after a delete.
-            const { data: existingSpecs, error: existingSpecsError } = await supabase
-              .from('quote_specs')
-              .select('id')
-              .eq('quote_id', qId)
-              .limit(1);
-            if (existingSpecsError) throw existingSpecsError;
-
-            const specsQuery = existingSpecs && existingSpecs.length > 0
-              ? supabase.from('quote_specs').update(specsPayload).eq('id', existingSpecs[0].id)
-              : supabase.from('quote_specs').insert(specsPayload);
-            const { error: specsError } = await specsQuery;
-            if (specsError) throw specsError;
-         }
+         // The quote, replacement items and optional specs are committed together.
+         // A failed insert leaves the previously persisted quote details intact.
+         const { data: quoteId, error: saveQuoteError } = await supabase.rpc('save_quote_with_items', {
+           p_quote: quotePayload,
+           p_items: itemsPayload,
+           p_specs: specsPayload
+         });
+         if (saveQuoteError || !quoteId) throw saveQuoteError || new Error('تعذر حفظ عرض السعر');
 
          return true;
       }
@@ -586,7 +684,9 @@ export const cloudService = {
                   return {
                       legacy_id: payloadRecord.id || d.number, number: d.number, date: d.date, due_date: d.dueDate,
                       customer_name: d.customerName, customer_vat_number: d.customerVatNumber,
-                      items: d.items, status: d.status, total, discount_amount: discount, is_tax_inclusive: d.isTaxInclusive
+                      items: d.items, status: d.status, total,
+                      paid_amount: Math.max(0, Number(d.paidAmount) || 0),
+                      discount_amount: discount, is_tax_inclusive: d.isTaxInclusive
                   };
               }
           },
@@ -597,7 +697,8 @@ export const cloudService = {
                   return {
                       legacy_id: payloadRecord.id || d.number, number: d.number, date: d.date, received_from: d.receivedFrom,
                       amount: d.amount, amount_in_words: d.amountInWords, payment_method: d.paymentMethod,
-                      bank_name: d.bankName, check_number: d.checkNumber, for_reason: d.forReason, attachments: d.attachments
+                      bank_name: d.bankName, check_number: d.checkNumber, for_reason: d.forReason, attachments: d.attachments,
+                      invoice_number: d.invoiceId || null, customer_legacy_id: d.customerId || null
                   };
               }
           }
@@ -632,6 +733,9 @@ export const cloudService = {
       return true;
     } catch (e) {
       console.error(`Failed to save record ${recordId} in ${collection}:`, e);
+      // Quote lists load only relational rows. A legacy fallback must not turn
+      // an aborted atomic save into an apparent success.
+      if (collection === 'jilco_quotes_archive') return false;
       // Keep the original record even when a legacy-to-relational mapping is
       // incomplete. It can be reviewed and normalized from the generic store
       // instead of being silently lost during migration.
@@ -650,6 +754,10 @@ export const cloudService = {
   // 12. حذف سجل
   async deleteRecord(collection: string, recordId: string) {
     try {
+      if (collection === 'jilco_receipts_archive') {
+        return (await deleteReceiptWithInvoiceRecalculation(recordId)).success;
+      }
+
       if (collection === 'jilco_customers') {
          const { error } = await supabase.from('customers').delete().eq('legacy_id', recordId);
          if (error) throw error;
@@ -794,11 +902,28 @@ export const cloudService = {
   async migrateLegacyInvoices() {
       try {
         const { data, error } = await supabase.from('jilco_realtime_data').select('record_id, data').eq('collection', 'jilco_invoices_archive');
-        if (error || !data) return false;
+        if (error) return { migrated: 0, failed: 1 };
+        if (!data) return { migrated: 0, failed: 0 };
         let migrated = 0;
-        for (const row of data) { await this.saveRecord('jilco_invoices_archive', row.record_id, row.data); migrated++; }
-        return migrated;
-      } catch { return -1; }
+        let failed = 0;
+        for (const row of data) {
+          const record = row.data?.data && typeof row.data.data === 'object' ? row.data.data : row.data;
+          const legacyId = row.data?.id || record?.id || record?.number || row.record_id;
+          const invoiceNumber = record?.number || legacyId;
+          try {
+            await this.reserveExistingInvoiceNumber(String(legacyId), String(invoiceNumber));
+            if (await this.saveRecord('jilco_invoices_archive', row.record_id, row.data)) migrated++;
+            else failed++;
+          } catch (error) {
+            console.error(`Failed to migrate legacy invoice ${row.record_id}:`, error);
+            failed++;
+          }
+        }
+        return { migrated, failed };
+      } catch (error) {
+        console.error('Failed to load legacy invoices for migration:', error);
+        return { migrated: 0, failed: 1 };
+      }
   },
 
   // 17. Data Migration Tool for Receipts

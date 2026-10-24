@@ -56,7 +56,8 @@ const calculateEOS = (joinDate: string, totalSalary: number) => {
 };
 
 export const HRModule: React.FC = () => {
-    const { hasPermission } = useAuth();
+    const { hasPermission, currentUser } = useAuth();
+    const canManageHR = currentUser?.role === 'admin' || currentUser?.role === 'manager';
     const { contracts } = useProject();
     const {
         hrEmployees: employees,
@@ -124,6 +125,7 @@ export const HRModule: React.FC = () => {
     };
 
     const handleSaveEmployee = async () => {
+        if (!canManageHR) return;
         if (!currentEmployee.name || !currentEmployee.role) return alert('الاسم والوظيفة مطلوبان');
 
         const empData: Employee = {
@@ -150,6 +152,7 @@ export const HRModule: React.FC = () => {
     };
 
     const handleSaveCommission = async () => {
+        if (!canManageHR) return;
         if (!currentCommission.employeeId || !currentCommission.contractValue) return;
 
         const amount = (currentCommission.contractValue * (currentCommission.commissionPercentage || 0)) / 100;
@@ -171,6 +174,7 @@ export const HRModule: React.FC = () => {
     };
 
     const handleSaveLoan = async () => {
+        if (!canManageHR) return;
         if (!currentLoan.employeeId || !currentLoan.amount || !currentLoan.installmentsCount) return alert('أكمل بيانات السلفة');
         const loanData: EmployeeLoan = {
             ...currentLoan as EmployeeLoan,
@@ -186,6 +190,7 @@ export const HRModule: React.FC = () => {
     };
 
     const handleSaveAttendance = async () => {
+        if (!canManageHR) return;
         if (!currentAttendance.employeeId || !currentAttendance.month) return alert('أكمل بيانات الحضور');
         const attData: AttendanceRecord = {
             ...currentAttendance as AttendanceRecord,
@@ -198,6 +203,7 @@ export const HRModule: React.FC = () => {
     };
 
     const handleSaveLeave = async () => {
+        if (!canManageHR) return;
         if (!currentLeave.employeeId || !currentLeave.startDate || !currentLeave.endDate) return alert('أكمل بيانات الإجازة');
         if (currentLeave.endDate < currentLeave.startDate) return alert('تاريخ نهاية الإجازة يجب أن يكون بعد تاريخ البداية.');
         const hasOverlap = leaves.some(l => l.employeeId === currentLeave.employeeId && l.id !== currentLeave.id && l.status !== 'rejected' && l.startDate <= currentLeave.endDate! && l.endDate >= currentLeave.startDate!);
@@ -214,7 +220,7 @@ export const HRModule: React.FC = () => {
     };
 
     const updateCommissionStatus = async (id: string, newStatus: 'approved' | 'paid') => {
-        if (!hasPermission('approve_payments')) return alert('ليس لديك صلاحية اعتماد العمولات أو صرفها.');
+        if (!canManageHR) return;
         const c = commissions.find(comm => comm.id === id);
         if (!c) return;
 
@@ -228,14 +234,14 @@ export const HRModule: React.FC = () => {
     };
 
     const handleDeleteRecord = async (collection: string, id: string, label: string) => {
-        if (!hasPermission('delete_records')) return alert('ليس لديك صلاحية حذف السجلات.');
+        if (!canManageHR || !hasPermission('delete_records')) return;
         if (!window.confirm(`هل أنت متأكد من حذف ${label}؟ لا يمكن التراجع عن هذا الإجراء.`)) return;
         const deleted = await deleteHRRecord(collection, id);
         ensureSaved(deleted, `تعذر حذف ${label}. تحقق من الاتصال ثم أعد المحاولة.`);
     };
 
     const updateLeaveStatus = async (leave: LeaveRequest, status: 'approved' | 'rejected') => {
-        if (!hasPermission('approve_payments')) return alert('ليس لديك صلاحية اعتماد طلبات الإجازة.');
+        if (!canManageHR) return;
         if (status === 'rejected') {
             const saved = await saveHRRecord('jilco_hr_leaves', leave.id, { ...leave, status });
             ensureSaved(saved);
@@ -342,6 +348,7 @@ export const HRModule: React.FC = () => {
     };
 
     const updateGeneratedPayroll = (index: number, field: keyof PayrollRecord, value: number) => {
+        if (!canManageHR) return;
         const updated = [...generatedPayrolls];
         const record = updated[index];
         (record as any)[field] = value;
@@ -353,7 +360,7 @@ export const HRModule: React.FC = () => {
     };
 
     const handleApprovePayroll = async () => {
-        if (!hasPermission('approve_payments')) return alert('ليس لديك صلاحية اعتماد الرواتب أو الصرف.');
+        if (!canManageHR || !hasPermission('approve_payments')) return;
         const pendingRecords = generatedPayrolls.filter(record => record.status === 'pending');
         if (pendingRecords.length === 0) return alert('لا يوجد مسير معلق للاعتماد.');
         const duplicate = pendingRecords.find(record => payrolls.some(p => p.employeeId === record.employeeId && p.month === record.month && p.status === 'paid'));
@@ -733,7 +740,7 @@ export const HRModule: React.FC = () => {
         const totalBonuses = employeePayrolls.reduce((sum, p) => sum + p.bonuses, 0);
         const totalCommissions = employeePayrolls.reduce((sum, p) => sum + p.commissions, 0); // included in payroll
         const standaloneCommissions = empCommissions.filter(c => !employeePayrolls.some(p => p.month === c.approvalDate?.substring(0,7))).reduce((sum, c) => sum + c.commissionAmount, 0);
-        const totalDeductions = employeePayrolls.reduce((sum, p) => sum + p.deductions, 0);
+        const totalDeductions = employeePayrolls.reduce((sum, p) => sum + p.gosiDeduction + p.loanDeduction + p.absenceDeduction + p.otherDeductions, 0);
 
         const totalEntitlements = totalBasicSalaries + totalBonuses + totalCommissions + standaloneCommissions - totalDeductions;
         const totalPaid = payments.reduce((sum, p) => sum + p.amount, 0);
@@ -835,11 +842,11 @@ export const HRModule: React.FC = () => {
                         </div>
                         <div className="flex gap-2">
                             {activeTab === 'employees' ? (
-                                <button onClick={() => { setCurrentEmployee({ role: 'technician', custodyItems: [], status: 'active' }); setShowEmployeeForm(true); }} className="bg-jilco-900 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 hover:bg-jilco-800 shadow-md text-sm">
+                                canManageHR && <button onClick={() => { setCurrentEmployee({ role: 'technician', custodyItems: [], status: 'active' }); setShowEmployeeForm(true); }} className="bg-jilco-900 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 hover:bg-jilco-800 shadow-md text-sm">
                                     <UserPlus size={18} /> موظف جديد
                                 </button>
                             ) : activeTab === 'commissions' ? (
-                                <button onClick={() => { setCurrentCommission({ status: 'pending', date: new Date().toISOString().split('T')[0] }); setShowCommissionForm(true); }} className="bg-green-600 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 hover:bg-green-700 shadow-md text-sm">
+                                canManageHR && <button onClick={() => { setCurrentCommission({ status: 'pending', date: new Date().toISOString().split('T')[0] }); setShowCommissionForm(true); }} className="bg-green-600 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 hover:bg-green-700 shadow-md text-sm">
                                     <Plus size={18} /> تسجيل عمولة
                                 </button>
                             ) : null}
@@ -964,10 +971,10 @@ export const HRModule: React.FC = () => {
                                         
                                         <button title="كشف حساب موظف" onClick={() => setViewStatementEmployeeId(emp.id)} className="px-3 py-1.5 text-jilco-700 bg-jilco-50 hover:bg-jilco-100 border border-jilco-200 rounded-lg flex items-center justify-center gap-1 font-bold text-xs"><FileSpreadsheet size={14} /> كشف الحساب</button>
                                         
-                                        <div className="flex gap-1 ml-auto">
+                                        {canManageHR && <div className="flex gap-1 ml-auto">
                                             <button title="تعديل الموظف" onClick={() => { setCurrentEmployee(emp); setShowEmployeeForm(true); }} className="p-1.5 text-blue-600 hover:bg-blue-100 rounded-lg"><Edit size={16} /></button>
                                             {hasPermission('delete_records') && <button title="حذف الموظف" onClick={() => handleDeleteRecord('jilco_hr_employees', emp.id, `الموظف ${emp.name}`)} className="p-1.5 text-red-600 hover:bg-red-100 rounded-lg"><Trash2 size={16} /></button>}
-                                        </div>
+                                        </div>}
                                     </div>
                                 </div>
                             ))}
@@ -1016,7 +1023,7 @@ export const HRModule: React.FC = () => {
                                         </td>
                                         <td className="p-4 text-center">
                                             <div className="flex items-center justify-center gap-2">
-                                                {comm.status === 'pending' && (
+                                                {canManageHR && comm.status === 'pending' && (
                                                     <button
                                                         onClick={() => updateCommissionStatus(comm.id, 'approved')}
                                                         className="bg-blue-50 text-blue-600 px-3 py-1 rounded text-xs font-bold border border-blue-200 hover:bg-blue-100"
@@ -1025,7 +1032,7 @@ export const HRModule: React.FC = () => {
                                                         اعتماد
                                                     </button>
                                                 )}
-                                                {comm.status === 'approved' && (
+                                                {canManageHR && comm.status === 'approved' && (
                                                     <button
                                                         onClick={() => updateCommissionStatus(comm.id, 'paid')}
                                                         className="bg-green-50 text-green-600 px-3 py-1 rounded text-xs font-bold border border-green-200 hover:bg-green-100"
@@ -1035,7 +1042,7 @@ export const HRModule: React.FC = () => {
                                                     </button>
                                                 )}
                                                 <button title="طباعة العمولة" onClick={() => window.print()} className="p-1.5 text-gray-400 hover:text-jilco-600 rounded"><Printer size={16} /></button>
-                                                {hasPermission('delete_records') && <button title="حذف العمولة" onClick={() => handleDeleteRecord('jilco_hr_commissions', comm.id, `عمولة ${comm.employeeName}`)} className="p-1.5 text-red-400 hover:text-red-600 rounded opacity-0 group-hover:opacity-100"><Trash2 size={16} /></button>}
+                                                {canManageHR && hasPermission('delete_records') && <button title="حذف العمولة" onClick={() => handleDeleteRecord('jilco_hr_commissions', comm.id, `عمولة ${comm.employeeName}`)} className="p-1.5 text-red-400 hover:text-red-600 rounded opacity-0 group-hover:opacity-100"><Trash2 size={16} /></button>}
                                             </div>
                                         </td>
                                     </tr>
@@ -1100,12 +1107,12 @@ export const HRModule: React.FC = () => {
                             <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
                                 <div className="p-4 bg-gray-50 border-b border-gray-200 flex justify-between items-center">
                                      <h3 className="font-bold text-jilco-900 flex items-center gap-2"><CheckCircle2 size={18} className="text-green-600"/> مسير شهر {payrollMonth} ({generatedPayrolls.length} موظف)</h3>
-                                     <button 
+                                     {canManageHR && <button
                                         onClick={handleApprovePayroll}
                                         className="bg-green-600 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-green-700 shadow flex items-center gap-2"
                                      >
                                          <Save size={16} /> اعتماد وصرف الرواتب آلياً
-                                     </button>
+                                     </button>}
                                 </div>
                                 <div className="overflow-x-auto">
                                     <table className="w-full text-sm text-right">
@@ -1132,6 +1139,7 @@ export const HRModule: React.FC = () => {
                                                     <td className="p-3 font-mono text-red-600">{(pr.gosiDeduction).toLocaleString()}</td>
                                                     <td className="p-3 font-mono text-blue-600 font-bold">{pr.commissions.toLocaleString()}</td>
                                                     <td className="p-3">
+                                                        {canManageHR ? <>
                                                         <input 
                                                             type="number" 
                                                             value={pr.bonuses || ''} 
@@ -1140,9 +1148,11 @@ export const HRModule: React.FC = () => {
                                                             disabled={pr.status === 'paid'}
                                                             placeholder="0"
                                                         />
+                                                        </> : pr.bonuses.toLocaleString()}
                                                     </td>
                                                     <td className="p-3 font-mono text-red-600">{(pr.loanDeduction + pr.absenceDeduction).toLocaleString()}</td>
                                                     <td className="p-3">
+                                                        {canManageHR ? <>
                                                         <input 
                                                             type="number" 
                                                             value={pr.otherDeductions || ''} 
@@ -1151,6 +1161,7 @@ export const HRModule: React.FC = () => {
                                                             disabled={pr.status === 'paid'}
                                                             placeholder="0"
                                                         />
+                                                        </> : pr.otherDeductions.toLocaleString()}
                                                     </td>
                                                     <td className="p-3 text-center font-black text-green-700 font-mono text-base">{pr.netSalary.toLocaleString()}</td>
                                                     <td className="p-3 text-center">
@@ -1182,9 +1193,9 @@ export const HRModule: React.FC = () => {
                     <div className="animate-fade-in space-y-6">
                         <div className="flex justify-between items-end mb-4">
                             <h2 className="text-xl font-bold flex items-center gap-2 text-jilco-900">سلف ومستحقات الموظفين</h2>
-                            <button onClick={() => { setCurrentLoan({ status: 'active', startDate: new Date().toISOString().slice(0, 7) }); setShowLoanForm(true); }} className="bg-jilco-600 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 hover:bg-jilco-700 shadow flex-shrink-0 text-sm">
+                            {canManageHR && <button onClick={() => { setCurrentLoan({ status: 'active', startDate: new Date().toISOString().slice(0, 7) }); setShowLoanForm(true); }} className="bg-jilco-600 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 hover:bg-jilco-700 shadow flex-shrink-0 text-sm">
                                 <Plus size={16} /> تسجيل سلفة جديدة
-                            </button>
+                            </button>}
                         </div>
                         <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden overflow-x-auto">
                             <table className="w-full text-sm text-right min-w-[600px]">
@@ -1230,9 +1241,9 @@ export const HRModule: React.FC = () => {
                     <div className="animate-fade-in space-y-6">
                         <div className="flex justify-between items-end mb-4">
                             <h2 className="text-xl font-bold flex items-center gap-2 text-jilco-900">الحضور والانصراف الشهري</h2>
-                            <button onClick={() => { setCurrentAttendance({ month: new Date().toISOString().slice(0, 7), absenceDays: 0, delayHours: 0 }); setShowAttendanceForm(true); }} className="bg-jilco-600 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 hover:bg-jilco-700 shadow flex-shrink-0 text-sm">
+                            {canManageHR && <button onClick={() => { setCurrentAttendance({ month: new Date().toISOString().slice(0, 7), absenceDays: 0, delayHours: 0 }); setShowAttendanceForm(true); }} className="bg-jilco-600 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 hover:bg-jilco-700 shadow flex-shrink-0 text-sm">
                                 <Plus size={16} /> تسجيل غياب/تأخير
-                            </button>
+                            </button>}
                         </div>
                         <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden overflow-x-auto">
                             <table className="w-full text-sm text-right min-w-[600px]">
@@ -1270,9 +1281,9 @@ export const HRModule: React.FC = () => {
                     <div className="animate-fade-in space-y-6">
                         <div className="flex justify-between items-end mb-4">
                             <h2 className="text-xl font-bold flex items-center gap-2 text-jilco-900">طلبات الإجازة</h2>
-                            <button onClick={() => { setCurrentLeave({ status: 'pending', type: 'annual' }); setShowLeaveForm(true); }} className="bg-jilco-600 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 hover:bg-jilco-700 shadow flex-shrink-0 text-sm">
+                            {canManageHR && <button onClick={() => { setCurrentLeave({ status: 'pending', type: 'annual' }); setShowLeaveForm(true); }} className="bg-jilco-600 text-white px-4 py-2 rounded-lg font-bold flex items-center gap-2 hover:bg-jilco-700 shadow flex-shrink-0 text-sm">
                                 <Plus size={16} /> طلب إجازة
-                            </button>
+                            </button>}
                         </div>
                         <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden overflow-x-auto">
                             <table className="w-full text-sm text-right min-w-[600px]">
@@ -1307,7 +1318,7 @@ export const HRModule: React.FC = () => {
                                                     </span>
                                                 </td>
                                                 <td className="p-4">
-                                                    {lv.status === 'pending' && (
+                                                    {canManageHR && lv.status === 'pending' && (
                                                         <div className="flex gap-2">
                                                             <button onClick={() => updateLeaveStatus(lv, 'approved')} className="p-1.5 text-green-600 hover:bg-green-100 rounded" title="قبول الطلب"><Check size={16} /></button>
                                                             <button onClick={() => updateLeaveStatus(lv, 'rejected')} className="p-1.5 text-red-600 hover:bg-red-100 rounded" title="رفض الطلب"><XCircle size={16} /></button>
@@ -1326,11 +1337,11 @@ export const HRModule: React.FC = () => {
             </div>
 
             {/* Modals */}
-            {showEmployeeForm && renderEmployeeForm()}
-            {showCommissionForm && renderCommissionForm()}
-            {showLoanForm && renderLoanForm()}
-            {showAttendanceForm && renderAttendanceForm()}
-            {showLeaveForm && renderLeaveForm()}
+            {canManageHR && showEmployeeForm && renderEmployeeForm()}
+            {canManageHR && showCommissionForm && renderCommissionForm()}
+            {canManageHR && showLoanForm && renderLoanForm()}
+            {canManageHR && showAttendanceForm && renderAttendanceForm()}
+            {canManageHR && showLeaveForm && renderLeaveForm()}
             {renderEmployeeStatement()}
         </div>
     );

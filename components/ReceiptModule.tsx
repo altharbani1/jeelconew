@@ -8,7 +8,7 @@ import { useAuth } from '../contexts/AuthContext.tsx';
 import { useData } from '../contexts/DataContext.tsx';
 import { useSales } from '../contexts/SalesContext.tsx';
 import { useMaintenance } from '../contexts/MaintenanceContext.tsx';
-import { getInvoicePaymentStatus, getSalesInvoiceTotal } from '../lib/financialCalculations';
+import { getSalesInvoiceTotal } from '../lib/financialCalculations';
 
 // --- Helper: Arabic Number to Words (Tafqit) ---
 const tafqit = (number: number): string => {
@@ -81,7 +81,7 @@ const INITIAL_CONFIG: CompanyConfig = {
 export const ReceiptModule: React.FC<{ initialView?: 'list' | 'editor' | 'statement' }> = ({ initialView = 'list' }) => {
     const { currentUser } = useAuth();
     const {
-        receipts, customers, invoices,
+        receipts, customers, invoices, setReceipts,
         saveSalesRecord, deleteSalesRecord
     } = useSales();
     const { contracts, tickets } = useMaintenance();
@@ -145,6 +145,7 @@ export const ReceiptModule: React.FC<{ initialView?: 'list' | 'editor' | 'statem
     const handleSaveReceipt = async () => {
         if (!currentReceipt.receivedFrom || currentReceipt.amount <= 0) return alert('الرجاء تعبئة بيانات العميل والمبلغ');
 
+        const previousReceipt = receipts.find(r => r.number === currentReceipt.number);
         const linkedInvoice = currentReceipt.invoiceId ? invoices.find(i => i.number === currentReceipt.invoiceId) : undefined;
         if (linkedInvoice) {
             const priorPaid = receipts.filter(r => r.invoiceId === linkedInvoice.number && r.number !== currentReceipt.number).reduce((s, r) => s + (Number(r.amount) || 0), 0);
@@ -152,16 +153,21 @@ export const ReceiptModule: React.FC<{ initialView?: 'list' | 'editor' | 'statem
             if (Number(currentReceipt.amount) > remaining + 0.01) return alert(`مبلغ السداد يتجاوز المتبقي على الفاتورة (${remaining.toLocaleString()} ريال)`);
         }
 
-        await saveSalesRecord('jilco_receipts_archive', currentReceipt.number, currentReceipt);
-        if (currentReceipt.invoiceId) {
-            const invoice = invoices.find(i => i.number === currentReceipt.invoiceId || i.number === currentReceipt.invoiceId);
-            if (invoice) {
-                const prior = receipts.filter(r => r.invoiceId === invoice.number && r.number !== currentReceipt.number)
-                    .reduce((s, r) => s + (Number(r.amount) || 0), 0);
-                const paidAmount = prior + Number(currentReceipt.amount);
-                const invoiceTotal = getSalesInvoiceTotal(invoice);
-                await saveSalesRecord('jilco_invoices_archive', invoice.number, { ...invoice, paidAmount, status: getInvoicePaymentStatus(paidAmount, invoiceTotal) });
+        const receiptSaved = await saveSalesRecord('jilco_receipts_archive', currentReceipt.number, currentReceipt);
+        if (!receiptSaved) {
+            // useCloudSync writes optimistically before contacting the cloud. Roll back that
+            // local change so a failed cloud save is not presented as a saved receipt.
+            const restoredReceipts = previousReceipt
+                ? receipts.map(r => r.number === currentReceipt.number ? previousReceipt : r)
+                : receipts.filter(r => r.number !== currentReceipt.number);
+            setReceipts(restoredReceipts);
+            try {
+                localStorage.setItem('jilco_receipts_archive', JSON.stringify(restoredReceipts));
+            } catch (error) {
+                console.error('Receipt save failed and its local cache could not be rolled back:', error);
             }
+            alert('تعذر حفظ سند القبض أو تحديث رصيد الفاتورة في السحابة. لم تُعتمد العملية؛ تحقق من الاتصال ثم أعد المحاولة.');
+            return;
         }
 
         const exists = receipts.find(r => r.number === currentReceipt.number);
@@ -175,19 +181,10 @@ export const ReceiptModule: React.FC<{ initialView?: 'list' | 'editor' | 'statem
 
     const handleDelete = async (number: string) => {
         if (window.confirm("هل أنت متأكد من حذف هذا السند؟")) {
-            const deletedReceipt = receipts.find(r => r.number === number);
             const deleted = await deleteSalesRecord('jilco_receipts_archive', number);
             if (!deleted) {
-                alert('تعذر حذف سند القبض من السحابة. لم يتم حذف السند، يرجى المحاولة مرة أخرى.');
+                alert('تعذر حذف سند القبض أو تحديث رصيد الفاتورة في السحابة. لم تُعتمد العملية؛ يرجى المحاولة مرة أخرى.');
                 return;
-            }
-            if (deletedReceipt?.invoiceId) {
-                const invoice = invoices.find(i => i.number === deletedReceipt.invoiceId);
-                if (invoice) {
-                    const paidAmount = receipts.filter(r => r.invoiceId === invoice.number && r.number !== number).reduce((s, r) => s + (Number(r.amount) || 0), 0);
-                    const invoiceTotal = getSalesInvoiceTotal(invoice);
-                    await saveSalesRecord('jilco_invoices_archive', invoice.number, { ...invoice, paidAmount, status: getInvoicePaymentStatus(paidAmount, invoiceTotal) });
-                }
             }
             loggerService.addLog(currentUser, 'حذف سند قبض', `رقم السند: ${number}`, 'المحاسبة');
         }

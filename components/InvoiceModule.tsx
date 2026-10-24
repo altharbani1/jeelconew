@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Printer, FileText, Phone, Mail, QrCode, Globe, MapPin, Plus, ArrowLeft, Search, Trash2, Edit, Send, Save, User, ShoppingCart, DollarSign, Calendar, PieChart, CheckCircle2, X, Wrench } from 'lucide-react';
 import { InvoiceData, QuoteItem, CompanyConfig, Customer, SupplierProduct, QuoteDetails } from '../types';
 import { ShareButton } from './ShareButton';
@@ -50,12 +50,16 @@ export const InvoiceModule: React.FC = () => {
     const { currentUser } = useAuth();
     const {
         invoices, customers, quotes: savedQuotes,
-        saveSalesRecord, deleteSalesRecord
+        setInvoices, saveSalesRecord, deleteSalesRecord, reserveInvoiceNumber
     } = useSales();
     const { contracts, tickets } = useMaintenance();
 
     const [viewMode, setViewMode] = useState<'list' | 'editor' | 'statement'>('list');
     const [searchTerm, setSearchTerm] = useState('');
+    const [creatingInvoice, setCreatingInvoice] = useState(false);
+    const creatingInvoiceRef = useRef(false);
+    const [savingInvoice, setSavingInvoice] = useState(false);
+    const savingInvoiceRef = useRef(false);
     const [productsDb, setProductsDb] = useState<SupplierProduct[]>([]);
     const [config, setConfig] = useState<CompanyConfig>(INITIAL_CONFIG);
 
@@ -63,6 +67,7 @@ export const InvoiceModule: React.FC = () => {
         number: `INV-${new Date().getFullYear()}-001`,
         date: new Date().toISOString().split('T')[0],
         dueDate: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        customerName: '',
         customerVatNumber: '',
         items: [],
         status: 'pending',
@@ -85,25 +90,42 @@ export const InvoiceModule: React.FC = () => {
         }
     }, []);
 
-    const handleCreateNew = () => {
-        setCurrentInvoice({
-            number: `INV-${new Date().getFullYear()}-${String(invoices.length + 1).padStart(3, '0')}`,
-            date: new Date().toISOString().split('T')[0],
-            dueDate: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-            customerVatNumber: '',
-            items: [],
-            status: 'pending',
-            discountAmount: 0,
-            isTaxInclusive: true // افتراضي شامل الضريبة
-        });
-        setAvailableQuotes([]);
-        setViewMode('editor');
+    const handleCreateNew = async () => {
+        if (creatingInvoiceRef.current) return;
+        creatingInvoiceRef.current = true;
+        setCreatingInvoice(true);
+        try {
+            const number = await reserveInvoiceNumber(new Date().getFullYear());
+            setCurrentInvoice({
+                number,
+                date: new Date().toISOString().split('T')[0],
+                dueDate: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+                customerName: '',
+                customerVatNumber: '',
+                items: [],
+                status: 'pending',
+                discountAmount: 0,
+                isTaxInclusive: true // افتراضي شامل الضريبة
+            });
+            setAvailableQuotes([]);
+            setViewMode('editor');
+        } catch (error) {
+            console.error('Failed to reserve an invoice number:', error);
+            alert('تعذر حجز رقم فاتورة جديد من الخادم. تحقق من الاتصال وحاول مرة أخرى.');
+        } finally {
+            creatingInvoiceRef.current = false;
+            setCreatingInvoice(false);
+        }
     };
 
     const handleSaveInvoice = async () => {
+        if (savingInvoiceRef.current) return;
         if (!currentInvoice.customerName) return alert('يرجى اختيار العميل');
         if (currentInvoice.items.length === 0) return alert('يرجى إضافة بند واحد على الأقل');
 
+        savingInvoiceRef.current = true;
+        setSavingInvoice(true);
+        try {
         const calcSubtotal = currentInvoice.items.reduce((s, i) => s + i.total, 0);
         const calcDiscount = Math.min(calcSubtotal, Math.max(0, currentInvoice.discountAmount || 0));
         let calcTax = 0;
@@ -126,7 +148,30 @@ export const InvoiceModule: React.FC = () => {
             grandTotal: calcGrandTotal
         };
 
-        await saveSalesRecord('jilco_invoices_archive', currentInvoice.number, invoiceToSave);
+        const existingInvoice = invoices.find(invoice =>
+            invoice.number === currentInvoice.number
+            || ((currentInvoice as any).id && invoice.id === (currentInvoice as any).id)
+        );
+        const saved = await saveSalesRecord('jilco_invoices_archive', currentInvoice.number, invoiceToSave);
+        if (!saved) {
+            const restoreInvoices = (records: any[]) => {
+                const remaining = records.filter(invoice =>
+                    invoice.number !== currentInvoice.number
+                    && (!existingInvoice || invoice.number !== existingInvoice.number)
+                    && (!(currentInvoice as any).id || invoice.id !== (currentInvoice as any).id)
+                );
+                return existingInvoice ? [existingInvoice, ...remaining] : remaining;
+            };
+            setInvoices(restoreInvoices);
+            try {
+                const cachedInvoices = JSON.parse(localStorage.getItem('jilco_invoices_archive') || '[]');
+                localStorage.setItem('jilco_invoices_archive', JSON.stringify(restoreInvoices(Array.isArray(cachedInvoices) ? cachedInvoices : [])));
+            } catch (error) {
+                console.error('Invoice save failed and its local cache could not be rolled back:', error);
+            }
+            alert('تعذر حفظ الفاتورة في السحابة. لم تُعتمد التغييرات؛ تحقق من الاتصال أو رقم الفاتورة ثم أعد المحاولة.');
+            return;
+        }
 
         const exists = invoices.find(i => i.number === currentInvoice.number);
         if (exists) {
@@ -135,11 +180,19 @@ export const InvoiceModule: React.FC = () => {
             loggerService.addLog(currentUser, 'إنشاء فاتورة', `رقم الفاتورة: ${currentInvoice.number}`, 'المحاسبة');
         }
         setViewMode('list');
+        } finally {
+            savingInvoiceRef.current = false;
+            setSavingInvoice(false);
+        }
     };
 
     const handleDeleteInvoice = async (number: string) => {
         if (window.confirm('هل أنت متأكد من حذف هذه الفاتورة؟')) {
-            await deleteSalesRecord('jilco_invoices_archive', number);
+            const deleted = await deleteSalesRecord('jilco_invoices_archive', number);
+            if (!deleted) {
+                alert('تعذر حذف الفاتورة من السحابة. تحقق من الاتصال ثم أعد المحاولة.');
+                return;
+            }
             loggerService.addLog(currentUser, 'حذف فاتورة', `رقم الفاتورة: ${number}`, 'المحاسبة');
         }
     };
@@ -201,13 +254,17 @@ export const InvoiceModule: React.FC = () => {
                             <button onClick={async () => {
                                 if(window.confirm('هل أنت متأكد من ترحيل الفواتير من قاعدة البيانات القديمة للجديدة؟')) {
                                     import('../services/cloudService').then(async m => {
-                                        const count = await m.cloudService.migrateLegacyInvoices();
-                                        alert(`✅ تم ترحيل ${count} فاتورة بنجاح للجدول الجديد! يرجى تحديث الصفحة.`);
+                                        const result = await m.cloudService.migrateLegacyInvoices();
+                                        if (result.failed) {
+                                            alert(`تم ترحيل ${result.migrated} فاتورة، وتعذر ترحيل ${result.failed}. راجع الأرقام والصلاحيات ثم أعد المحاولة.`);
+                                        } else {
+                                            alert(`✅ تم ترحيل ${result.migrated} فاتورة بنجاح للجدول الجديد! يرجى تحديث الصفحة.`);
+                                        }
                                     });
                                 }
                             }} className="bg-orange-500 text-white px-4 py-2.5 rounded-lg font-bold flex items-center gap-2 hover:bg-orange-600 shadow-sm text-sm">ترحيل البيانات للجدول الجديد</button>
-                            <button onClick={handleCreateNew} className="bg-jilco-600 text-white px-6 py-2.5 rounded-lg font-bold flex items-center gap-2 hover:bg-jilco-700 shadow-md">
-                                <Plus size={20} /> فاتورة جديدة
+                            <button onClick={handleCreateNew} disabled={creatingInvoice} className="bg-jilco-600 text-white px-6 py-2.5 rounded-lg font-bold flex items-center gap-2 hover:bg-jilco-700 shadow-md disabled:cursor-wait disabled:opacity-60">
+                                <Plus size={20} /> {creatingInvoice ? 'جارٍ حجز رقم الفاتورة…' : 'فاتورة جديدة'}
                             </button>
                         </div>
                     </div>
@@ -295,7 +352,7 @@ export const InvoiceModule: React.FC = () => {
 
                 <div className="space-y-6">
                     <div className="grid grid-cols-3 gap-2">
-                        <button onClick={handleSaveInvoice} className="bg-green-600 text-white py-2 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-green-700"><Save size={18} /> حفظ</button>
+                        <button onClick={handleSaveInvoice} disabled={savingInvoice} className="bg-green-600 text-white py-2 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-green-700 disabled:cursor-wait disabled:opacity-60"><Save size={18} /> {savingInvoice ? 'جارٍ الحفظ…' : 'حفظ'}</button>
                         <button onClick={() => window.print()} className="bg-jilco-900 text-white py-2 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-jilco-800"><Printer size={18} /> طباعة</button>
                         <ShareButton
                             elementId="printable-area"
@@ -377,7 +434,7 @@ export const InvoiceModule: React.FC = () => {
                         <div className="grid grid-cols-2 gap-3">
                             <div>
                                 <label className="block text-[10px] font-bold text-gray-500 mb-1">رقم الفاتورة</label>
-                                <input title="رقم الفاتورة" placeholder="رقم الفاتورة" type="text" value={currentInvoice.number} onChange={e => setCurrentInvoice({ ...currentInvoice, number: e.target.value })} className="w-full p-2 border rounded text-sm bg-white font-bold" />
+                                <input title="رقم الفاتورة يُحجز تلقائياً ولا يمكن تغييره يدوياً" placeholder="رقم الفاتورة" type="text" value={currentInvoice.number} readOnly className="w-full p-2 border rounded text-sm bg-gray-50 font-bold text-gray-700" />
                             </div>
                             <div>
                                 <label className="block text-[10px] font-bold text-gray-500 mb-1">التاريخ</label>

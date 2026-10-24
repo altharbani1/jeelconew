@@ -50,7 +50,7 @@ export const ProjectModule: React.FC = () => {
     const { supplierProducts, inventoryTransactions, saveInventoryRecord } = useInventory();
     const { hrEmployees: employees = [] } = useHR();
 
-    const [viewMode, setViewMode] = useState<'dashboard' | 'list' | 'details' | 'statement'>('dashboard');
+    const [viewMode, setViewMode] = useState<'dashboard' | 'list' | 'details' | 'statement' | 'client_report'>('dashboard');
 
     const [selectedProjectId, setSelectedProjectId] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
@@ -625,7 +625,7 @@ export const ProjectModule: React.FC = () => {
                                         <td className="p-4 font-bold text-slate-700">{p.clientName}</td>
                                         <td className="p-4 font-mono text-xs text-gray-500">{p.startDate}</td>
                                         <td className="p-4">
-                                            <div className="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden flex" role="progressbar" aria-label="Project Progress" aria-valuenow={String(p.progress || 0)} aria-valuemin={"0"} aria-valuemax={"100"} title={`Progress: ${p.progress}%`}>
+                                            <div className="w-full bg-gray-200 rounded-full h-2.5 overflow-hidden flex" role="progressbar" aria-label="Project Progress" aria-valuenow={Math.max(0, Math.min(100, Math.round(p.progress || 0)))} aria-valuemin={0} aria-valuemax={100} title={`Progress: ${p.progress}%`}>
                                                 <div className="bg-jilco-600 h-2.5 rounded-full shrink-0 transition-all" style={{ width: `${Math.max(0, Math.min(100, Math.round(p.progress || 0)))}%` }}></div>
                                             </div>
                                             <span className="text-[10px] font-bold text-gray-500 mt-1 block">{p.progress}%</span>

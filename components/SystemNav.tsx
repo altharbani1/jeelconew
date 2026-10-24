@@ -106,13 +106,14 @@ export const SystemNav: React.FC<SystemNavProps> = ({ currentView, setView, sync
         </div>
       </div>
 
-      <div className="flex-1 w-full flex flex-col gap-2 px-2 overflow-y-auto no-scrollbar pb-4">
+      <nav aria-label={language === 'ar' ? 'التنقل الرئيسي' : 'Main navigation'} className="flex-1 w-full flex flex-col gap-2 px-2 overflow-y-auto no-scrollbar pb-4">
         {visibleItems.map((item) => {
           const Icon = item.icon;
           const isActive = currentView === item.id;
           return (
             <button
               title={item.label}
+              aria-current={isActive ? 'page' : undefined}
               key={item.id}
               onClick={() => setView(item.id)}
               className={`flex flex-col items-center justify-center p-2 rounded-xl transition-all duration-300 group w-full min-h-[60px] ${isActive
@@ -127,7 +128,7 @@ export const SystemNav: React.FC<SystemNavProps> = ({ currentView, setView, sync
             </button>
           );
         })}
-      </div>
+      </nav>
 
       <div className="mt-auto px-2 w-full pt-4 border-t border-white/5 space-y-2 pb-2">
 
