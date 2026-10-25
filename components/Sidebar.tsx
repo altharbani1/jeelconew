@@ -93,8 +93,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
             alert('أدخل سعر بيع صحيحاً وغير سالب للبند.');
             return;
         }
-        if (!Number.isFinite(newItemQty) || newItemQty <= 0) {
-            alert('أدخل كمية صحيحة أكبر من صفر.');
+        if (!Number.isInteger(newItemQty) || newItemQty <= 0) {
+            alert('أدخل كمية صحيحة كعدد صحيح أكبر من صفر.');
             return;
         }
 
@@ -335,7 +335,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                     </div>
                                     <div>
                                         <label className="text-[10px] font-black text-gray-500 mb-1 block">الكمية</label>
-                                        <input title="الكمية" type="number" value={newItemQty} onChange={e => setNewItemQty(parseFloat(e.target.value) || 1)} className="w-full p-3 border border-gray-300 rounded-xl text-center font-black bg-white text-gray-900 focus:border-jilco-500 outline-none" />
+                                        <input title="الكمية" type="number" min="1" step="1" value={newItemQty} onChange={e => setNewItemQty(parseFloat(e.target.value) || 1)} className="w-full p-3 border border-gray-300 rounded-xl text-center font-black bg-white text-gray-900 focus:border-jilco-500 outline-none" />
                                     </div>
                                 </div>
                                 <button title="إدراج البند" onClick={handleAddItem} className="w-full bg-jilco-600 text-white py-3 rounded-xl font-black text-sm hover:bg-jilco-700 transition-all shadow-lg">+ إدراج البند</button>

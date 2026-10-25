@@ -198,7 +198,7 @@ export const QuoteModule: React.FC = () => {
             return;
         }
         if (items.some(item => !item.description?.trim()
-            || !Number.isFinite(item.quantity) || item.quantity <= 0
+            || !Number.isInteger(item.quantity) || item.quantity <= 0
             || !Number.isFinite(item.unitPrice) || item.unitPrice < 0
             || !Number.isFinite(item.total) || item.total < 0)) {
             alert('راجع البنود؛ يجب أن يحتوي كل بند على وصف وكمية موجبة وسعر وإجمالي صحيحين.');

@@ -231,7 +231,7 @@ try {
   assert.equal(await count("select count(*)::int n from public.jilco_realtime_data where collection like 'jilco_hr_%'"), 0);
 
   await resetRole();
-  await db.exec(migration('20261024131500_save_quote_with_items_atomically.sql'));
+  await db.exec(migration('20261025123201_save_quote_with_items_atomically.sql'));
   await asUser(userA);
   const quote = {
     legacy_id: 'quote-1', number: 'Q-1', date: '2026-10-01', customer_name: 'Customer',
