@@ -5,7 +5,6 @@ import LZString from 'lz-string';
 // القائمة الشاملة لجميع مفاتيح التخزين
 const STORAGE_KEYS = [
   'jilco_quote_data',
-  'jilco_quotes_archive',
   'jilco_invoices_archive',
   'jilco_receipts_archive',
   'jilco_contracts_archive',
@@ -543,6 +542,10 @@ export const cloudService = {
       return data || [];
     } catch (e) {
       console.error(`Failed to load collection ${collection}:`, e);
+      // The quote cache may be retained offline only when the fetch itself
+      // failed. Returning [] here would make a network/RLS error look like an
+      // authoritative empty archive and could hide a genuine sync problem.
+      if (collection === 'jilco_quotes_archive') throw e;
       return [];
     }
   },

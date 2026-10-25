@@ -106,7 +106,7 @@ export const QuotePreview: React.FC<QuotePreviewProps> = ({ items, details, tech
     return (
         <div className="flex-1 bg-gray-200 p-8 overflow-auto flex flex-col items-center print:bg-white print:p-0 print:block">
 
-            <div id="printable-area" className="print:w-full">
+            <div id="printable-area" className="quote-print-document print:w-full">
 
                 {/* DYNAMIC PAGES: FINANCIAL QUOTE ITEMS - ONE PAGE PER CHUNK */}
                 {itemPages.map((pageItems, pageIndex) => {
@@ -204,7 +204,7 @@ export const QuotePreview: React.FC<QuotePreviewProps> = ({ items, details, tech
                                                         <span className="font-mono text-black font-black">{subtotal.toLocaleString()}</span>
                                                     </div>
                                                     <div className="flex justify-between text-[10px] font-black text-gray-500 uppercase">
-                                                        <span>VAT 15%:</span>
+                                                        <span>VAT {details.taxRate}%:</span>
                                                         <span className="font-mono text-red-600 font-black">{taxAmount.toLocaleString()}</span>
                                                     </div>
                                                     <div className="border-t-2 border-gray-100 pt-3 flex justify-between items-center">

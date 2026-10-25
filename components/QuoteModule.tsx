@@ -90,6 +90,13 @@ const DEFAULT_SECOND_PARTY = `تجهيز البئر بالكامل قبل الب
 
 const DEFAULT_DURATION = `60 يوماً`;
 
+const localDateString = (date = new Date()) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
+
 export const QuoteModule: React.FC = () => {
     const { currentUser } = useAuth();
     const { quotes, setQuotes, saveQuote, deleteQuote } = useSales();
@@ -125,7 +132,7 @@ export const QuoteModule: React.FC = () => {
         setItems([]);
         setDetails({
             number: `Q-${new Date().getFullYear()}-${String(quotes.length + 1).padStart(3, '0')}`,
-            date: new Date().toISOString().split('T')[0],
+            date: localDateString(),
             customerName: '',
             customerAddress: '',
             projectName: '',
@@ -152,7 +159,7 @@ export const QuoteModule: React.FC = () => {
 
     const handleEdit = (quote: SavedQuote) => {
         setCurrentQuoteId(quote.id);
-        setItems(quote.items);
+        setItems(Array.isArray(quote.items) ? quote.items : []);
         setDetails({
             ...quote.details,
             termsAndConditions: quote.details.termsAndConditions || DEFAULT_TERMS,
@@ -170,18 +177,58 @@ export const QuoteModule: React.FC = () => {
                     { name: 'الدفعة الرابعة (عند التسليم والتشغيل)', percentage: 10 }
                 ]
         });
-        setTechSpecs(quote.techSpecs);
+        setTechSpecs(quote.techSpecs || {
+            elevatorType: '', capacity: '', speed: '', stops: '', driveType: '', controlSystem: '', powerSupply: '', cabin: '', doors: '', externalDoors: '', machineRoom: '', rails: '', ropes: '', safety: '', emergency: ''
+        });
         setViewMode('editor');
     };
 
     const handleSaveCurrentQuote = async () => {
+        const quoteNumber = details.number.trim();
+        if (!quoteNumber) {
+            alert('أدخل رقم عرض السعر قبل الحفظ.');
+            return;
+        }
+        if (!details.customerName.trim()) {
+            alert('أدخل اسم العميل قبل الحفظ.');
+            return;
+        }
+        if (items.length === 0) {
+            alert('أضف بنداً واحداً على الأقل قبل حفظ العرض.');
+            return;
+        }
+        if (items.some(item => !item.description?.trim()
+            || !Number.isFinite(item.quantity) || item.quantity <= 0
+            || !Number.isFinite(item.unitPrice) || item.unitPrice < 0
+            || !Number.isFinite(item.total) || item.total < 0)) {
+            alert('راجع البنود؛ يجب أن يحتوي كل بند على وصف وكمية موجبة وسعر وإجمالي صحيحين.');
+            return;
+        }
+        if (!Number.isFinite(details.taxRate) || details.taxRate < 0 || details.taxRate > 100) {
+            alert('أدخل نسبة ضريبة صحيحة بين 0 و100%.');
+            return;
+        }
+        const paymentTerms = Array.isArray(details.paymentTerms) ? details.paymentTerms : [];
+        const paymentTotal = paymentTerms.reduce((sum, term) => sum + (Number.isFinite(term.percentage) ? term.percentage : Number.NaN), 0);
+        if (paymentTerms.length === 0
+            || paymentTerms.some(term => !term.name?.trim() || !Number.isFinite(term.percentage) || term.percentage < 0 || term.percentage > 100)
+            || !Number.isFinite(paymentTotal)
+            || Math.abs(paymentTotal - 100) > 0.001) {
+            alert('راجع جدول الدفعات؛ يجب أن تكون النسب صحيحة ومجموعها 100%.');
+            return;
+        }
+        if (quotes.some(quote => quote.id !== currentQuoteId && quote.details?.number?.trim() === quoteNumber)) {
+            alert('رقم عرض السعر مستخدم بالفعل. اختر رقماً آخر.');
+            return;
+        }
+
         const quoteId = currentQuoteId || Date.now().toString();
         const quoteObj: SavedQuote = {
             id: quoteId,
-            details,
+            details: { ...details, number: quoteNumber },
             items,
             techSpecs,
-            lastModified: new Date().toISOString().split('T')[0]
+            lastModified: localDateString()
         };
 
         const success = await saveQuote(quoteId, quoteObj);
@@ -196,11 +243,6 @@ export const QuoteModule: React.FC = () => {
             alert('تم حفظ العرض بنجاح عبر السحابة!');
         } else {
             setQuotes(quotes);
-            try {
-                localStorage.setItem('jilco_quotes_archive', JSON.stringify(quotes));
-            } catch (error) {
-                console.error('Could not restore the quote cache after a failed save:', error);
-            }
             alert('تعذر حفظ العرض في السحابة. ما زالت تعديلاتك في المحرر؛ تحقق من الاتصال ثم أعد الحفظ.');
         }
     };
@@ -228,6 +270,17 @@ export const QuoteModule: React.FC = () => {
                             </button>
                         </div>
                     </div>
+                    <div className="mb-4 relative">
+                        <Search size={16} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                        <input
+                            type="search"
+                            value={searchTerm}
+                            onChange={e => setSearchTerm(e.target.value)}
+                            placeholder="ابحث برقم العرض أو العميل أو المشروع"
+                            aria-label="البحث في عروض الأسعار"
+                            className="w-full rounded-lg border border-gray-200 bg-white py-2.5 pr-10 pl-3 text-sm outline-none focus:border-jilco-500"
+                        />
+                    </div>
                     <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
                         <table className="w-full text-sm text-right">
                             <thead className="bg-gray-50 text-gray-500">
@@ -240,7 +293,12 @@ export const QuoteModule: React.FC = () => {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-100">
-                                {quotes.map(quote => (
+                                {quotes.filter(quote => {
+                                    const term = searchTerm.trim().toLocaleLowerCase();
+                                    if (!term) return true;
+                                    return [quote.details?.number, quote.details?.customerName, quote.details?.projectName]
+                                        .some(value => String(value || '').toLocaleLowerCase().includes(term));
+                                }).map(quote => (
                                     <tr key={quote.id} className="hover:bg-gray-50">
                                         <td className="p-4 font-bold">{quote.details.number}</td>
                                         <td className="p-4">{quote.details.customerName || 'عميل نقدي'}</td>
@@ -270,6 +328,11 @@ export const QuoteModule: React.FC = () => {
                                     </tr>
                                 ))}
                                 {quotes.length === 0 && <tr><td colSpan={5} className="p-8 text-center text-gray-400">لا توجد عروض محفوظة</td></tr>}
+                                {quotes.length > 0 && !quotes.some(quote => {
+                                    const term = searchTerm.trim().toLocaleLowerCase();
+                                    return [quote.details?.number, quote.details?.customerName, quote.details?.projectName]
+                                        .some(value => String(value || '').toLocaleLowerCase().includes(term));
+                                }) && <tr><td colSpan={5} className="p-8 text-center text-gray-400">لا توجد نتائج مطابقة</td></tr>}
                             </tbody>
                         </table>
                     </div>

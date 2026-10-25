@@ -124,7 +124,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         setSyncStatus('syncing');
         try {
             const collectionsToMigrate = [
-                'jilco_quotes_archive', 'jilco_invoices_archive', 'jilco_receipts_archive',
+                'jilco_invoices_archive', 'jilco_receipts_archive',
                 'jilco_contracts_archive', 'jilco_customers', 'jilco_projects', 'jilco_phases',
                 'jilco_expenses_archive', 'jilco_claims_archive', 'jilco_documents',
                 'jilco_warranties_archive', 'jilco_hr_employees', 'jilco_hr_commissions',
@@ -167,7 +167,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         const migrationMarker = 'jilco_cloud_migration_v6';
         if (localStorage.getItem(migrationMarker)) return;
         const sourceKeys = [
-            'jilco_customers', 'jilco_projects', 'jilco_quotes_archive', 'jilco_invoices_archive', 'jilco_receipts_archive',
+            'jilco_customers', 'jilco_projects', 'jilco_invoices_archive', 'jilco_receipts_archive',
             'jilco_maintenance_contracts', 'jilco_maintenance_tickets', 'jilco_maintenance_ticket_events', 'jilco_maintenance_part_usages', 'jilco_maintenance_visits'
         ];
         const hasLocalRecords = sourceKeys.some((key) => {

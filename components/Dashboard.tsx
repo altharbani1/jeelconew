@@ -5,6 +5,7 @@ import { InvoiceData, Project, QuoteDetails, SystemView, ProjectPhase, ReceiptDa
 import { useAuth } from '../contexts/AuthContext.tsx';
 import { useData } from '../contexts/DataContext.tsx';
 import { cloudService } from '../services/cloudService.ts';
+import { useSales } from '../contexts/SalesContext.tsx';
 
 interface DashboardProps {
   setView?: (view: SystemView) => void;
@@ -13,6 +14,7 @@ interface DashboardProps {
 export const Dashboard: React.FC<DashboardProps> = ({ setView }) => {
   const { currentUser } = useAuth();
   const { migrateAllLocalData } = useData();
+  const { quotes } = useSales();
   const [stats, setStats] = useState({
     quotesCount: 0,
     activeProjects: 0,
@@ -34,12 +36,11 @@ export const Dashboard: React.FC<DashboardProps> = ({ setView }) => {
     }
 
     loadStats();
-  }, []);
+  }, [quotes]);
 
   const loadStats = () => {
     try {
-      const savedQuotes = localStorage.getItem('jilco_quotes_archive');
-      const quotesCount = savedQuotes ? JSON.parse(savedQuotes).length : 0;
+      const quotesCount = quotes.length;
 
       const savedProjects = localStorage.getItem('jilco_projects');
       const projects: Project[] = savedProjects ? JSON.parse(savedProjects) : [];

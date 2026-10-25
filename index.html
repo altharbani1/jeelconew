@@ -217,6 +217,16 @@
         flex-direction: column !important;
       }
 
+      /* Quote sections contain user-editable text. Let oversized sections
+         continue onto following sheets instead of clipping their content. */
+      .quote-print-document .a4-page {
+        height: auto !important;
+        min-height: 296.5mm !important;
+        overflow: visible !important;
+        page-break-inside: auto !important;
+        break-inside: auto !important;
+      }
+
       .a4-page:last-of-type {
         page-break-after: avoid !important;
         break-after: avoid !important;

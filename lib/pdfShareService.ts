@@ -56,6 +56,7 @@ async function generatePdfBlob(elementId: string, fileName: string): Promise<Blo
     const targets = pages.length > 0 ? pages : [element];
     const pdf = new jsPDF('p', 'mm', 'a4');
 
+    let pdfPageIndex = 0;
     for (let index = 0; index < targets.length; index += 1) {
         const canvas = await html2canvas(targets[index], {
             scale: Math.min(window.devicePixelRatio || 1, 2),
@@ -66,10 +67,25 @@ async function generatePdfBlob(elementId: string, fileName: string): Promise<Blo
             foreignObjectRendering: false,
         });
 
-        if (index > 0) pdf.addPage('a4', 'p');
-        const image = canvas.toDataURL('image/jpeg', 0.92);
-        const renderedHeight = Math.min(297, (canvas.height * 210) / canvas.width);
-        pdf.addImage(image, 'JPEG', 0, 0, 210, renderedHeight, undefined, 'FAST');
+        // A quote section can grow beyond one A4 sheet when editable terms or
+        // obligations are long. Slice tall canvases into page-sized images so
+        // exporting never squeezes or silently drops their lower content.
+        const pageCanvasHeight = Math.floor((canvas.width * 297) / 210);
+        for (let y = 0; y < canvas.height; y += pageCanvasHeight) {
+            const sliceHeight = Math.min(pageCanvasHeight, canvas.height - y);
+            const pageCanvas = document.createElement('canvas');
+            pageCanvas.width = canvas.width;
+            pageCanvas.height = sliceHeight;
+            const context = pageCanvas.getContext('2d');
+            if (!context) throw new Error('تعذر تجهيز صفحة PDF');
+            context.drawImage(canvas, 0, y, canvas.width, sliceHeight, 0, 0, canvas.width, sliceHeight);
+
+            if (pdfPageIndex > 0) pdf.addPage('a4', 'p');
+            pdfPageIndex += 1;
+            const image = pageCanvas.toDataURL('image/jpeg', 0.92);
+            const renderedHeight = (sliceHeight * 210) / canvas.width;
+            pdf.addImage(image, 'JPEG', 0, 0, 210, renderedHeight, undefined, 'FAST');
+        }
     }
 
     return pdf.output('blob');

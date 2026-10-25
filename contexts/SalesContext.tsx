@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 import { useCloudSync } from '../lib/useCloudSync';
+import { useSupabaseAuth } from './SupabaseAuthContext';
 
 interface SalesContextType {
     quotes: any[];
@@ -21,6 +22,7 @@ interface SalesContextType {
 const SalesContext = createContext<SalesContextType | undefined>(undefined);
 
 export const SalesProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+    const { user: cloudUser } = useSupabaseAuth();
     const [quotes, setQuotes] = useState<any[]>([]);
     const [customers, setCustomers] = useState<any[]>([]);
     const [invoices, setInvoices] = useState<any[]>([]);
@@ -33,7 +35,9 @@ export const SalesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         { collection: 'jilco_receipts_archive', stateSetter: setReceipts }
     ];
 
-    const { syncStatus, saveRecord, deleteRecord, reserveInvoiceNumber } = useCloudSync(modules);
+    // SupabaseAuthContext contains the verified cloud identity, unlike a local
+    // session mirror that may still refer to the previous user during startup.
+    const { syncStatus, saveRecord, deleteRecord, reserveInvoiceNumber } = useCloudSync(modules, cloudUser?.id);
 
     const saveSalesRecord = (collection: string, id: string, data: any) =>
         saveRecord(collection, id, data);

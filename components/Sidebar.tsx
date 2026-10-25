@@ -85,7 +85,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
     }, []);
 
     const handleAddItem = () => {
-        if (!newItemDesc) return;
+        if (!newItemDesc.trim()) {
+            alert('أدخل وصف البند قبل إضافته.');
+            return;
+        }
+        if (!Number.isFinite(newItemPrice) || newItemPrice < 0) {
+            alert('أدخل سعر بيع صحيحاً وغير سالب للبند.');
+            return;
+        }
+        if (!Number.isFinite(newItemQty) || newItemQty <= 0) {
+            alert('أدخل كمية صحيحة أكبر من صفر.');
+            return;
+        }
 
         let finalUnitPrice = newItemPrice;
         if (priceIncludesTax) {
@@ -112,7 +123,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
     const handleDescChange = (val: string) => {
         setNewItemDesc(val);
         const product = productsDb.find(p => p.name === val);
-        if (product) setNewItemPrice(product.purchasePrice);
+        // Supplier products store purchase cost only; never silently quote it as a sale price.
+        if (product) setNewItemPrice(0);
     };
 
     const handleCustomerSelect = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -317,6 +329,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                             </label>
                                         </div>
                                         <input title="السعر" type="number" value={newItemPrice} onChange={e => setNewItemPrice(parseFloat(e.target.value) || 0)} className="w-full p-3 border border-gray-300 rounded-xl font-mono font-black text-jilco-700 bg-white focus:border-jilco-500 outline-none" />
+                                        {productsDb.some(product => product.name === newItemDesc) && (
+                                            <p className="mt-1 text-[10px] font-bold text-amber-700">أدخل سعر البيع؛ تكلفة الشراء لا تُملأ تلقائياً.</p>
+                                        )}
                                     </div>
                                     <div>
                                         <label className="text-[10px] font-black text-gray-500 mb-1 block">الكمية</label>
@@ -387,8 +402,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                                 type="number"
                                                 title="نسبة الدفعة"
                                                 placeholder="0"
-                                                value={term.percentage}
-                                                onChange={(e) => updatePaymentTerm(idx, 'percentage', parseFloat(e.target.value))}
+                                                value={Number.isFinite(term.percentage) ? term.percentage : 0}
+                                                onChange={(e) => updatePaymentTerm(idx, 'percentage', e.target.value === '' ? 0 : Number(e.target.value))}
                                                 className="w-full p-1.5 text-xs border border-gray-300 rounded outline-none text-center font-black bg-white text-gray-900"
                                             />
                                             <span className="absolute left-1 top-1.5 text-[9px] text-gray-400 pointer-events-none">%</span>

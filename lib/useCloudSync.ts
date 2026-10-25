@@ -8,7 +8,16 @@ interface SyncModule {
 
 type SyncStatus = 'idle' | 'syncing' | 'synced' | 'error';
 
-export const useCloudSync = (modules: SyncModule[]) => {
+const getLocalCacheKey = (collection: string, cacheScope?: string) => {
+    // Quote archives contain customer and commercial data. Never use the old
+    // unscoped key: it can belong to another signed-in account on this device.
+    if (collection === 'jilco_quotes_archive') {
+        return cacheScope ? `${collection}::${cacheScope}` : null;
+    }
+    return collection;
+};
+
+export const useCloudSync = (modules: SyncModule[], cacheScope?: string) => {
     const [syncStatus, setSyncStatus] = useState<SyncStatus>('idle');
 
     // ✅ useRef لتجنب stale closure — يضمن وصول saveRecord/deleteRecord لأحدث stateSetters
@@ -25,6 +34,9 @@ export const useCloudSync = (modules: SyncModule[]) => {
 
     useEffect(() => {
         const mods = modulesRef.current;
+        // Don't keep the previous account's in-memory quote list while the next
+        // account's cloud data is loading (or if the account is unavailable).
+        mods.find(({ collection }) => collection === 'jilco_quotes_archive')?.stateSetter([]);
         loadAllInternal(mods);
 
         // الاشتراك في التحديثات اللحظية لكل collection
@@ -56,14 +68,15 @@ export const useCloudSync = (modules: SyncModule[]) => {
             unsubscribes.forEach(unsub => unsub());
             window.removeEventListener('subcontract-data-changed', refreshSubcontractCosts);
         };
-    }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    }, [cacheScope]); // eslint-disable-line react-hooks/exhaustive-deps
 
     const loadAllInternal = async (mods: SyncModule[]) => {
         setSyncStatus('syncing');
         try {
             await Promise.all(mods.map(async ({ collection, stateSetter }) => {
                 // 1. محلي أولاً للسرعة
-                const localData = localStorage.getItem(collection);
+                const localKey = getLocalCacheKey(collection, cacheScope);
+                const localData = localKey ? localStorage.getItem(localKey) : null;
                 let localRecords: any[] = [];
                 if (localData) {
                     try {
@@ -113,11 +126,14 @@ export const useCloudSync = (modules: SyncModule[]) => {
                         };
                     });
                     stateSetter(sortNewestFirst(parsed));
-                    localStorage.setItem(collection, JSON.stringify(parsed));
+                    if (localKey) localStorage.setItem(localKey, JSON.stringify(parsed));
+                } else if (collection === 'jilco_quotes_archive' && cloudData && localKey) {
+                    // A successful empty cloud response is authoritative. Remove
+                    // stale records for this same account instead of preserving them.
+                    stateSetter([]);
+                    localStorage.setItem(localKey, '[]');
                 }
-                // ⚠️ SAFETY: Never wipe local data if cloud returns empty.
-                // Cloud may return empty due to network issues or Supabase downtime.
-                // Local data (already loaded above) remains intact.
+                // Failed cloud reads throw and retain only this account's quote cache.
             }));
             setSyncStatus('synced');
         } catch (e) {
@@ -163,12 +179,18 @@ export const useCloudSync = (modules: SyncModule[]) => {
                 });
             }
 
-            const localArr = JSON.parse(localStorage.getItem(collection) || '[]');
-            const exists = localArr.find((q: any) => matchesRecordId(q, collection, id));
-            const updated = exists
-                ? localArr.map((q: any) => matchesRecordId(q, collection, id) ? data : q)
-                : [data, ...localArr];
-            localStorage.setItem(collection, JSON.stringify(updated));
+            const localKey = getLocalCacheKey(collection, cacheScope);
+            // Keep existing quote cache unchanged until cloud confirms a save.
+            // The editor remains open on failure, but an unsaved record should
+            // not reappear as a saved quote after a reload.
+            if (localKey && collection !== 'jilco_quotes_archive') {
+                const localArr = JSON.parse(localStorage.getItem(localKey) || '[]');
+                const exists = localArr.find((q: any) => matchesRecordId(q, collection, id));
+                const updated = exists
+                    ? localArr.map((q: any) => matchesRecordId(q, collection, id) ? data : q)
+                    : [data, ...localArr];
+                localStorage.setItem(localKey, JSON.stringify(updated));
+            }
 
             const result = collection === 'jilco_receipts_archive'
                 ? await cloudService.saveReceiptWithInvoiceRecalculation(id, data)
@@ -178,6 +200,15 @@ export const useCloudSync = (modules: SyncModule[]) => {
                         invoices: invoiceResult.invoice ? [invoiceResult.invoice] : []
                     }))
                 : { success: await cloudService.saveRecord(collection, id, data), invoices: [] };
+
+            if (result.success && localKey && collection === 'jilco_quotes_archive') {
+                const localArr = JSON.parse(localStorage.getItem(localKey) || '[]');
+                const exists = localArr.find((q: any) => matchesRecordId(q, collection, id));
+                const updated = exists
+                    ? localArr.map((q: any) => matchesRecordId(q, collection, id) ? data : q)
+                    : [data, ...localArr];
+                localStorage.setItem(localKey, JSON.stringify(updated));
+            }
 
             if (result.success) applyInvoicePaymentUpdates(result.invoices);
 
@@ -205,10 +236,11 @@ export const useCloudSync = (modules: SyncModule[]) => {
                 mod.stateSetter(prev => prev.filter((q: any) => !matchesRecordId(q, collection, id)));
             }
 
+            const localKey = getLocalCacheKey(collection, cacheScope);
             if (collection === 'jilco_receipts_archive') {
                 try {
-                    const localArr = JSON.parse(localStorage.getItem(collection) || '[]');
-                    localStorage.setItem(collection, JSON.stringify(
+                    const localArr = JSON.parse(localStorage.getItem(localKey || collection) || '[]');
+                    localStorage.setItem(localKey || collection, JSON.stringify(
                         localArr.filter((q: any) => !matchesRecordId(q, collection, id))
                     ));
                 } catch (error) {
@@ -216,8 +248,12 @@ export const useCloudSync = (modules: SyncModule[]) => {
                 }
                 applyInvoicePaymentUpdates(result.invoices);
             } else {
-                const localArr = JSON.parse(localStorage.getItem(collection) || '[]');
-                localStorage.setItem(collection, JSON.stringify(
+                if (!localKey) {
+                    setSyncStatus('synced');
+                    return true;
+                }
+                const localArr = JSON.parse(localStorage.getItem(localKey) || '[]');
+                localStorage.setItem(localKey, JSON.stringify(
                     localArr.filter((q: any) => !matchesRecordId(q, collection, id))
                 ));
             }
