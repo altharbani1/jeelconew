@@ -130,8 +130,14 @@ export const QuoteModule: React.FC = () => {
 
     const handleCreateNew = () => {
         setItems([]);
+        const currentYear = new Date().getFullYear();
+        const quoteNumberPattern = new RegExp(`^Q-${currentYear}-(\\d+)$`);
+        const nextQuoteSequence = quotes.reduce((max, quote) => {
+            const match = String(quote.details?.number || '').match(quoteNumberPattern);
+            return match ? Math.max(max, Number(match[1]) || 0) : max;
+        }, 0) + 1;
         setDetails({
-            number: `Q-${new Date().getFullYear()}-${String(quotes.length + 1).padStart(3, '0')}`,
+            number: `Q-${currentYear}-${String(nextQuoteSequence).padStart(3, '0')}`,
             date: localDateString(),
             customerName: '',
             customerAddress: '',
@@ -200,7 +206,8 @@ export const QuoteModule: React.FC = () => {
         if (items.some(item => !item.description?.trim()
             || !Number.isInteger(item.quantity) || item.quantity <= 0
             || !Number.isFinite(item.unitPrice) || item.unitPrice < 0
-            || !Number.isFinite(item.total) || item.total < 0)) {
+            || !Number.isFinite(item.total) || item.total < 0
+            || Math.abs(item.total - item.quantity * item.unitPrice) > 0.01)) {
             alert('راجع البنود؛ يجب أن يحتوي كل بند على وصف وكمية موجبة وسعر وإجمالي صحيحين.');
             return;
         }
@@ -323,7 +330,15 @@ export const QuoteModule: React.FC = () => {
                                             </button>
                                             <button onClick={() => handleEdit(quote)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-full" title="تعديل"><Edit size={16} /></button>
                                             <button onClick={() => { handleEdit(quote); setTimeout(() => void printDocument('printable-area'), 500); }} className="p-2 text-gray-600 hover:bg-gray-50 rounded-full" title="طباعة"><Printer size={16} /></button>
-                                            <button onClick={() => deleteQuote(quote.id)} className="p-2 text-red-500 hover:bg-red-50 rounded-full" title="حذف"><Trash2 size={16} /></button>
+                                            <button onClick={async () => {
+                                                if (!window.confirm(`هل تريد حذف عرض السعر ${quote.details?.number || ''}؟ هذا الإجراء لا يمكن التراجع عنه.`)) return;
+                                                const deleted = await deleteQuote(quote.id);
+                                                if (!deleted) {
+                                                    alert('تعذر حذف عرض السعر من السحابة. لم يتم تأكيد الحذف؛ حدّث الأرشيف بعد التحقق من الاتصال.');
+                                                    return;
+                                                }
+                                                loggerService.addLog(currentUser, 'حذف عرض سعر', `رقم العرض: ${quote.details?.number || quote.id}`, 'عروض الأسعار');
+                                            }} className="p-2 text-red-500 hover:bg-red-50 rounded-full" title="حذف"><Trash2 size={16} /></button>
                                         </td>
                                     </tr>
                                 ))}

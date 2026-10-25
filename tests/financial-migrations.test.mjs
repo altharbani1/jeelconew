@@ -26,6 +26,7 @@ try {
   await db.exec(`
     create role anon;
     create role authenticated;
+    create role service_role bypassrls;
     create schema auth;
     create function auth.uid() returns uuid language sql stable as
       $$ select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $$;
@@ -59,7 +60,7 @@ try {
 
     create table public.quotes (
       id uuid primary key default gen_random_uuid(),
-      company_id uuid not null references public.companies(id),
+      company_id uuid references public.companies(id),
       legacy_id text unique,
       number text,
       date date,
@@ -232,7 +233,11 @@ try {
 
   await resetRole();
   await db.exec(migration('20261025123201_save_quote_with_items_atomically.sql'));
+  await db.exec(migration('20261025140000_secure_quote_tenant_access_and_number_uniqueness.sql'));
+  await db.query(`insert into public.quotes(company_id,legacy_id,number,customer_name,total)
+    values (null,'orphan-legacy','Q-ORPHAN','Unassigned',100)`);
   await asUser(userA);
+  assert.equal(await count('select count(*)::int n from public.quotes'), 0);
   const quote = {
     legacy_id: 'quote-1', number: 'Q-1', date: '2026-10-01', customer_name: 'Customer',
     total: 20, payment_terms: [], features: [], gallery_images: {}
@@ -243,6 +248,9 @@ try {
     JSON.stringify(quote), JSON.stringify(items), JSON.stringify(specs)
   ])).rows[0].id;
   assert.equal(await count('select count(*)::int n from public.quote_items where quote_id=$1', [savedQuoteId]), 1);
+  await assert.rejects(db.query('select public.save_quote_with_items($1::jsonb,$2::jsonb,$3::jsonb)', [
+    JSON.stringify({ ...quote, legacy_id: 'quote-duplicate-number' }), JSON.stringify(items), null
+  ]), /duplicate key|quotes_company_number_key/i);
   const previousQuoteTotal = Number((await db.query('select total from public.quotes where id=$1', [savedQuoteId])).rows[0].total);
   await assert.rejects(db.query('select public.save_quote_with_items($1::jsonb,$2::jsonb,$3::jsonb)', [
     JSON.stringify({ ...quote, total: 999 }),
@@ -254,6 +262,9 @@ try {
   assert.equal((await db.query('select elevator_type from public.quote_specs where quote_id=$1', [savedQuoteId])).rows[0].elevator_type, 'Passenger');
 
   await asUser(userB);
+  assert.equal(await count('select count(*)::int n from public.quotes'), 0);
+  assert.equal(await count('select count(*)::int n from public.quote_items'), 0);
+  assert.equal(await count('select count(*)::int n from public.quote_specs'), 0);
   await assert.rejects(db.query('select public.save_quote_with_items($1::jsonb,$2::jsonb,$3::jsonb)', [
     JSON.stringify({ ...quote, total: 777 }), JSON.stringify(items), null
   ]), /row-level security|violates.*policy|duplicate key/i);

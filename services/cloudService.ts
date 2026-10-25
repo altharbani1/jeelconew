@@ -588,6 +588,18 @@ export const cloudService = {
          // during one-time migration by using the stable record id as a
          // fallback; the editor can assign a human-readable number later.
          const normalizedNumber = String(d.number || qData.id || recordId || crypto.randomUUID()).trim();
+         const normalizedItems = (qData.items || []).map((item: any) => {
+            const quantity = Number(item.quantity) || 0;
+            const unitPrice = Number(item.unitPrice) || 0;
+            return {
+                ...item,
+                quantity,
+                unitPrice,
+                // Persist a canonical line amount so imported or legacy records
+                // cannot store a total that disagrees with quantity and price.
+                total: quantity * unitPrice
+            };
+         });
          const quotePayload = {
             legacy_id: qData.id || normalizedNumber,
             number: normalizedNumber,
@@ -608,10 +620,10 @@ export const cloudService = {
             works_duration: d.worksDuration,
             show_gallery: d.showGallery === true,
             gallery_images: d.galleryImages && typeof d.galleryImages === 'object' ? d.galleryImages : {},
-            total: (qData.items || []).reduce((sum: number, item: any) => sum + (Number(item.total) || 0), 0)
+            total: normalizedItems.reduce((sum: number, item: any) => sum + item.total, 0)
          };
 
-         const itemsPayload = (qData.items || []).map((item: any) => ({
+         const itemsPayload = normalizedItems.map((item: any) => ({
              legacy_id: item.id || crypto.randomUUID(),
              quote_legacy_id: qData.id || d.number,
              description: item.description,
@@ -768,9 +780,13 @@ export const cloudService = {
       }
 
       if (collection === 'jilco_quotes_archive') {
-         const { error } = await supabase.from('quotes').delete().eq('legacy_id', recordId);
+         const { data: deletedRows, error } = await supabase
+           .from('quotes')
+           .delete()
+           .eq('legacy_id', recordId)
+           .select('id, legacy_id');
          if (error) throw error;
-         return true;
+         return Boolean(deletedRows?.length);
       }
 
       // Phase 3 archives are stored in dedicated relational tables, not in
