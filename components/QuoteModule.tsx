@@ -109,7 +109,7 @@ export const QuoteModule: React.FC = () => {
         number: '', date: '', customerName: '', customerAddress: '', projectName: '', validity: '', taxRate: 15, warrantyInstallation: '2', warrantyMotor: '5',
         paymentTerms: [],
         termsAndConditions: DEFAULT_TERMS,
-        features: [],
+        features: DEFAULT_FEATURES,
         handoverAndWarranty: DEFAULT_HANDOVER,
         firstPartyObligations: DEFAULT_FIRST_PARTY,
         secondPartyObligations: DEFAULT_SECOND_PARTY,
@@ -153,7 +153,7 @@ export const QuoteModule: React.FC = () => {
                 { name: 'الدفعة الرابعة (عند التسليم والتشغيل)', percentage: 10 }
             ],
             termsAndConditions: DEFAULT_TERMS,
-            features: [],
+            features: DEFAULT_FEATURES,
             handoverAndWarranty: DEFAULT_HANDOVER,
             firstPartyObligations: DEFAULT_FIRST_PARTY,
             secondPartyObligations: DEFAULT_SECOND_PARTY,
@@ -164,9 +164,6 @@ export const QuoteModule: React.FC = () => {
     };
 
     const handleEdit = (quote: SavedQuote) => {
-        const savedFeatures = Array.isArray(quote.details.features) ? quote.details.features : [];
-        const hasUnreviewedFeatureTemplate = savedFeatures.length === DEFAULT_FEATURES.length
-            && savedFeatures.every((feature, index) => feature === DEFAULT_FEATURES[index]);
         const termsAndConditions = (quote.details.termsAndConditions || DEFAULT_TERMS)
             .replace('1. مدة صلاحية هذا العرض (15) يوماً من تاريخه.', '1. مدة صلاحية هذا العرض وفق المدة الموضحة في بيانات العرض.');
         const handoverAndWarranty = (quote.details.handoverAndWarranty || DEFAULT_HANDOVER)
@@ -176,9 +173,7 @@ export const QuoteModule: React.FC = () => {
         setDetails({
             ...quote.details,
             termsAndConditions,
-            // Older quotes inherited a list of technical promises without a
-            // product selection. Require the user to add approved features.
-            features: hasUnreviewedFeatureTemplate ? [] : savedFeatures,
+            features: quote.details.features || DEFAULT_FEATURES,
             handoverAndWarranty,
             firstPartyObligations: quote.details.firstPartyObligations || DEFAULT_FIRST_PARTY,
             secondPartyObligations: quote.details.secondPartyObligations || DEFAULT_SECOND_PARTY,
@@ -196,9 +191,6 @@ export const QuoteModule: React.FC = () => {
             elevatorType: '', capacity: '', speed: '', stops: '', driveType: '', controlSystem: '', powerSupply: '', cabin: '', doors: '', externalDoors: '', machineRoom: '', rails: '', ropes: '', safety: '', emergency: ''
         });
         setViewMode('editor');
-        if (hasUnreviewedFeatureTemplate) {
-            alert('أُخفيت المزايا الفنية العامة القديمة من معاينة هذا العرض لأنها لم تُعتمد لطراز محدد. أضف المزايا المؤكدة فقط من تبويب المزايا قبل إرساله؛ لن تُحدّث النسخة المحفوظة حتى تضغط حفظ العرض.');
-        }
     };
 
     const handleSaveCurrentQuote = async () => {
