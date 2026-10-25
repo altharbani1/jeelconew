@@ -11,23 +11,12 @@ const INITIAL_CONFIG: CompanyConfig = {
     headerTitle: 'جيلكو للمصاعد',
     headerSubtitle: 'Jilco Elevators Co.',
     taxNumber: '311834758800003',
-    footerText: 'المملكة العربية السعودية - الرياض - هاتف: 920000000 - س.ت: 1010101010',
-    contactPhone: '+966 50 000 0000',
-    contactEmail: 'sales@jilco-elevators.com',
-    bankAccounts: [
-        {
-            id: 'ncb',
-            bankName: 'البنك الأهلي التجاري (SNB)',
-            accountNumber: '',
-            iban: 'SA'
-        },
-        {
-            id: 'rajhi',
-            bankName: 'مصرف الراجحي',
-            accountNumber: '',
-            iban: 'SA'
-        }
-    ]
+    commercialRegistration: '',
+    website: '',
+    footerText: '',
+    contactPhone: '',
+    contactEmail: '',
+    bankAccounts: []
 };
 
 export const CompanyProfileModule: React.FC = () => {
@@ -206,6 +195,14 @@ export const CompanyProfileModule: React.FC = () => {
                                 <div>
                                     <label className="block text-xs font-bold text-gray-500 mb-1">الرقم الضريبي (VAT Number)</label>
                                     <input title="الرقم الضريبي" placeholder="الرقم الضريبي" type="text" value={config.taxNumber} onChange={e => setConfig({ ...config, taxNumber: e.target.value })} className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-jilco-500 outline-none text-sm text-black font-bold" />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-500 mb-1">رقم السجل التجاري</label>
+                                    <input title="رقم السجل التجاري" placeholder="أدخل رقم السجل المعتمد" type="text" value={config.commercialRegistration || ''} onChange={e => setConfig({ ...config, commercialRegistration: e.target.value })} className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-jilco-500 outline-none text-sm text-black font-bold" />
+                                </div>
+                                <div>
+                                    <label className="block text-xs font-bold text-gray-500 mb-1">الموقع الإلكتروني</label>
+                                    <input title="الموقع الإلكتروني" placeholder="example.com" type="text" value={config.website || ''} onChange={e => setConfig({ ...config, website: e.target.value })} className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-jilco-500 outline-none text-sm text-black font-bold" dir="ltr" />
                                 </div>
                                 <div>
                                     <label className="block text-xs font-bold text-gray-500 mb-1">نص التذييل (Footer Text)</label>

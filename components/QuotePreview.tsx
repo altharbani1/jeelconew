@@ -10,35 +10,52 @@ interface QuotePreviewProps {
     config: CompanyConfig;
 }
 
+const roundMoney = (amount: number) => Math.round((amount + Number.EPSILON) * 100) / 100;
+const formatMoney = (amount: number) => roundMoney(amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const warrantyPeriod = (years: string) => {
+    const value = String(years || '').trim();
+    return value === '1' ? 'سنة واحدة' : value === '2' ? 'سنتان' : value ? `${value} سنوات` : 'غير محدد';
+};
+
+// Older saved quotes include these fixed phrases. Keep the editable wording,
+// while making the displayed periods agree with the structured quote fields.
+const displayedTerms = (details: QuoteDetails) => {
+    const text = details.termsAndConditions || 'لا توجد شروط إضافية.';
+    return details.validity?.trim()
+        ? text.replace(/مدة صلاحية هذا العرض \([^)]*\) يوماً من تاريخه\.?/, `مدة صلاحية هذا العرض (${details.validity}) من تاريخه.`)
+        : text;
+};
+const displayedHandover = (details: QuoteDetails) => {
+    const text = details.handoverAndWarranty || 'لا توجد تفاصيل إضافية.';
+    return details.warrantyInstallation?.trim()
+        ? text.replace(/مدة الضمان والصيانة المجانية \(عامين\)/, `مدة الضمان والصيانة المجانية (${warrantyPeriod(details.warrantyInstallation)})`)
+        : text;
+};
+
 // --- SHARED HEADER COMPONENT ---
 const QuoteHeader: React.FC<{ config: CompanyConfig }> = ({ config }) => (
     <header className="px-10 py-4 border-b-2 border-jilco-100 flex justify-between items-center bg-white min-h-[160px] relative shrink-0">
         <div className="w-1/3 text-right">
             <h1 className="text-2xl font-black text-jilco-900 mb-0.5">{config.headerTitle || 'جيلكو للمصاعد'}</h1>
-            <p className="text-[10px] font-bold text-gray-500 mb-3">{config.headerSubtitle || 'للمصاعد والسلالم الكهربائية'}</p>
-            <div className="text-[9px] text-gray-400 font-bold border-r-2 border-gold-500 pr-2 leading-tight">
-                <p>سجل تجاري: ١٠١٠٧٢٤٥٨٢</p>
-                <p>الرقم الضريبي: {config.taxNumber}</p>
-            </div>
+            {config.commercialRegistration?.trim() && <p className="text-[9px] text-gray-500 font-bold border-r-2 border-gold-500 pr-2 leading-tight">سجل تجاري: {config.commercialRegistration}</p>}
+            {config.taxNumber?.trim() && <p className="text-[9px] text-gray-500 font-bold border-r-2 border-gold-500 pr-2 leading-tight">الرقم الضريبي: {config.taxNumber}</p>}
         </div>
         <div className="w-1/3 flex justify-center">
             {config.logo ? (
                 <img src={config.logo} alt="شعار جيلكو" className="max-h-28 max-w-full w-auto object-contain" crossOrigin="anonymous" />
-            ) : (
-                <div className="h-24 w-24 bg-gray-50 border border-dashed border-gray-200 rounded-full flex items-center justify-center text-[8px] text-gray-300 uppercase">Logo</div>
-            )}
+            ) : null}
         </div>
         <div className="w-1/3 text-left flex flex-col items-start" dir="ltr">
             <h2 className="text-lg font-black text-jilco-900 tracking-tighter">{config.headerSubtitle || 'JILCO ELEVATORS CO.'}</h2>
             <div className="mt-3 space-y-1">
-                <div className="flex items-center gap-2 text-[10px] font-black text-gray-700 bg-gray-50 px-2 py-1 rounded-l-full border-r-2 border-jilco-600">
+                {config.contactPhone?.trim() && <div className="flex items-center gap-2 text-[10px] font-black text-gray-700 bg-gray-50 px-2 py-1 rounded-l-full border-r-2 border-jilco-600">
                     <span>{config.contactPhone}</span>
                     <Phone size={10} className="text-jilco-600" />
-                </div>
-                <div className="flex items-center gap-2 text-[10px] font-black text-gray-700 bg-gray-50 px-2 py-1 rounded-l-full border-r-2 border-gold-500">
+                </div>}
+                {config.contactEmail?.trim() && <div className="flex items-center gap-2 text-[10px] font-black text-gray-700 bg-gray-50 px-2 py-1 rounded-l-full border-r-2 border-gold-500">
                     <span>{config.contactEmail}</span>
                     <Mail size={10} className="text-gold-600" />
-                </div>
+                </div>}
             </div>
             {config.stamp && (
                 <img src={config.stamp} alt="ختم جيلكو" className="mt-1 h-10 w-auto object-contain opacity-90" crossOrigin="anonymous" />
@@ -48,30 +65,39 @@ const QuoteHeader: React.FC<{ config: CompanyConfig }> = ({ config }) => (
 );
 
 // --- SHARED FOOTER COMPONENT ---
-const QuoteFooter: React.FC<{ config: CompanyConfig }> = ({ config }) => (
-    <footer className="w-full bg-white shrink-0 mt-auto">
-        <div className="bg-jilco-900 text-white py-3 px-10 flex justify-between items-center text-[10px] font-bold h-[45px]">
-            <div className="flex items-center gap-2">
-                <MapPin size={12} className="text-gold-400" />
-                <span>{config.footerText || 'المملكة العربية السعودية - الرياض'}</span>
+const QuoteFooter: React.FC<{ config: CompanyConfig }> = ({ config }) => {
+    if (!config.footerText?.trim() && !config.website?.trim()) return null;
+    return (
+        <footer className="w-full bg-white shrink-0 mt-auto">
+            <div className={`bg-jilco-900 text-white py-3 px-10 flex items-center text-[10px] font-bold h-[45px] ${config.website?.trim() && config.footerText?.trim() ? 'justify-between' : 'justify-center'}`}>
+                {config.footerText?.trim() && <div className="flex items-center gap-2"><MapPin size={12} className="text-gold-400" /><span>{config.footerText}</span></div>}
+                {config.website?.trim() && <div className="flex items-center gap-2" dir="ltr"><FileText size={12} className="text-gold-400" /><span>{config.website}</span></div>}
             </div>
-            <div className="flex items-center gap-2" dir="ltr">
-                <FileText size={12} className="text-gold-400" />
-                <span>www.jilco-elevators.com</span>
-            </div>
-        </div>
-    </footer>
-);
+        </footer>
+    );
+};
 
 export const QuotePreview: React.FC<QuotePreviewProps> = ({ items, details, techSpecs, config }) => {
-    const subtotal = items.reduce((sum, item) => sum + item.total, 0);
-    const taxAmount = subtotal * (details.taxRate / 100);
-    const grandTotal = subtotal + taxAmount;
+    const subtotal = roundMoney(items.reduce((sum, item) => sum + item.total, 0));
+    const taxAmount = roundMoney(subtotal * (details.taxRate / 100));
+    const grandTotal = roundMoney(subtotal + taxAmount);
+    const grandTotalHalalas = Math.round(grandTotal * 100);
+    let allocatedHalalas = 0;
+    const paymentAmounts = details.paymentTerms.map((term, index) => {
+        const halalas = index === details.paymentTerms.length - 1
+            ? grandTotalHalalas - allocatedHalalas
+            : Math.round(grandTotalHalalas * term.percentage / 100);
+        allocatedHalalas += halalas;
+        return halalas / 100;
+    });
+    const galleryImages = ([
+        { key: 'cabin', label: 'تشطيب الكبينة الداخلي (Cabin Design)', alt: 'Cabin Design' },
+        { key: 'buttons', label: 'أزرار الطلبات (Buttons)', alt: 'Buttons' },
+        { key: 'doors', label: 'الأبواب والديكور (Doors)', alt: 'Doors Design' },
+    ] as const).filter(image => Boolean(details.galleryImages?.[image.key]));
+    const verifiedBankAccounts = (config.bankAccounts || []).filter(bank => bank.bankName?.trim() && /^SA\d{2}[A-Z0-9]{20}$/.test((bank.iban || '').replace(/[\s-]/g, '').toUpperCase()));
 
-    // Use dynamic features list or fallback to empty array if undefined
-    const featuresList = details.features && details.features.length > 0
-        ? details.features.filter(f => f.trim() !== '')
-        : ["لا توجد مزايا إضافية مسجلة."];
+    const featuresList = (details.features || []).filter(feature => feature.trim() !== '');
 
     // --- MULTI-PAGE ITEMS LOGIC ---
     // Split items into chunks: first page holds 3 items, continuation pages hold 3 items each
@@ -149,7 +175,9 @@ export const QuotePreview: React.FC<QuotePreviewProps> = ({ items, details, tech
                                                 <p className="font-black text-xl text-black mb-1 underline decoration-gold-500 decoration-4 underline-offset-8">
                                                     السادة / {details.customerName || 'المحترمين'}
                                                 </p>
-                                                <p className="text-xs font-bold text-gray-600 flex items-center gap-2 mt-3"><MapPin size={14} className="text-gold-600" /> {details.projectName}</p>
+                                                {details.customerAddress?.trim() && <p className="text-xs font-bold text-gray-600 flex items-center gap-2 mt-3"><MapPin size={14} className="text-gold-600" /> {details.customerAddress}</p>}
+                                                {details.projectName?.trim() && <p className="text-xs font-bold text-gray-600 mt-2">المشروع: {details.projectName}</p>}
+                                                {details.validity?.trim() && <p className="text-[10px] font-bold text-gray-600 mt-2">صلاحية العرض: {details.validity}</p>}
                                             </div>
                                             <div className="text-left font-mono text-xs flex flex-col items-end justify-center" dir="ltr">
                                                 <div className="space-y-1.5 w-full flex flex-col items-start pr-12">
@@ -183,9 +211,9 @@ export const QuotePreview: React.FC<QuotePreviewProps> = ({ items, details, tech
                                                                 {item.details}
                                                             </div>
                                                         </td>
-                                                        <td className="p-3 text-center font-black text-base text-black align-top bg-gray-50/30">{(item.unitPrice ?? 0).toLocaleString()}</td>
+                                                        <td className="p-3 text-center font-black text-base text-black align-top bg-gray-50/30">{formatMoney(item.unitPrice ?? 0)}</td>
                                                         <td className="p-3 text-center font-black text-base text-black align-top bg-gray-50/30">{item.quantity}</td>
-                                                        <td className="p-3 text-center font-black text-lg text-black align-top">{item.total.toLocaleString()}</td>
+                                                        <td className="p-3 text-center font-black text-lg text-black align-top">{formatMoney(item.total)}</td>
                                                     </tr>
                                                 ))}
                                             </tbody>
@@ -201,16 +229,16 @@ export const QuotePreview: React.FC<QuotePreviewProps> = ({ items, details, tech
                                                     <div className="absolute top-0 right-0 w-full h-1.5 bg-gold-500"></div>
                                                     <div className="flex justify-between text-[10px] font-black text-gray-500 uppercase">
                                                         <span>Subtotal:</span>
-                                                        <span className="font-mono text-black font-black">{subtotal.toLocaleString()}</span>
+                                                        <span className="font-mono text-black font-black">{formatMoney(subtotal)}</span>
                                                     </div>
                                                     <div className="flex justify-between text-[10px] font-black text-gray-500 uppercase">
                                                         <span>VAT {details.taxRate}%:</span>
-                                                        <span className="font-mono text-red-600 font-black">{taxAmount.toLocaleString()}</span>
+                                                        <span className="font-mono text-red-600 font-black">{formatMoney(taxAmount)}</span>
                                                     </div>
                                                     <div className="border-t-2 border-gray-100 pt-3 flex justify-between items-center">
                                                         <span className="font-black text-jilco-900 text-xs uppercase tracking-tighter">Grand Total:</span>
                                                         <div className="text-left">
-                                                            <span className="font-black text-black text-2xl font-mono">{grandTotal.toLocaleString()}</span>
+                                                            <span className="font-black text-black text-2xl font-mono">{formatMoney(grandTotal)}</span>
                                                             <p className="text-[8px] text-gold-600 font-black text-center">SAR ريال سعودي</p>
                                                         </div>
                                                     </div>
@@ -222,7 +250,7 @@ export const QuotePreview: React.FC<QuotePreviewProps> = ({ items, details, tech
                                                 <div className="text-center relative">
                                                     <p className="font-black text-[9px] mb-12 text-gray-400 uppercase tracking-[0.2em]">Authorized Signature</p>
                                                     <div className="border-b-2 border-jilco-900 mx-auto w-48 mb-2"></div>
-                                                    <p className="font-black text-jilco-900 text-xs uppercase">شركة جيلكو للمصاعد</p>
+                                                    <p className="font-black text-jilco-900 text-xs uppercase">{config.headerTitle || 'الشركة'}</p>
                                                     {config.stamp && (
                                                         <div className="absolute left-1/2 -translate-x-1/2 bottom-[30px] z-50 pointer-events-none">
                                                             <img src={config.stamp} alt="stamp" className="h-32 mx-auto mix-blend-multiply opacity-95 brightness-90" />
@@ -246,7 +274,7 @@ export const QuotePreview: React.FC<QuotePreviewProps> = ({ items, details, tech
                 })}
 
                 {/* PAGE 2: TECHNICAL SPECIFICATIONS WITH ROYAL FRAME */}
-                <div className="a4-page bg-white shadow-2xl mb-10 print:mb-0 mx-auto flex flex-col relative">
+                {Object.values(techSpecs).some(value => typeof value === 'string' && value.trim()) && <div className="a4-page bg-white shadow-2xl mb-10 print:mb-0 mx-auto flex flex-col relative">
 
                     <div className="absolute inset-3 border-[6px] border-jilco-900 pointer-events-none z-0"></div>
                     <div className="absolute inset-[18px] border border-gold-500 pointer-events-none z-0"></div>
@@ -281,10 +309,10 @@ export const QuotePreview: React.FC<QuotePreviewProps> = ({ items, details, tech
                                     { label: 'الحبال والأسلاك (Ropes)', value: techSpecs.ropes },
                                     { label: 'أنظمة الأمان (Safety)', value: techSpecs.safety },
                                     { label: 'جهاز الطوارئ (Emergency)', value: techSpecs.emergency },
-                                ].map((row, i) => (
+                                ].filter(row => row.value?.trim()).map((row, i) => (
                                     <div key={i} className={`flex border-b border-gray-100 last:border-0 ${i % 2 === 0 ? 'bg-gray-50/50' : 'bg-white'}`}>
                                         <div className="w-1/3 p-3.5 font-black text-[11px] text-jilco-700 bg-gray-100/30 border-l border-gray-100 uppercase tracking-tighter">{row.label}</div>
-                                        <div className="w-2/3 p-3.5 text-[13px] font-black text-black uppercase">{row.value || 'سيتم التحديد لاحقاً'}</div>
+                                        <div className="w-2/3 p-3.5 text-[13px] font-black text-black uppercase">{row.value}</div>
                                     </div>
                                 ))}
                             </div>
@@ -292,10 +320,10 @@ export const QuotePreview: React.FC<QuotePreviewProps> = ({ items, details, tech
                             <QuoteFooter config={config} />
                         </div>
                     </div>
-                </div>
+                </div>}
 
                 {/* PAGE 3: FEATURES PAGE (DYNAMIC) */}
-                <div className="a4-page bg-white shadow-2xl mb-10 print:mb-0 mx-auto flex flex-col relative">
+                {featuresList.length > 0 && <div className="a4-page bg-white shadow-2xl mb-10 print:mb-0 mx-auto flex flex-col relative">
 
                     <div className="absolute inset-3 border-[6px] border-jilco-900 pointer-events-none z-0"></div>
                     <div className="absolute inset-[18px] border border-gold-500 pointer-events-none z-0"></div>
@@ -327,7 +355,7 @@ export const QuotePreview: React.FC<QuotePreviewProps> = ({ items, details, tech
                             <QuoteFooter config={config} />
                         </div>
                     </div>
-                </div>
+                </div>}
 
                 {/* PAGE 4: OBLIGATIONS AND PAYMENT (OPTIMIZED SPACING) */}
                 <div className="a4-page bg-white shadow-2xl mb-10 print:mb-0 mx-auto flex flex-col relative">
@@ -371,7 +399,7 @@ export const QuotePreview: React.FC<QuotePreviewProps> = ({ items, details, tech
                                                 <td className="border border-gray-200 p-1.5 font-bold text-gray-700">{term.name}</td>
                                                 <td className="border border-gray-200 p-1.5 text-center font-mono">{term.percentage}%</td>
                                                 <td className="border border-gray-200 p-1.5 text-center font-mono font-bold text-jilco-900">
-                                                    {(grandTotal * (term.percentage / 100)).toLocaleString(undefined, { maximumFractionDigits: 0 })}
+                                                    {formatMoney(paymentAmounts[idx])}
                                                 </td>
                                             </tr>
                                         ))}
@@ -380,7 +408,7 @@ export const QuotePreview: React.FC<QuotePreviewProps> = ({ items, details, tech
                                         <tr>
                                             <td colSpan={2} className="border border-gray-200 p-1.5 text-left pl-4">الإجمالي (شامل الضريبة)</td>
                                             <td className="border border-gray-200 p-1.5 text-center dir-ltr">{details.paymentTerms.reduce((s, t) => s + t.percentage, 0)}%</td>
-                                            <td className="border border-gray-200 p-1.5 text-center font-mono">{grandTotal.toLocaleString()}</td>
+                                            <td className="border border-gray-200 p-1.5 text-center font-mono">{formatMoney(grandTotal)}</td>
                                         </tr>
                                     </tfoot>
                                 </table>
@@ -441,7 +469,7 @@ export const QuotePreview: React.FC<QuotePreviewProps> = ({ items, details, tech
                             </div>
 
                             <div className="flex-1 text-sm leading-8 text-justify font-medium text-gray-700 whitespace-pre-wrap px-4">
-                                {details.handoverAndWarranty || 'لا توجد تفاصيل إضافية.'}
+                                {displayedHandover(details)}
                             </div>
 
                             <QuoteFooter config={config} />
@@ -469,7 +497,7 @@ export const QuotePreview: React.FC<QuotePreviewProps> = ({ items, details, tech
                             </div>
 
                             <div className="flex-1 text-sm leading-8 text-justify font-medium text-gray-700 whitespace-pre-wrap px-4">
-                                {details.termsAndConditions || 'لا توجد شروط إضافية.'}
+                                {displayedTerms(details)}
                             </div>
 
                             {/* Bottom Warranty & Bank Box */}
@@ -482,11 +510,11 @@ export const QuotePreview: React.FC<QuotePreviewProps> = ({ items, details, tech
                                     <div className="space-y-4">
                                         <div className="flex justify-between items-center text-xs font-black">
                                             <span className="text-gray-500 uppercase tracking-tighter">ضمان الأعمال والتركيب:</span>
-                                            <span className="text-black bg-gray-100 px-3 py-1 rounded-lg border border-gray-200">{details.warrantyInstallation} سنوات</span>
+                                            <span className="text-black bg-gray-100 px-3 py-1 rounded-lg border border-gray-200">{warrantyPeriod(details.warrantyInstallation)}</span>
                                         </div>
                                         <div className="flex justify-between items-center text-xs font-black">
                                             <span className="text-gray-500 uppercase tracking-tighter">ضمان الماكينة:</span>
-                                            <span className="text-black bg-gray-100 px-3 py-1 rounded-lg border border-gray-200">{details.warrantyMotor} سنوات</span>
+                                            <span className="text-black bg-gray-100 px-3 py-1 rounded-lg border border-gray-200">{warrantyPeriod(details.warrantyMotor)}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -497,11 +525,11 @@ export const QuotePreview: React.FC<QuotePreviewProps> = ({ items, details, tech
                                     </div>
                                     <h4 className="font-black text-gold-700 text-sm mb-5 border-b-2 border-gold-50 pb-2 text-left uppercase" dir="ltr">Bank Information</h4>
                                     <div className="space-y-3" dir="ltr">
-                                        {config.bankAccounts && config.bankAccounts.length > 0 ? (
-                                            config.bankAccounts.slice(0, 2).map((bank, idx) => (
+                                        {verifiedBankAccounts.length > 0 ? (
+                                            verifiedBankAccounts.slice(0, 2).map((bank, idx) => (
                                                 <div key={idx} className="text-left bg-gold-50/50 p-2.5 rounded-xl border border-gold-100">
                                                     <p className="text-[10px] font-black text-jilco-900 mb-0.5">{bank.bankName}</p>
-                                                    <p className="text-[12px] font-mono font-black text-black tracking-tighter">IBAN: {bank.iban}</p>
+                                                    <p className="text-[12px] font-mono font-black text-black tracking-tighter">IBAN: {(bank.iban || '').replace(/[\s-]/g, '').toUpperCase().match(/.{1,4}/g)?.join(' ')}</p>
                                                 </div>
                                             ))
                                         ) : (
@@ -533,7 +561,7 @@ export const QuotePreview: React.FC<QuotePreviewProps> = ({ items, details, tech
                 </div>
 
                 {/* PAGE 7: OPTIONAL GALLERY PAGE WITH ROYAL FRAME */}
-                {details.showGallery && (
+                {details.showGallery && galleryImages.length > 0 && (
                     <div className="a4-page bg-white shadow-2xl print:shadow-none mx-auto flex flex-col relative">
                         <div className="absolute inset-3 border-[6px] border-jilco-900 pointer-events-none z-0"></div>
                         <div className="absolute inset-[18px] border border-gold-500 pointer-events-none z-0"></div>
@@ -553,43 +581,14 @@ export const QuotePreview: React.FC<QuotePreviewProps> = ({ items, details, tech
 
                                 <div className="flex-1 space-y-6">
                                     <div className="grid grid-cols-1 gap-6">
-                                        {/* Cabin Section */}
-                                        <div className="space-y-2">
-                                            <h4 className="text-sm font-black text-jilco-800 border-r-4 border-gold-500 pr-3">تشطيب الكبينة الداخلي (Cabin Design)</h4>
-                                            <div className="h-64 bg-gray-50 border border-gray-200 rounded-xl overflow-hidden flex items-center justify-center">
-                                                {details.galleryImages?.cabin ? (
-                                                    <img src={details.galleryImages.cabin} className="w-full h-full object-contain" alt="Cabin Design" />
-                                                ) : (
-                                                    <p className="text-gray-300 text-xs font-bold">لم يتم رفع صورة</p>
-                                                )}
-                                            </div>
-                                        </div>
-
-                                        <div className="grid grid-cols-2 gap-6">
-                                            {/* Buttons Section */}
-                                            <div className="space-y-2">
-                                                <h4 className="text-sm font-black text-jilco-800 border-r-4 border-gold-500 pr-3">أزرار الطلبات (Buttons)</h4>
+                                        {galleryImages.map(image => (
+                                            <div key={image.key} className="space-y-2">
+                                                <h4 className="text-sm font-black text-jilco-800 border-r-4 border-gold-500 pr-3">{image.label}</h4>
                                                 <div className="h-64 bg-gray-50 border border-gray-200 rounded-xl overflow-hidden flex items-center justify-center">
-                                                    {details.galleryImages?.buttons ? (
-                                                        <img src={details.galleryImages.buttons} className="w-full h-full object-contain" alt="Buttons" />
-                                                    ) : (
-                                                        <p className="text-gray-300 text-xs font-bold">لم يتم رفع صورة</p>
-                                                    )}
+                                                    <img src={details.galleryImages?.[image.key]} className="w-full h-full object-contain" alt={image.alt} />
                                                 </div>
                                             </div>
-
-                                            {/* Doors Section */}
-                                            <div className="space-y-2">
-                                                <h4 className="text-sm font-black text-jilco-800 border-r-4 border-gold-500 pr-3">الأبواب والديكور (Doors)</h4>
-                                                <div className="h-64 bg-gray-50 border border-gray-200 rounded-xl overflow-hidden flex items-center justify-center">
-                                                    {details.galleryImages?.doors ? (
-                                                        <img src={details.galleryImages.doors} className="w-full h-full object-contain" alt="Doors Design" />
-                                                    ) : (
-                                                        <p className="text-gray-300 text-xs font-bold">لم يتم رفع صورة</p>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        </div>
+                                        ))}
                                     </div>
                                     <p className="text-[10px] text-gray-400 text-center font-bold mt-10">* الصور المرفقة هي صور تقريبية للمواصفات المختارة وقد تختلف قليلاً في الواقع.</p>
                                 </div>

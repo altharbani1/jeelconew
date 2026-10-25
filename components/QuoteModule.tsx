@@ -18,7 +18,7 @@ interface SavedQuote {
     lastModified: string;
 }
 
-const DEFAULT_TERMS = `1. مدة صلاحية هذا العرض (15) يوماً من تاريخه.
+const DEFAULT_TERMS = `1. مدة صلاحية هذا العرض وفق المدة الموضحة في بيانات العرض.
 2. الضمان:
    - يشمل الضمان استبدال القطع المعيبة مصنعياً مجاناً خلال فترة الضمان.
    - لا يشمل الضمان الأعطال الناتجة عن سوء الاستخدام، تذبذب التيار الكهربائي، أو الكوارث الطبيعية.
@@ -32,7 +32,7 @@ const DEFAULT_HANDOVER = `1. تقوم المؤسسة بإخطار العميل �
 
 3. تخلي المؤسسة مسؤوليتها عن أي أضرار ناتجة عن عدم تمكين فريق الصيانة من عمل الصيانة الدورية للمصعد أو أي أضرار تنتج للمصعد.
 
-4. مدة الضمان والصيانة المجانية (عامين) من تاريخ تسليم المصعد شاملاً قطع الغيار ضد عيوب الصنع بواقع زيارة كل شهرين.
+4. مدة ضمان أعمال التركيب وفق المدة الموضحة في بيانات العرض. وتُحدد مدة الصيانة المجانية وتغطية قطع الغيار في العقد النهائي.
 
 5. مدة ضمان الماكينة (حسب المدة المحددة في جدول فترات الضمان) ضد عيوب الصنع من تاريخ تسليم المصعد بشرط أن تتم الصيانة للمصعد عن طريق المؤسسة بعد إنتهاء الفترة المجانية بعقود منفصلة.
 
@@ -109,7 +109,7 @@ export const QuoteModule: React.FC = () => {
         number: '', date: '', customerName: '', customerAddress: '', projectName: '', validity: '', taxRate: 15, warrantyInstallation: '2', warrantyMotor: '5',
         paymentTerms: [],
         termsAndConditions: DEFAULT_TERMS,
-        features: DEFAULT_FEATURES,
+        features: [],
         handoverAndWarranty: DEFAULT_HANDOVER,
         firstPartyObligations: DEFAULT_FIRST_PARTY,
         secondPartyObligations: DEFAULT_SECOND_PARTY,
@@ -153,7 +153,7 @@ export const QuoteModule: React.FC = () => {
                 { name: 'الدفعة الرابعة (عند التسليم والتشغيل)', percentage: 10 }
             ],
             termsAndConditions: DEFAULT_TERMS,
-            features: DEFAULT_FEATURES,
+            features: [],
             handoverAndWarranty: DEFAULT_HANDOVER,
             firstPartyObligations: DEFAULT_FIRST_PARTY,
             secondPartyObligations: DEFAULT_SECOND_PARTY,
@@ -164,13 +164,22 @@ export const QuoteModule: React.FC = () => {
     };
 
     const handleEdit = (quote: SavedQuote) => {
+        const savedFeatures = Array.isArray(quote.details.features) ? quote.details.features : [];
+        const hasUnreviewedFeatureTemplate = savedFeatures.length === DEFAULT_FEATURES.length
+            && savedFeatures.every((feature, index) => feature === DEFAULT_FEATURES[index]);
+        const termsAndConditions = (quote.details.termsAndConditions || DEFAULT_TERMS)
+            .replace('1. مدة صلاحية هذا العرض (15) يوماً من تاريخه.', '1. مدة صلاحية هذا العرض وفق المدة الموضحة في بيانات العرض.');
+        const handoverAndWarranty = (quote.details.handoverAndWarranty || DEFAULT_HANDOVER)
+            .replace('4. مدة الضمان والصيانة المجانية (عامين) من تاريخ تسليم المصعد شاملاً قطع الغيار ضد عيوب الصنع بواقع زيارة كل شهرين.', '4. مدة ضمان أعمال التركيب وفق المدة الموضحة في بيانات العرض. وتُحدد مدة الصيانة المجانية وتغطية قطع الغيار في العقد النهائي.');
         setCurrentQuoteId(quote.id);
         setItems(Array.isArray(quote.items) ? quote.items : []);
         setDetails({
             ...quote.details,
-            termsAndConditions: quote.details.termsAndConditions || DEFAULT_TERMS,
-            features: quote.details.features || DEFAULT_FEATURES,
-            handoverAndWarranty: quote.details.handoverAndWarranty || DEFAULT_HANDOVER,
+            termsAndConditions,
+            // Older quotes inherited a list of technical promises without a
+            // product selection. Require the user to add approved features.
+            features: hasUnreviewedFeatureTemplate ? [] : savedFeatures,
+            handoverAndWarranty,
             firstPartyObligations: quote.details.firstPartyObligations || DEFAULT_FIRST_PARTY,
             secondPartyObligations: quote.details.secondPartyObligations || DEFAULT_SECOND_PARTY,
             worksDuration: quote.details.worksDuration || DEFAULT_DURATION,
@@ -187,6 +196,9 @@ export const QuoteModule: React.FC = () => {
             elevatorType: '', capacity: '', speed: '', stops: '', driveType: '', controlSystem: '', powerSupply: '', cabin: '', doors: '', externalDoors: '', machineRoom: '', rails: '', ropes: '', safety: '', emergency: ''
         });
         setViewMode('editor');
+        if (hasUnreviewedFeatureTemplate) {
+            alert('أُخفيت المزايا الفنية العامة القديمة من معاينة هذا العرض لأنها لم تُعتمد لطراز محدد. أضف المزايا المؤكدة فقط من تبويب المزايا قبل إرساله؛ لن تُحدّث النسخة المحفوظة حتى تضغط حفظ العرض.');
+        }
     };
 
     const handleSaveCurrentQuote = async () => {
@@ -310,7 +322,7 @@ export const QuoteModule: React.FC = () => {
                                         <td className="p-4 font-bold">{quote.details.number}</td>
                                         <td className="p-4">{quote.details.customerName || 'عميل نقدي'}</td>
                                         <td className="p-4 font-mono text-xs">{quote.details.date}</td>
-                                        <td className="p-4 font-bold text-green-700">{(quote.items.reduce((s: number, i: any) => s + i.total, 0) * (1 + quote.details.taxRate / 100)).toLocaleString()}</td>
+                                        <td className="p-4 font-bold text-green-700">{(quote.items.reduce((sum: number, item: QuoteItem) => sum + item.total, 0) * (1 + quote.details.taxRate / 100)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</td>
                                         <td className="p-4 flex justify-center gap-2">
                                             <button
                                                 title="مشاركة المستند عبر الواتساب"
@@ -356,17 +368,26 @@ export const QuoteModule: React.FC = () => {
         );
     }
 
+    const hasUnspecifiedTechnicalDetails = Object.values(techSpecs).some(value => !String(value || '').trim());
+
     return (
-        <div className="flex flex-col lg:flex-row h-full w-full overflow-hidden print:block">
-            <Sidebar
-                items={items} setItems={setItems}
-                details={details} setDetails={setDetails}
-                techSpecs={techSpecs} setTechSpecs={setTechSpecs}
-                config={config} setConfig={setConfig}
-                onPrint={() => void printDocument('printable-area')}
-                onSave={handleSaveCurrentQuote}
-            />
-            <QuotePreview items={items} details={details} techSpecs={techSpecs} config={config} />
+        <div className="flex flex-col h-full w-full overflow-hidden print:block">
+            {hasUnspecifiedTechnicalDetails && (
+                <div role="status" className="shrink-0 border-b border-amber-200 bg-amber-50 px-4 py-2 text-sm font-medium text-amber-900 print:hidden">
+                    توجد مواصفات فنية غير محددة. راجع مواصفات المصعد والمزايا المعتمدة قبل إرسال العرض؛ ستظهر في المستند المواصفات التي أدخلتها فقط.
+                </div>
+            )}
+            <div className="flex min-h-0 flex-1 flex-col lg:flex-row overflow-hidden print:block">
+                <Sidebar
+                    items={items} setItems={setItems}
+                    details={details} setDetails={setDetails}
+                    techSpecs={techSpecs} setTechSpecs={setTechSpecs}
+                    config={config} setConfig={setConfig}
+                    onPrint={() => void printDocument('printable-area')}
+                    onSave={handleSaveCurrentQuote}
+                />
+                <QuotePreview items={items} details={details} techSpecs={techSpecs} config={config} />
+            </div>
         </div>
     );
 };

@@ -71,6 +71,8 @@ export interface CompanyConfig {
   headerTitle: string;
   headerSubtitle: string;
   taxNumber: string; // الرقم الضريبي للشركة
+  commercialRegistration?: string;
+  website?: string;
   footerText: string;
   contactPhone: string;
   contactEmail: string;

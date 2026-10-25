@@ -21,13 +21,13 @@ const DOC_LABELS: Record<string, string> = {
 
 const DOC_MESSAGES: Record<string, (name: string, title: string) => string> = {
     quote: (name, title) =>
-        `🏢 *جيلكو للمصاعد*\n\nالسلام عليكم ${name ? `${name} ` : ''}☀️\n\nنُرفق لكم ${title} للمراجعة والاعتماد.\n\nنرحب بأي استفسار.\n\n📞 للتواصل: شركة جيلكو للمصاعد`,
+        `🏢 *جيلكو للمصاعد*\n\nالسلام عليكم ${name ? `${name} ` : ''}☀️\n\nنرجو مراجعة ${title} وإفادتنا لاعتماده.\n\nنرحب بأي استفسار.\n\n📞 للتواصل: شركة جيلكو للمصاعد`,
     invoice: (name, title) =>
-        `🏢 *جيلكو للمصاعد*\n\nالسلام عليكم ${name ? `${name} ` : ''}☀️\n\nمرفق ${title}.\n\nيُرجى الاطلاع عليها وإفادتنا بأي ملاحظة.\n\n📞 للتواصل: شركة جيلكو للمصاعد`,
+        `🏢 *جيلكو للمصاعد*\n\nالسلام عليكم ${name ? `${name} ` : ''}☀️\n\nيُرجى مراجعة ${title} وإفادتنا بأي ملاحظة.\n\n📞 للتواصل: شركة جيلكو للمصاعد`,
     receipt: (name, title) =>
-        `🏢 *جيلكو للمصاعد*\n\nالسلام عليكم ${name ? `${name} ` : ''}☀️\n\nمرفق ${title}.\n\nشكراً لثقتكم بنا 🙏\n\n📞 للتواصل: شركة جيلكو للمصاعد`,
+        `🏢 *جيلكو للمصاعد*\n\nالسلام عليكم ${name ? `${name} ` : ''}☀️\n\nيُرجى مراجعة ${title}.\n\nشكراً لثقتكم بنا 🙏\n\n📞 للتواصل: شركة جيلكو للمصاعد`,
     contract: (name, title) =>
-        `🏢 *جيلكو للمصاعد*\n\nالسلام عليكم ${name ? `${name} ` : ''}☀️\n\nمرفق ${title}.\n\nيُرجى المراجعة والإفادة.\n\n📞 للتواصل: شركة جيلكو للمصاعد`,
+        `🏢 *جيلكو للمصاعد*\n\nالسلام عليكم ${name ? `${name} ` : ''}☀️\n\nيُرجى مراجعة ${title} والإفادة.\n\n📞 للتواصل: شركة جيلكو للمصاعد`,
 };
 
 export const ShareButton: React.FC<ShareButtonProps> = ({
@@ -40,10 +40,13 @@ export const ShareButton: React.FC<ShareButtonProps> = ({
     className = '',
 }) => {
     const [isOpen, setIsOpen] = useState(false);
-    const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+    const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'manual' | 'error'>('idle');
     const [message, setMessage] = useState('');
     const [phone, setPhone] = useState(defaultPhone);
+    const [feedback, setFeedback] = useState('');
+    const [whatsappLink, setWhatsappLink] = useState('');
     const dropdownRef = useRef<HTMLDivElement>(null);
+    const feedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const label = DOC_LABELS[documentType] || 'المستند';
     const autoMessage = (DOC_MESSAGES[documentType] || DOC_MESSAGES.invoice)(
@@ -62,18 +65,25 @@ export const ShareButton: React.FC<ShareButtonProps> = ({
             }
         };
         document.addEventListener('mousedown', handler);
-        return () => document.removeEventListener('mousedown', handler);
+        return () => {
+            document.removeEventListener('mousedown', handler);
+            if (feedbackTimerRef.current) clearTimeout(feedbackTimerRef.current);
+        };
     }, []);
 
     const handleShare = async (type: 'whatsapp' | 'download') => {
+        if (feedbackTimerRef.current) clearTimeout(feedbackTimerRef.current);
         setStatus('loading');
         setIsOpen(false);
+        setFeedback('');
+        setWhatsappLink('');
 
         try {
             if (type === 'download') {
                 await downloadPdf(elementId, fileName);
                 setStatus('success');
-                setTimeout(() => setStatus('idle'), 3000);
+                setFeedback('تم تنزيل ملف PDF.');
+                feedbackTimerRef.current = setTimeout(() => setStatus('idle'), 3000);
                 return;
             }
 
@@ -87,14 +97,23 @@ export const ShareButton: React.FC<ShareButtonProps> = ({
 
             if (result.status === 'error') {
                 setStatus('error');
-                setTimeout(() => setStatus('idle'), 4000);
+                setFeedback(result.message);
+                feedbackTimerRef.current = setTimeout(() => setStatus('idle'), 4000);
+            } else if (result.status === 'manual_attachment') {
+                setStatus('manual');
+                setWhatsappLink(result.whatsappUrl);
+                setFeedback(result.whatsappOpened
+                    ? 'تم تنزيل PDF وفتح واتساب. أرفق الملف يدويًا قبل إرسال الرسالة.'
+                    : 'تم تنزيل PDF، لكن تعذر فتح واتساب تلقائيًا. افتحه من الرابط وأرفق الملف يدويًا.');
             } else {
                 setStatus('success');
-                setTimeout(() => setStatus('idle'), 3000);
+                setFeedback('اكتملت المشاركة عبر تطبيق جهازك.');
+                feedbackTimerRef.current = setTimeout(() => setStatus('idle'), 3000);
             }
-        } catch {
+        } catch (error) {
             setStatus('error');
-            setTimeout(() => setStatus('idle'), 4000);
+            setFeedback(error instanceof Error ? error.message : 'تعذر تجهيز المستند.');
+            feedbackTimerRef.current = setTimeout(() => setStatus('idle'), 4000);
         }
     };
 
@@ -117,6 +136,8 @@ export const ShareButton: React.FC<ShareButtonProps> = ({
                             ? 'bg-green-600 text-white'
                             : status === 'error'
                                 ? 'bg-red-500 text-white'
+                            : status === 'manual'
+                                ? 'bg-amber-600 hover:bg-amber-700 text-white'
                                 : 'bg-[#25D366] hover:bg-[#1da851] active:scale-95 text-white'
                     }
         `}
@@ -127,6 +148,8 @@ export const ShareButton: React.FC<ShareButtonProps> = ({
                         ? <CheckCircle size={16} />
                         : status === 'error'
                             ? <AlertCircle size={16} />
+                            : status === 'manual'
+                                ? <AlertCircle size={16} />
                             : (
                                 <svg viewBox="0 0 24 24" className="w-4 h-4 fill-white" xmlns="http://www.w3.org/2000/svg">
                                     <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z" />
@@ -135,9 +158,18 @@ export const ShareButton: React.FC<ShareButtonProps> = ({
                             )
                 }
                 <span>
-                    {isLoading ? 'جاري التحضير...' : status === 'success' ? 'تم ✓' : status === 'error' ? 'خطأ!' : 'إرسال'}
+                    {isLoading ? 'جاري التحضير...' : status === 'success' ? 'تم ✓' : status === 'manual' ? 'أرفق PDF' : status === 'error' ? 'خطأ!' : 'إرسال'}
                 </span>
             </button>
+
+            {feedback && status !== 'loading' && (
+                <div role="status" className={`mt-2 max-w-80 rounded-xl p-3 text-xs font-bold shadow-sm ${status === 'error' ? 'bg-red-50 text-red-700' : status === 'manual' ? 'bg-amber-50 text-amber-900' : 'bg-green-50 text-green-800'}`}>
+                    {feedback}
+                    {status === 'manual' && whatsappLink && (
+                        <a href={whatsappLink} target="_blank" rel="noopener noreferrer" className="mt-2 block underline">فتح واتساب</a>
+                    )}
+                </div>
+            )}
 
             {/* الدرابدون */}
             {isOpen && (
@@ -215,7 +247,7 @@ export const ShareButton: React.FC<ShareButtonProps> = ({
                         {/* ملاحظة طريقة العمل */}
                         <div className="bg-blue-50 rounded-xl p-3 text-[10px] text-blue-700 font-bold leading-relaxed">
                             📱 <strong>موبايل:</strong> تفتح قائمة المشاركة مباشرة<br />
-                            💻 <strong>كمبيوتر:</strong> يُحمَّل PDF ويفتح واتساب ويب
+                            💻 <strong>كمبيوتر:</strong> يُحمَّل PDF، ثم أرفقه يدويًا في واتساب قبل الإرسال
                         </div>
                     </div>
                 </div>

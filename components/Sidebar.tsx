@@ -8,6 +8,37 @@ import { ShareButton } from './ShareButton.tsx';
 import { useSales } from '../contexts/SalesContext.tsx';
 import { useData } from '../contexts/DataContext.tsx';
 
+const roundMoney = (amount: number) => Math.round((amount + Number.EPSILON) * 100) / 100;
+const formatMoney = (amount: number) => roundMoney(amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const totalWithTax = (subtotal: number, taxRate: number) => {
+    const amount = roundMoney(subtotal);
+    return roundMoney(amount + roundMoney(amount * taxRate / 100));
+};
+
+// A quote stores a net unit price in halalas. For a gross input, choose the
+// closest such unit price to the entered gross line amount after quote-level VAT.
+const priceFromTaxInclusiveInput = (grossUnitPrice: number, quantity: number, taxRate: number, items: QuoteItem[]) => {
+    const previousSubtotal = roundMoney(items.reduce((sum, item) => sum + item.total, 0));
+    const previousGross = totalWithTax(previousSubtotal, taxRate);
+    const requestedGross = roundMoney(grossUnitPrice * quantity);
+    const idealCents = grossUnitPrice / (1 + taxRate / 100) * 100;
+    const start = Math.max(0, Math.floor(idealCents) - 1);
+    const end = Math.ceil(idealCents) + 1;
+    let best = { unitPrice: roundMoney(grossUnitPrice / (1 + taxRate / 100)), addedGross: 0, difference: Infinity, distance: Infinity };
+
+    for (let cents = start; cents <= end; cents++) {
+        const unitPrice = cents / 100;
+        const newSubtotal = roundMoney(previousSubtotal + roundMoney(unitPrice * quantity));
+        const addedGross = roundMoney(totalWithTax(newSubtotal, taxRate) - previousGross);
+        const difference = Math.abs(addedGross - requestedGross);
+        const distance = Math.abs(cents - idealCents);
+        if (difference < best.difference || (difference === best.difference && distance < best.distance)) {
+            best = { unitPrice, addedGross, difference, distance };
+        }
+    }
+    return { ...best, requestedGross };
+};
+
 const DEFAULT_SPECS_DB: SpecsDatabase = {
     elevatorType: ['مصعد ركاب (Passenger)', 'مصعد بضائع (Freight)', 'مصعد طعام (Dumbwaiter)', 'مصعد بانوراما (Panoramic)', 'مصعد منزلي (Home Lift)'],
     capacity: ['320 كجم - 4 أشخاص', '450 كجم - 6 أشخاص', '630 كجم - 8 أشخاص', '800 كجم - 10 أشخاص', '1000 كجم - 13 شخص', '1250 كجم - 16 شخص'],
@@ -70,6 +101,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
     const [newItemQty, setNewItemQty] = useState(1);
     const [priceIncludesTax, setPriceIncludesTax] = useState(false);
     const [isGenerating, setIsGenerating] = useState(false);
+    const taxRateForPricing = Number.isFinite(details.taxRate) && details.taxRate >= 0 && details.taxRate <= 100 ? details.taxRate : 15;
+    const inclusivePrice = priceIncludesTax && Number.isFinite(newItemPrice) && newItemPrice > 0
+        && Number.isInteger(newItemQty) && newItemQty > 0
+        ? priceFromTaxInclusiveInput(newItemPrice, newItemQty, taxRateForPricing, items)
+        : null;
 
     useEffect(() => {
         if (globalSpecsDb && Object.keys(globalSpecsDb).length > 0) {
@@ -98,10 +134,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
             return;
         }
 
-        let finalUnitPrice = newItemPrice;
+        let finalUnitPrice = roundMoney(newItemPrice);
         if (priceIncludesTax) {
-            const taxRate = details.taxRate || 15;
-            finalUnitPrice = newItemPrice / (1 + (taxRate / 100));
+            finalUnitPrice = priceFromTaxInclusiveInput(newItemPrice, newItemQty, taxRateForPricing, items).unitPrice;
         }
 
         const item: QuoteItem = {
@@ -110,7 +145,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             details: newItemDetails,
             quantity: newItemQty,
             unitPrice: finalUnitPrice,
-            total: finalUnitPrice * newItemQty
+            total: roundMoney(finalUnitPrice * newItemQty)
         };
         setItems([...items, item]);
         setNewItemDesc('');
@@ -328,7 +363,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                                 <span className={`text-[9px] font-bold ${priceIncludesTax ? 'text-jilco-700' : 'text-gray-400'}`}>شامل؟</span>
                                             </label>
                                         </div>
-                                        <input title="السعر" type="number" value={newItemPrice} onChange={e => setNewItemPrice(parseFloat(e.target.value) || 0)} className="w-full p-3 border border-gray-300 rounded-xl font-mono font-black text-jilco-700 bg-white focus:border-jilco-500 outline-none" />
+                                        <input title="السعر" type="number" min="0" step="0.01" value={newItemPrice} onChange={e => setNewItemPrice(parseFloat(e.target.value) || 0)} className="w-full p-3 border border-gray-300 rounded-xl font-mono font-black text-jilco-700 bg-white focus:border-jilco-500 outline-none" />
+                                        {inclusivePrice && <p className={`mt-1 text-[10px] font-bold ${inclusivePrice.difference > 0.005 ? 'text-amber-700' : 'text-jilco-700'}`}>
+                                            السعر قبل الضريبة: {formatMoney(inclusivePrice.unitPrice)} ر.س؛ الزيادة الشاملة للعرض: {formatMoney(inclusivePrice.addedGross)} ر.س
+                                            {inclusivePrice.difference > 0.005 && ` (المدخل: ${formatMoney(inclusivePrice.requestedGross)} ر.س؛ يظهر فرق تقريبي بسبب سعر الوحدة بالهللات)`}
+                                        </p>}
                                         {productsDb.some(product => product.name === newItemDesc) && (
                                             <p className="mt-1 text-[10px] font-bold text-amber-700">أدخل سعر البيع؛ تكلفة الشراء لا تُملأ تلقائياً.</p>
                                         )}
@@ -347,7 +386,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                 <div key={item.id} className="p-4 bg-white border border-gray-200 rounded-xl shadow-sm flex justify-between items-center group">
                                     <div className="flex-1">
                                         <p className="font-black text-sm text-gray-900">{item.description}</p>
-                                        <p className="text-xs font-mono text-jilco-600 font-bold">{item.total.toLocaleString()} SAR</p>
+                                        <p className="text-xs font-mono text-jilco-600 font-bold">{formatMoney(item.total)} SAR</p>
                                     </div>
                                     <button title="حذف البند" onClick={() => setItems(items.filter(i => i.id !== item.id))} className="text-red-300 hover:text-red-600 p-2"><Trash2 size={18} /></button>
                                 </div>
