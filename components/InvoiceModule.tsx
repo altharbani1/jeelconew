@@ -1,31 +1,24 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
-import { Printer, FileText, Phone, Mail, QrCode, Globe, MapPin, Plus, ArrowLeft, Search, Trash2, Edit, Send, Save, User, ShoppingCart, DollarSign, Calendar, PieChart, CheckCircle2, X, Wrench } from 'lucide-react';
+import { Printer, FileText, Phone, Mail, Globe, MapPin, Plus, ArrowLeft, Search, Trash2, Edit, Send, Save, User, ShoppingCart, DollarSign, Calendar, PieChart, CheckCircle2, X, Wrench } from 'lucide-react';
 import { InvoiceData, QuoteItem, CompanyConfig, Customer, SupplierProduct, QuoteDetails } from '../types';
 import { ShareButton } from './ShareButton';
 import { useAuth } from '../contexts/AuthContext.tsx';
 import { loggerService } from '../services/loggerService.ts';
 import { useSales } from '../contexts/SalesContext.tsx';
 import { useMaintenance } from '../contexts/MaintenanceContext.tsx';
+import { amountInArabicWords, calculateInvoiceAmounts, formatInvoiceMoney } from '../lib/invoiceCalculations.mjs';
 
-// --- Tafqit Helper ---
-const tafqit = (number: number): string => {
-    if (number === 0) return "صفر";
-    const units = ["", "واحد", "اثنان", "ثلاثة", "أربعة", "خمسة", "ستة", "سبعة", "ثمانية", "تسعة"];
-    const thousands = ["", "ألف", "ألفان", "ثلاثة آلاف", "أربعة آلاف", "خمسة آلاف", "ستة آلاف", "سبعة آلاف", "ثمانية آلاف", "تسعة آلاف"];
-    if (number >= 1000000) return `${number} ريال سعودي`;
-    const k = Math.floor(number / 1000);
-    const remainder = number % 1000;
-    let text = "";
-    if (k > 0) {
-        if (k === 1) text += "ألف";
-        else if (k === 2) text += "ألفان";
-        else if (k >= 3 && k <= 10) text += thousands[k];
-        else text += `${k} ألف`;
-        if (remainder > 0) text += " و ";
-    }
-    if (remainder > 0 || text === "") text += `${remainder}`;
-    return text + " ريال سعودي فقط لا غير";
+const localDateString = (date = new Date()) => {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+};
+const dateAfterDays = (days: number) => {
+    const date = new Date();
+    date.setDate(date.getDate() + days);
+    return localDateString(date);
 };
 
 const INITIAL_CONFIG: CompanyConfig = {
@@ -49,7 +42,7 @@ interface SavedQuote {
 export const InvoiceModule: React.FC = () => {
     const { currentUser } = useAuth();
     const {
-        invoices, customers, quotes: savedQuotes,
+        invoices, customers, receipts, quotes: savedQuotes,
         setInvoices, saveSalesRecord, deleteSalesRecord, reserveInvoiceNumber
     } = useSales();
     const { contracts, tickets } = useMaintenance();
@@ -65,8 +58,8 @@ export const InvoiceModule: React.FC = () => {
 
     const [currentInvoice, setCurrentInvoice] = useState<InvoiceData>({
         number: `INV-${new Date().getFullYear()}-001`,
-        date: new Date().toISOString().split('T')[0],
-        dueDate: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        date: localDateString(),
+        dueDate: dateAfterDays(15),
         customerName: '',
         customerVatNumber: '',
         items: [],
@@ -98,8 +91,8 @@ export const InvoiceModule: React.FC = () => {
             const number = await reserveInvoiceNumber(new Date().getFullYear());
             setCurrentInvoice({
                 number,
-                date: new Date().toISOString().split('T')[0],
-                dueDate: new Date(Date.now() + 15 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+                date: localDateString(),
+                dueDate: dateAfterDays(15),
                 customerName: '',
                 customerVatNumber: '',
                 items: [],
@@ -122,30 +115,35 @@ export const InvoiceModule: React.FC = () => {
         if (savingInvoiceRef.current) return;
         if (!currentInvoice.customerName) return alert('يرجى اختيار العميل');
         if (currentInvoice.items.length === 0) return alert('يرجى إضافة بند واحد على الأقل');
+        if (!currentInvoice.date || !currentInvoice.dueDate) return alert('يرجى إدخال تاريخ الفاتورة وتاريخ الاستحقاق.');
+        if (currentInvoice.dueDate < currentInvoice.date) return alert('يجب أن يكون تاريخ الاستحقاق في يوم الفاتورة أو بعده.');
+        const invalidItem = currentInvoice.items.find(item =>
+            !Number.isFinite(Number(item.quantity)) || Number(item.quantity) <= 0
+            || !Number.isFinite(Number(item.unitPrice)) || Number(item.unitPrice) < 0
+        );
+        if (invalidItem) return alert('تحقق من البنود: الكمية يجب أن تكون أكبر من صفر والسعر لا يمكن أن يكون سالباً.');
 
         savingInvoiceRef.current = true;
         setSavingInvoice(true);
         try {
-        const calcSubtotal = currentInvoice.items.reduce((s, i) => s + i.total, 0);
-        const calcDiscount = Math.min(calcSubtotal, Math.max(0, currentInvoice.discountAmount || 0));
-        let calcTax = 0;
-        let calcGrandTotal = 0;
-
-        if (currentInvoice.isTaxInclusive) {
-            const baseAmount = (calcSubtotal - calcDiscount) / 1.15;
-            calcTax = (calcSubtotal - calcDiscount) - baseAmount;
-            calcGrandTotal = Math.max(0, calcSubtotal - calcDiscount);
-        } else {
-            const baseAmount = calcSubtotal - calcDiscount;
-            calcTax = baseAmount * 0.15;
-            calcGrandTotal = Math.max(0, baseAmount + calcTax);
+        const normalizedItems = currentInvoice.items.map(item => ({
+            ...item,
+            quantity: Number(item.quantity),
+            unitPrice: Number(item.unitPrice),
+            total: Math.round((Number(item.quantity) * Number(item.unitPrice) + Number.EPSILON) * 100) / 100
+        }));
+        const amounts = calculateInvoiceAmounts(normalizedItems, currentInvoice.discountAmount, currentInvoice.isTaxInclusive);
+        if (Number(currentInvoice.paidAmount || 0) > amounts.grandTotal + 0.01) {
+            return alert('إجمالي الدفعات المسجلة أكبر من قيمة الفاتورة الجديدة. راجع سندات القبض أو عدّلها قبل تخفيض الإجمالي.');
         }
 
         const invoiceToSave = {
             ...currentInvoice,
-            subtotal: calcSubtotal,
-            taxAmount: calcTax,
-            grandTotal: calcGrandTotal
+            items: normalizedItems,
+            discountAmount: amounts.discount,
+            subtotal: amounts.subtotal,
+            taxAmount: amounts.taxAmount,
+            grandTotal: amounts.grandTotal
         };
 
         const existingInvoice = invoices.find(invoice =>
@@ -187,6 +185,10 @@ export const InvoiceModule: React.FC = () => {
     };
 
     const handleDeleteInvoice = async (number: string) => {
+        if (receipts.some(receipt => receipt.invoiceId === number || receipt.invoiceNumber === number)) {
+            alert('لا يمكن حذف هذه الفاتورة لأنها مرتبطة بسند قبض. احذف سند القبض أو فك ارتباطه أولاً.');
+            return;
+        }
         if (window.confirm('هل أنت متأكد من حذف هذه الفاتورة؟')) {
             const deleted = await deleteSalesRecord('jilco_invoices_archive', number);
             if (!deleted) {
@@ -221,25 +223,11 @@ export const InvoiceModule: React.FC = () => {
         }
     };
 
-    const subtotal = (currentInvoice.items || []).reduce((s, i) => s + i.total, 0);
-    const discount = Math.min(subtotal, Math.max(0, currentInvoice.discountAmount || 0));
-
-    // حسابات الضريبة بناء على الخيار (شامل أو غير شامل)
-    let tax = 0;
-    let grandTotal = 0;
-    let baseAmount = 0; // المبلغ قبل الضريبة
-
-    if (currentInvoice.isTaxInclusive) {
-        // إذا كان السعر الشامل: السعر الأساسي = الاجمالي / 1.15
-        baseAmount = (subtotal - discount) / 1.15;
-        tax = (subtotal - discount) - baseAmount;
-        grandTotal = Math.max(0, subtotal - discount);
-    } else {
-        // إذا كان السعر غير شامل: الضريبة 15% تضاف فوق المبلغ
-        baseAmount = subtotal - discount;
-        tax = baseAmount * 0.15;
-        grandTotal = Math.max(0, baseAmount + tax);
-    }
+    const { subtotal, discount, taxableAmount, baseAmount, taxAmount: tax, grandTotal } =
+        calculateInvoiceAmounts(currentInvoice.items || [], currentInvoice.discountAmount, currentInvoice.isTaxInclusive);
+    const today = localDateString();
+    const invoiceOverdue = (invoice: InvoiceData) => invoice.status === 'overdue'
+        || (invoice.status !== 'paid' && Boolean(invoice.dueDate) && invoice.dueDate < today);
 
     if (viewMode === 'list') {
         return (
@@ -281,6 +269,7 @@ export const InvoiceModule: React.FC = () => {
                                     <th className="p-4 font-black">رقم الفاتورة</th>
                                     <th className="p-4 font-black">العميل</th>
                                     <th className="p-4 font-black">التاريخ</th>
+                                    <th className="p-4 font-black">تاريخ الاستحقاق</th>
                                     <th className="p-4 font-black">الإجمالي</th>
                                     <th className="p-4 font-black">الحالة</th>
                                     <th className="p-4 text-center font-black">إجراءات</th>
@@ -292,22 +281,15 @@ export const InvoiceModule: React.FC = () => {
                                         <td className="p-4 font-mono font-bold text-jilco-900">{inv.number}</td>
                                         <td className="p-4 font-bold">{inv.customerName}</td>
                                         <td className="p-4 font-mono text-xs">{inv.date}</td>
+                                        <td className={`p-4 font-mono text-xs ${invoiceOverdue(inv) ? 'font-black text-red-700' : ''}`}>
+                                            {inv.dueDate || '—'}{invoiceOverdue(inv) && <span className="mr-2 rounded bg-red-50 px-2 py-1 font-sans">متأخرة</span>}
+                                        </td>
                                         <td className="p-4 font-black text-green-700">
-                                            {(() => {
-                                                const sub = (inv.items || []).reduce((s, it) => s + it.total, 0);
-                                                const disc = inv.discountAmount || 0;
-                                                if (inv.isTaxInclusive) {
-                                                    return Math.max(0, sub - disc).toLocaleString();
-                                                } else {
-                                                    const baseAmt = sub - disc;
-                                                    const taxAmt = baseAmt * 0.15;
-                                                    return Math.max(0, baseAmt + taxAmt).toLocaleString();
-                                                }
-                                            })()}
+                                            {formatInvoiceMoney(calculateInvoiceAmounts(inv.items || [], inv.discountAmount, inv.isTaxInclusive).grandTotal)}
                                         </td>
                                         <td className="p-4">
-                                            <span className={`px-2 py-1 rounded text-[10px] font-bold ${inv.status === 'paid' ? 'bg-green-100 text-green-700' : inv.status === 'partial' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'}`}>
-                                                {inv.status === 'paid' ? 'مدفوعة' : inv.status === 'partial' ? 'مدفوعة جزئياً' : 'بانتظار الدفع'}
+                                            <span className={`px-2 py-1 rounded text-[10px] font-bold ${invoiceOverdue(inv) ? 'bg-red-100 text-red-700' : inv.status === 'paid' ? 'bg-green-100 text-green-700' : inv.status === 'partial' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'}`}>
+                                                {invoiceOverdue(inv) ? (inv.status === 'partial' ? 'متأخرة جزئياً' : 'متأخرة') : inv.status === 'paid' ? 'مدفوعة' : inv.status === 'partial' ? 'مدفوعة جزئياً' : 'بانتظار الدفع'}
                                             </span>
                                         </td>
                                         <td className="p-4 flex justify-center gap-2">
@@ -443,8 +425,15 @@ export const InvoiceModule: React.FC = () => {
                         </div>
                         <div className="grid grid-cols-2 gap-3 mt-3">
                             <div>
+                                <label className="block text-[10px] font-bold text-gray-500 mb-1">تاريخ الاستحقاق</label>
+                                <input title="تاريخ الاستحقاق" type="date" min={currentInvoice.date} value={currentInvoice.dueDate || ''} onChange={e => setCurrentInvoice({ ...currentInvoice, dueDate: e.target.value })} className="w-full p-2 border rounded text-sm bg-white font-bold" />
+                            </div>
+                            <div className="flex items-end text-xs font-bold text-gray-500">{invoiceOverdue(currentInvoice) ? 'هذه الفاتورة تجاوزت تاريخ الاستحقاق.' : 'تظهر حالة التأخير تلقائياً بعد تاريخ الاستحقاق.'}</div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3 mt-3">
+                            <div>
                                 <label className="block text-[10px] font-bold text-gray-500 mb-1">خصم مكتسب (مبلغ مالي)</label>
-                                <input title="خصم مكتسب" type="number" min="0" value={currentInvoice.discountAmount || ''} onChange={e => setCurrentInvoice({ ...currentInvoice, discountAmount: parseFloat(e.target.value) || 0 })} className="w-full p-2 border rounded text-sm bg-white font-bold" placeholder="مثال: 500" />
+                                <input title="خصم مكتسب" type="number" min="0" step="0.01" value={currentInvoice.discountAmount || ''} onChange={e => setCurrentInvoice({ ...currentInvoice, discountAmount: parseFloat(e.target.value) || 0 })} className="w-full p-2 border rounded text-sm bg-white font-bold" placeholder="مثال: 500" />
                             </div>
                             <div className="flex items-end pb-1">
                                 <label className="flex items-center gap-2 cursor-pointer bg-white p-2 w-full border border-gray-200 rounded text-sm font-bold shadow-sm transition-all hover:bg-gray-50">
@@ -466,8 +455,8 @@ export const InvoiceModule: React.FC = () => {
                         <div className="space-y-3">
                             <input title="اسم الصنف / الوصف" type="text" placeholder="اسم الصنف / الوصف" value={currentItem.description} onChange={e => setCurrentItem({ ...currentItem, description: e.target.value })} className="w-full p-2 border rounded text-sm bg-white font-bold" />
                             <div className="grid grid-cols-2 gap-3">
-                                <input title="الكمية" type="number" placeholder="الكمية" value={currentItem.quantity} onChange={e => setCurrentItem({ ...currentItem, quantity: parseFloat(e.target.value) || 1 })} className="p-2 border rounded text-sm text-center bg-white font-bold" />
-                                <input title="سعر الوحدة" type="number" placeholder="سعر الوحدة" value={currentItem.unitPrice} onChange={e => setCurrentItem({ ...currentItem, unitPrice: parseFloat(e.target.value) || 0 })} className="p-2 border rounded text-sm text-center bg-white font-bold" />
+                                <input title="الكمية" type="number" min="0.01" step="0.01" placeholder="الكمية" value={currentItem.quantity} onChange={e => setCurrentItem({ ...currentItem, quantity: parseFloat(e.target.value) || 0 })} className="p-2 border rounded text-sm text-center bg-white font-bold" />
+                                <input title="سعر الوحدة" type="number" min="0" step="0.01" placeholder="سعر الوحدة" value={currentItem.unitPrice} onChange={e => setCurrentItem({ ...currentItem, unitPrice: parseFloat(e.target.value) || 0 })} className="p-2 border rounded text-sm text-center bg-white font-bold" />
                             </div>
                             <button
                                 onClick={() => {
@@ -475,10 +464,14 @@ export const InvoiceModule: React.FC = () => {
                                         alert('يرجى كتابة اسم أو وصف الصنف');
                                         return;
                                     }
+                                    if (!Number.isFinite(currentItem.quantity) || currentItem.quantity <= 0 || !Number.isFinite(currentItem.unitPrice) || currentItem.unitPrice < 0) {
+                                        alert('أدخل كمية أكبر من صفر وسعراً لا يقل عن صفر.');
+                                        return;
+                                    }
                                     const item = {
                                         ...currentItem,
                                         id: Date.now().toString(),
-                                        total: currentItem.quantity * currentItem.unitPrice
+                                        total: Math.round((currentItem.quantity * currentItem.unitPrice + Number.EPSILON) * 100) / 100
                                     };
                                     setCurrentInvoice(prev => ({ ...prev, items: [...(prev.items || []), item] }));
                                     setCurrentItem({ id: '', description: '', details: '', quantity: 1, unitPrice: 0, total: 0 });
@@ -510,8 +503,8 @@ export const InvoiceModule: React.FC = () => {
                                         <tr key={item.id} className="hover:bg-gray-50 group">
                                             <td className="p-2 font-bold text-gray-800 truncate max-w-[100px]">{item.description}</td>
                                             <td className="p-2 text-center text-gray-600 font-mono">{item.quantity}</td>
-                                            <td className="p-2 text-center font-mono text-gray-700">{item.unitPrice.toLocaleString()}</td>
-                                            <td className="p-2 text-center font-black text-green-700">{item.total.toLocaleString()}</td>
+                                            <td className="p-2 text-center font-mono text-gray-700">{formatInvoiceMoney(item.unitPrice)}</td>
+                                            <td className="p-2 text-center font-black text-green-700">{formatInvoiceMoney(item.total)}</td>
                                             <td className="p-2 text-center">
                                                 <button
                                                     title="حذف البند"
@@ -525,7 +518,7 @@ export const InvoiceModule: React.FC = () => {
                                 <tfoot className="bg-gray-50 border-t-2 border-gray-200">
                                     <tr>
                                         <td colSpan={3} className="p-2 text-right font-black text-gray-600 text-[10px] uppercase">الإجمالي الفرعي:</td>
-                                        <td className="p-2 text-center font-black text-jilco-900">{(currentInvoice.items || []).reduce((s,i) => s+i.total, 0).toLocaleString()}</td>
+                                        <td className="p-2 text-center font-black text-jilco-900">{formatInvoiceMoney(subtotal)}</td>
                                         <td></td>
                                     </tr>
                                 </tfoot>
@@ -537,7 +530,7 @@ export const InvoiceModule: React.FC = () => {
 
             {/* Invoice Preview View */}
             <div className="flex-1 bg-gray-200 p-8 overflow-auto flex justify-center items-start print:p-0 print:bg-white print:overflow-visible print:block">
-                <div id="printable-area" className="bg-white shadow-2xl w-[210mm] min-h-[297mm] p-0 relative flex flex-col print:shadow-none print:w-full print:break-inside-avoid">
+                <div id="printable-area" className="invoice-print-document bg-white shadow-2xl w-[210mm] min-h-[297mm] p-0 relative flex flex-col print:shadow-none print:w-full">
                     <div className="absolute inset-3 border-[6px] border-jilco-900 pointer-events-none z-0"></div>
                     <div className="absolute inset-[18px] border border-gold-500 pointer-events-none z-0"></div>
                     <div className="relative z-10 flex flex-col flex-1 m-[28px] bg-white">
@@ -572,10 +565,14 @@ export const InvoiceModule: React.FC = () => {
                                         <span className="text-gray-400 font-sans font-black text-[9px] uppercase">Date:</span>
                                         <span className="font-black text-jilco-900">{currentInvoice.date}</span>
                                     </p>
+                                    <p className="bg-white px-4 py-1.5 rounded-lg border border-gray-200 min-w-[160px] flex justify-between gap-4 mt-2">
+                                        <span className="text-gray-400 font-sans font-black text-[9px] uppercase">Due date:</span>
+                                        <span className="font-black text-jilco-900">{currentInvoice.dueDate || '—'}</span>
+                                    </p>
                                 </div>
                             </div>
 
-                            <table className="w-full border-collapse border-2 border-jilco-900 mb-6">
+                            <table className="invoice-items-table w-full border-collapse border-2 border-jilco-900 mb-6">
                                 <thead>
                                     <tr className="bg-jilco-900 text-white text-[10px] font-black uppercase">
                                         <th className="p-2 text-center w-10 border border-jilco-900">#</th>
@@ -596,38 +593,49 @@ export const InvoiceModule: React.FC = () => {
                                     {(currentInvoice.items || []).map((item, idx) => (
                                         <tr key={idx} className="border-b border-gray-300">
                                             <td className="p-2 text-center font-bold text-gray-600 border border-gray-300 text-xs">{idx + 1}</td>
-                                            <td className="p-2 font-bold text-gray-900 text-xs border border-gray-300 leading-tight">{item.description}</td>
+                                            <td className="p-2 font-bold text-gray-900 text-xs border border-gray-300 leading-tight">{item.description}{item.details?.trim() && <span className="mt-1 block whitespace-pre-line text-[10px] font-medium text-gray-600">{item.details}</span>}</td>
                                             <td className="p-2 text-center font-bold text-gray-900 border border-gray-300 text-xs">{item.quantity}</td>
-                                            <td className="p-2 text-center font-mono font-bold border border-gray-300 text-xs">{item.unitPrice.toLocaleString()}</td>
-                                            <td className="p-2 text-center font-black text-black border border-gray-300 text-xs">{item.total.toLocaleString()}</td>
+                                            <td className="p-2 text-center font-mono font-bold border border-gray-300 text-xs">{formatInvoiceMoney(item.unitPrice)}</td>
+                                            <td className="p-2 text-center font-black text-black border border-gray-300 text-xs">{formatInvoiceMoney(item.total)}</td>
                                         </tr>
                                     ))}
                                 </tbody>
                             </table>
 
                             <div className="flex justify-between items-end mt-6">
-                                <div className="p-2 border border-gray-200 rounded-lg">
-                                    <QrCode size={100} className="text-gray-800" />
-                                    <p className="text-[8px] text-center font-bold text-gray-400 mt-1 uppercase">ZATCA Compliant</p>
+                                <div className="w-64 space-y-2 rounded-lg border border-gray-200 p-4 text-xs">
+                                    <p className="font-black text-jilco-900">حالة الفاتورة</p>
+                                    <p className={`font-bold ${invoiceOverdue(currentInvoice) ? 'text-red-700' : 'text-gray-700'}`}>
+                                        {invoiceOverdue(currentInvoice) ? 'متأخرة عن السداد' : currentInvoice.status === 'paid' ? 'مدفوعة' : currentInvoice.status === 'partial' ? 'مدفوعة جزئياً' : 'بانتظار الدفع'}
+                                    </p>
+                                    <p className="text-gray-600">المبلغ المسدد: <b>{formatInvoiceMoney(currentInvoice.paidAmount || 0)} ر.س</b></p>
+                                    <p className="text-gray-600">المتبقي: <b>{formatInvoiceMoney(Math.max(0, grandTotal - (Number(currentInvoice.paidAmount) || 0)))} ر.س</b></p>
                                 </div>
                                 <div className="w-72 bg-white p-5 rounded-2xl border-4 border-jilco-900 shadow-xl space-y-3 relative overflow-hidden">
-                                    {/* عرض المبلغ قبل الضريبة إذا كان شامل */}
                                     <div className="flex justify-between text-[10px] font-black text-gray-500 uppercase">
-                                        <span>المبلغ (غير شامل الضريبة) / Ex. VAT:</span>
+                                        <span>الإجمالي الفرعي / Subtotal:</span>
+                                        <span className="font-mono text-black">{formatInvoiceMoney(subtotal)}</span>
+                                    </div>
+                                    {discount > 0 && <div className="flex justify-between text-[10px] font-black text-red-600">
+                                        <span>الخصم / Discount:</span>
+                                        <span className="font-mono">−{formatInvoiceMoney(discount)}</span>
+                                    </div>}
+                                    <div className="flex justify-between text-[10px] font-black text-gray-500 uppercase">
+                                        <span>الوعاء الضريبي / Ex. VAT:</span>
                                         <span className="font-mono text-black">
-                                            {baseAmount.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                            {formatInvoiceMoney(baseAmount)}
                                         </span>
                                     </div>
                                     <div className="flex justify-between text-[10px] font-black text-gray-500 uppercase">
                                         <span>الضريبة / VAT 15%:</span>
                                         <span className="font-mono text-red-600">
-                                            +{tax.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                            {formatInvoiceMoney(tax)}
                                         </span>
                                     </div>
                                     <div className="border-t-2 border-gray-100 pt-3 flex justify-between items-center">
-                                        <span className="font-black text-jilco-900 text-xs uppercase">Grand Total:</span>
+                                        <span className="font-black text-jilco-900 text-xs uppercase">الإجمالي شامل الضريبة / Total:</span>
                                         <div className="text-left">
-                                            <span className="font-black text-black text-2xl font-mono">{grandTotal.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                                            <span className="font-black text-black text-2xl font-mono">{formatInvoiceMoney(grandTotal)}</span>
                                             <p className="text-[8px] text-gold-600 font-black text-center uppercase">SAR</p>
                                         </div>
                                     </div>
@@ -635,7 +643,7 @@ export const InvoiceModule: React.FC = () => {
                             </div>
 
                             <div className="mt-8 border-t-2 border-gray-100 pt-4 text-center">
-                                <p className="text-xs text-gray-400 font-bold mb-1">المبلغ كتابة: <span className="text-jilco-900 font-black">{tafqit(grandTotal)}</span></p>
+                                <p className="text-xs text-gray-400 font-bold mb-1">المبلغ كتابة: <span className="text-jilco-900 font-black">{amountInArabicWords(grandTotal)}</span></p>
                             </div>
                         </div>
 

@@ -330,6 +330,13 @@ try {
            ($1,'legacy-overflow-suffix','INV-2028-999999999999999999999',1,'pending','[]'),
            ($1,'legacy-999','INV-2029-999',1,'pending','[]')`, [companyA]);
   await db.exec(migration('20261024150000_reserve_invoice_numbers.sql'));
+  await db.exec(migration('20261026100000_protect_receipt_linked_invoice_deletes.sql'));
+  await asUser(userA);
+  assert.equal((await db.query('select public.delete_invoice_without_receipts($1) deleted', ['invoice-a'])).rows[0].deleted, false);
+  assert.equal(await count("select count(*)::int n from public.invoices where legacy_id='invoice-a'"), 1);
+  assert.equal((await db.query('select public.delete_invoice_without_receipts($1) deleted', ['invoice-b'])).rows[0].deleted, true);
+  assert.equal(await count("select count(*)::int n from public.invoices where legacy_id='invoice-b'"), 0);
+  await resetRole();
   await db.query("delete from public.invoices where legacy_id='legacy-deleted-issued'");
   await asUser(userA);
   assert.equal((await db.query('select public.reserve_invoice_number(2027) number')).rows[0].number, 'INV-2027-010');

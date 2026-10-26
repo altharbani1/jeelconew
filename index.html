@@ -254,6 +254,21 @@
       /* 6. Tables */
       table { border-collapse: collapse !important; }
       tr { break-inside: avoid !important; }
+      .invoice-print-document {
+        width: 210mm !important;
+        min-height: 297mm !important;
+        height: auto !important;
+        overflow: visible !important;
+        page-break-inside: auto !important;
+        break-inside: auto !important;
+      }
+      .invoice-items-table {
+        page-break-inside: auto !important;
+        break-inside: auto !important;
+      }
+      .invoice-items-table thead { display: table-header-group !important; }
+      .invoice-items-table tfoot { display: table-footer-group !important; }
+      .invoice-items-table tr { page-break-inside: avoid !important; break-inside: avoid !important; }
       a { text-decoration: none !important; color: inherit !important; }
     }
 

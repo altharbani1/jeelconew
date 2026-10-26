@@ -773,6 +773,12 @@ export const cloudService = {
         return (await deleteReceiptWithInvoiceRecalculation(recordId)).success;
       }
 
+      if (collection === 'jilco_invoices_archive') {
+        const { data, error } = await supabase.rpc('delete_invoice_without_receipts', { p_legacy_id: recordId });
+        if (error) throw error;
+        return data === true;
+      }
+
       if (collection === 'jilco_customers') {
          const { error } = await supabase.from('customers').delete().eq('legacy_id', recordId);
          if (error) throw error;
