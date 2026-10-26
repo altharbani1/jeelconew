@@ -127,8 +127,13 @@ export const ReceiptModule: React.FC<{ initialView?: 'list' | 'editor' | 'statem
     }, [currentReceipt.amount]);
 
     const handleCreateNew = () => {
+        const currentYear = new Date().getFullYear();
+        const nextSequence = receipts.reduce((max, receipt) => {
+            const match = new RegExp(`^RV-${currentYear}-(\\d+)$`).exec(receipt.number);
+            return match ? Math.max(max, Number(match[1]) || 0) : max;
+        }, 0) + 1;
         setCurrentReceipt({
-            number: `RV-${new Date().getFullYear()}-${String(receipts.length + 1).padStart(3, '0')}`,
+            number: `RV-${currentYear}-${String(nextSequence).padStart(3, '0')}`,
             date: new Date().toISOString().split('T')[0],
             receivedFrom: '',
             amount: 0,
@@ -422,3 +427,4 @@ export const ReceiptModule: React.FC<{ initialView?: 'list' | 'editor' | 'statem
         </div>
     );
 };
+
