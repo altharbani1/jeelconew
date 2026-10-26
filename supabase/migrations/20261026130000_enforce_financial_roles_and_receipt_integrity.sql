@@ -140,4 +140,3 @@ create trigger receipts_enforce_invoice_balance
   before insert or update of company_id, invoice_number, amount on public.receipts
   for each row execute function public.enforce_receipt_invoice_balance();
 
-

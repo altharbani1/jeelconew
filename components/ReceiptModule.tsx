@@ -427,4 +427,3 @@ export const ReceiptModule: React.FC<{ initialView?: 'list' | 'editor' | 'statem
         </div>
     );
 };
-
