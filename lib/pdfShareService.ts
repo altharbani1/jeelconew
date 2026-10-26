@@ -98,7 +98,9 @@ async function generatePdfBlob(elementId: string, fileName: string): Promise<Blo
     let pdfPageIndex = 0;
     for (let index = 0; index < targets.length; index += 1) {
         const canvas = await html2canvas(targets[index], {
-            scale: Math.min(window.devicePixelRatio || 1, 2),
+            // A4 at 2.5x is about 240 dpi. Lossless PNG keeps small Arabic
+            // glyphs and fine borders sharp when the PDF is printed.
+            scale: 2.5,
             useCORS: true,
             allowTaint: false,
             backgroundColor: '#ffffff',
@@ -122,9 +124,9 @@ async function generatePdfBlob(elementId: string, fileName: string): Promise<Blo
 
             if (pdfPageIndex > 0) pdf.addPage('a4', 'p');
             pdfPageIndex += 1;
-            const image = pageCanvas.toDataURL('image/jpeg', 0.92);
+            const image = pageCanvas.toDataURL('image/png');
             const renderedHeight = (sliceHeight * 210) / canvas.width;
-            pdf.addImage(image, 'JPEG', 0, 0, 210, renderedHeight, undefined, 'FAST');
+            pdf.addImage(image, 'PNG', 0, 0, 210, renderedHeight, undefined, 'FAST');
             y = pageEnd;
         }
     }

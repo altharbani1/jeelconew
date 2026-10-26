@@ -46,7 +46,7 @@ const QuoteHeader: React.FC<{ config: CompanyConfig }> = ({ config }) => (
             ) : null}
         </div>
         <div className="w-1/3 text-left flex flex-col items-start" dir="ltr">
-            <h2 className="text-lg font-black text-jilco-900 tracking-tighter">{config.headerSubtitle || 'JILCO ELEVATORS CO.'}</h2>
+            <h2 className="text-lg font-black text-jilco-900">{config.headerSubtitle || 'JILCO ELEVATORS CO.'}</h2>
             <div className="mt-3 space-y-1">
                 {config.contactPhone?.trim() && <div className="flex items-center gap-2 text-[10px] font-black text-gray-700 bg-gray-50 px-2 py-1 rounded-l-full border-r-2 border-jilco-600">
                     <span>{config.contactPhone}</span>
@@ -98,6 +98,10 @@ export const QuotePreview: React.FC<QuotePreviewProps> = ({ items, details, tech
     const verifiedBankAccounts = (config.bankAccounts || []).filter(bank => bank.bankName?.trim() && /^SA\d{2}[A-Z0-9]{20}$/.test((bank.iban || '').replace(/[\s-]/g, '').toUpperCase()));
 
     const featuresList = (details.features || []).filter(feature => feature.trim() !== '');
+    const featurePages: string[][] = [];
+    for (let index = 0; index < featuresList.length; index += 12) {
+        featurePages.push(featuresList.slice(index, index + 12));
+    }
 
     // --- MULTI-PAGE ITEMS LOGIC ---
     // Split items into chunks: first page holds 3 items, continuation pages hold 3 items each
@@ -155,7 +159,7 @@ export const QuotePreview: React.FC<QuotePreviewProps> = ({ items, details, tech
                                     {/* Title - show on first page only */}
                                     {isFirstPage && (
                                         <div className="text-center mb-6">
-                                            <h2 className="text-xl font-black text-white bg-jilco-900 py-2.5 px-12 rounded-lg inline-block shadow-md border-b-4 border-gold-500 uppercase tracking-tighter">عرض سعر توريد وتركيب مصعد</h2>
+                                            <h2 className="text-xl font-black text-white bg-jilco-900 py-2.5 px-12 rounded-lg inline-block shadow-md border-b-4 border-gold-500 uppercase">عرض سعر توريد وتركيب مصعد</h2>
                                         </div>
                                     )}
 
@@ -171,7 +175,7 @@ export const QuotePreview: React.FC<QuotePreviewProps> = ({ items, details, tech
                                     {isFirstPage && (
                                         <div className="grid grid-cols-2 gap-6 mb-6 bg-gray-50/80 p-5 rounded-xl border border-gray-100">
                                             <div className="text-right">
-                                                <p className="text-[9px] font-black text-gray-400 mb-1 uppercase tracking-widest">اسم العميل / Customer Name</p>
+                                                <p className="text-[9px] font-black text-gray-400 mb-1 uppercase">اسم العميل / Customer Name</p>
                                                 <p className="font-black text-xl text-black mb-1 underline decoration-gold-500 decoration-4 underline-offset-8">
                                                     السادة / {details.customerName || 'المحترمين'}
                                                 </p>
@@ -236,7 +240,7 @@ export const QuotePreview: React.FC<QuotePreviewProps> = ({ items, details, tech
                                                         <span className="font-mono text-red-600 font-black">{formatMoney(taxAmount)}</span>
                                                     </div>
                                                     <div className="border-t-2 border-gray-100 pt-3 flex justify-between items-center">
-                                                        <span className="font-black text-jilco-900 text-xs uppercase tracking-tighter">Grand Total:</span>
+                                                        <span className="font-black text-jilco-900 text-xs uppercase">Grand Total:</span>
                                                         <div className="text-left">
                                                             <span className="font-black text-black text-2xl font-mono">{formatMoney(grandTotal)}</span>
                                                             <p className="text-[8px] text-gold-600 font-black text-center">SAR ريال سعودي</p>
@@ -285,7 +289,7 @@ export const QuotePreview: React.FC<QuotePreviewProps> = ({ items, details, tech
 
                         <div className="px-10 py-6 flex-1 flex flex-col">
                             <div className="flex items-center justify-between border-b-2 border-jilco-900 pb-4 mb-6">
-                                <h3 className="text-xl font-black text-jilco-900 flex items-center gap-3 uppercase tracking-tighter">
+                                <h3 className="text-xl font-black text-jilco-900 flex items-center gap-3 uppercase">
                                     <div className="w-10 h-10 bg-jilco-900 text-gold-500 flex items-center justify-center rounded-xl shadow-lg"><Zap size={20} /></div>
                                     جدول المواصفات الفنية المعتمدة
                                 </h3>
@@ -311,7 +315,7 @@ export const QuotePreview: React.FC<QuotePreviewProps> = ({ items, details, tech
                                     { label: 'جهاز الطوارئ (Emergency)', value: techSpecs.emergency },
                                 ].filter(row => row.value?.trim()).map((row, i) => (
                                     <div key={i} className={`flex border-b border-gray-100 last:border-0 ${i % 2 === 0 ? 'bg-gray-50/50' : 'bg-white'}`}>
-                                        <div className="w-1/3 p-3.5 font-black text-[11px] text-jilco-700 bg-gray-100/30 border-l border-gray-100 uppercase tracking-tighter">{row.label}</div>
+                                        <div className="w-1/3 p-3.5 font-black text-[11px] text-jilco-700 bg-gray-100/30 border-l border-gray-100 uppercase">{row.label}</div>
                                         <div className="w-2/3 p-3.5 text-[13px] font-black text-black uppercase">{row.value}</div>
                                     </div>
                                 ))}
@@ -323,7 +327,7 @@ export const QuotePreview: React.FC<QuotePreviewProps> = ({ items, details, tech
                 </div>}
 
                 {/* PAGE 3: FEATURES PAGE (DYNAMIC) */}
-                {featuresList.length > 0 && <div className="a4-page bg-white shadow-2xl mb-10 print:mb-0 mx-auto flex flex-col relative">
+                {featurePages.map((pageFeatures, pageIndex) => <div key={`features-${pageIndex}`} className="a4-page bg-white shadow-2xl mb-10 print:mb-0 mx-auto flex flex-col relative">
 
                     <div className="absolute inset-3 border-[6px] border-jilco-900 pointer-events-none z-0"></div>
                     <div className="absolute inset-[18px] border border-gold-500 pointer-events-none z-0"></div>
@@ -334,16 +338,16 @@ export const QuotePreview: React.FC<QuotePreviewProps> = ({ items, details, tech
 
                         <div className="px-10 py-6 flex-1 flex flex-col">
                             <div className="flex items-center justify-between border-b-2 border-jilco-900 pb-4 mb-6">
-                                <h3 className="text-xl font-black text-jilco-900 flex items-center gap-3 uppercase tracking-tighter">
+                                <h3 className="text-xl font-black text-jilco-900 flex items-center gap-3 uppercase">
                                     <div className="w-10 h-10 bg-jilco-900 text-gold-500 flex items-center justify-center rounded-xl shadow-lg"><Star size={20} /></div>
                                     مزايا المصعد الإضافية
                                 </h3>
                                 <span className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em]">Other Features</span>
                             </div>
 
-                            <div className="flex-1 overflow-hidden">
+                            <div className="flex-1">
                                 <div className="grid grid-cols-2 gap-x-8 gap-y-0 text-sm">
-                                    {featuresList.map((feature, idx) => (
+                                    {pageFeatures.map((feature, idx) => (
                                         <div key={idx} className="flex items-start gap-2 py-2 border-b border-gray-100 last:border-0 break-inside-avoid">
                                             <div className="mt-1 text-gold-500 shrink-0"><CheckCircle2 size={14} /></div>
                                             <span className="font-bold text-gray-700 text-[11px] leading-relaxed">{feature}</span>
@@ -355,7 +359,7 @@ export const QuotePreview: React.FC<QuotePreviewProps> = ({ items, details, tech
                             <QuoteFooter config={config} />
                         </div>
                     </div>
-                </div>}
+                </div>)}
 
                 {/* PAGE 4: OBLIGATIONS AND PAYMENT (OPTIMIZED SPACING) */}
                 <div className="a4-page bg-white shadow-2xl mb-10 print:mb-0 mx-auto flex flex-col relative">
@@ -371,7 +375,7 @@ export const QuotePreview: React.FC<QuotePreviewProps> = ({ items, details, tech
 
                             {/* Header */}
                             <div className="flex items-center justify-between border-b-2 border-jilco-900 pb-3">
-                                <h3 className="text-xl font-black text-jilco-900 flex items-center gap-3 uppercase tracking-tighter">
+                                <h3 className="text-xl font-black text-jilco-900 flex items-center gap-3 uppercase">
                                     <div className="w-10 h-10 bg-jilco-900 text-gold-500 flex items-center justify-center rounded-xl shadow-lg"><Scale size={20} /></div>
                                     الالتزامات وطريقة الدفع
                                 </h3>
@@ -461,7 +465,7 @@ export const QuotePreview: React.FC<QuotePreviewProps> = ({ items, details, tech
 
                         <div className="px-10 py-6 flex-1 flex flex-col">
                             <div className="flex items-center justify-between border-b-2 border-jilco-900 pb-4 mb-6">
-                                <h3 className="text-xl font-black text-jilco-900 flex items-center gap-3 uppercase tracking-tighter">
+                                <h3 className="text-xl font-black text-jilco-900 flex items-center gap-3 uppercase">
                                     <div className="w-10 h-10 bg-jilco-900 text-gold-500 flex items-center justify-center rounded-xl shadow-lg"><ShieldCheck size={20} /></div>
                                     التسليم والضمان
                                 </h3>
@@ -489,7 +493,7 @@ export const QuotePreview: React.FC<QuotePreviewProps> = ({ items, details, tech
 
                         <div className="px-10 py-6 flex-1 flex flex-col">
                             <div className="flex items-center justify-between border-b-2 border-jilco-900 pb-4 mb-6">
-                                <h3 className="text-xl font-black text-jilco-900 flex items-center gap-3 uppercase tracking-tighter">
+                                <h3 className="text-xl font-black text-jilco-900 flex items-center gap-3 uppercase">
                                     <div className="w-10 h-10 bg-jilco-900 text-gold-500 flex items-center justify-center rounded-xl shadow-lg"><FileText size={20} /></div>
                                     الشروط والأحكام العامة
                                 </h3>
@@ -509,11 +513,11 @@ export const QuotePreview: React.FC<QuotePreviewProps> = ({ items, details, tech
                                     <h4 className="font-black text-jilco-900 text-sm mb-5 border-b-2 border-gold-50 pb-2 uppercase">فترات الضمان المعتمدة</h4>
                                     <div className="space-y-4">
                                         <div className="flex justify-between items-center text-xs font-black">
-                                            <span className="text-gray-500 uppercase tracking-tighter">ضمان الأعمال والتركيب:</span>
+                                            <span className="text-gray-500 uppercase">ضمان الأعمال والتركيب:</span>
                                             <span className="text-black bg-gray-100 px-3 py-1 rounded-lg border border-gray-200">{warrantyPeriod(details.warrantyInstallation)}</span>
                                         </div>
                                         <div className="flex justify-between items-center text-xs font-black">
-                                            <span className="text-gray-500 uppercase tracking-tighter">ضمان الماكينة:</span>
+                                            <span className="text-gray-500 uppercase">ضمان الماكينة:</span>
                                             <span className="text-black bg-gray-100 px-3 py-1 rounded-lg border border-gray-200">{warrantyPeriod(details.warrantyMotor)}</span>
                                         </div>
                                     </div>
@@ -529,7 +533,7 @@ export const QuotePreview: React.FC<QuotePreviewProps> = ({ items, details, tech
                                             verifiedBankAccounts.slice(0, 2).map((bank, idx) => (
                                                 <div key={idx} className="text-left bg-gold-50/50 p-2.5 rounded-xl border border-gold-100">
                                                     <p className="text-[10px] font-black text-jilco-900 mb-0.5">{bank.bankName}</p>
-                                                    <p className="text-[12px] font-mono font-black text-black tracking-tighter">IBAN: {(bank.iban || '').replace(/[\s-]/g, '').toUpperCase().match(/.{1,4}/g)?.join(' ')}</p>
+                                                    <p className="text-[12px] font-mono font-black text-black">IBAN: {(bank.iban || '').replace(/[\s-]/g, '').toUpperCase().match(/.{1,4}/g)?.join(' ')}</p>
                                                 </div>
                                             ))
                                         ) : (
@@ -572,7 +576,7 @@ export const QuotePreview: React.FC<QuotePreviewProps> = ({ items, details, tech
 
                             <div className="px-10 py-6 flex-1 flex flex-col">
                                 <div className="flex items-center justify-between border-b-2 border-jilco-900 pb-4 mb-6">
-                                    <h3 className="text-xl font-black text-jilco-900 flex items-center gap-3 uppercase tracking-tighter">
+                                    <h3 className="text-xl font-black text-jilco-900 flex items-center gap-3 uppercase">
                                         <div className="w-10 h-10 bg-jilco-900 text-gold-500 flex items-center justify-center rounded-xl shadow-lg"><ImageIcon size={20} /></div>
                                         صور توضيحية للمواصفات المختارة
                                     </h3>

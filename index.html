@@ -66,6 +66,19 @@
       scrollbar-width: none;
     }
 
+    /* Keep the quote preview at the same A4 width used by browser printing.
+       Otherwise text wraps differently and PDF export shrinks the whole page. */
+    .quote-print-document {
+      width: 210mm;
+      max-width: none;
+    }
+
+    .quote-print-document .a4-page {
+      width: 210mm;
+      min-height: 297mm;
+      box-sizing: border-box;
+    }
+
     /* --- PROFESSIONAL PRINT ENGINE CSS v4.0 --- */
     @media print {
 
@@ -221,7 +234,7 @@
          continue onto following sheets instead of clipping their content. */
       .quote-print-document .a4-page {
         height: auto !important;
-        min-height: 296.5mm !important;
+        min-height: 297mm !important;
         overflow: visible !important;
         page-break-inside: auto !important;
         break-inside: auto !important;
