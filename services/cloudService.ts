@@ -115,6 +115,7 @@ const normalizeInvoiceRecord = (recordId: string, record: any) => {
     due_date: d?.dueDate || null,
     customer_name: d?.customerName || '',
     customer_vat_number: d?.customerVatNumber || null,
+    customer_legacy_id: d?.customerId || null,
     items,
     total,
     discount_amount: discount,
@@ -536,6 +537,7 @@ export const cloudService = {
               mapFn: (row: any) => ({
                   id: row.legacy_id || row.id, number: row.number, date: row.date, dueDate: row.due_date,
                   customerName: row.customer_name, customerVatNumber: row.customer_vat_number,
+                  customerId: row.customer_legacy_id || undefined,
                   items: row.items || [], status: row.status, grandTotal: Number(row.total) || 0,
                   paidAmount: Number(row.paid_amount) || 0,
                   discountAmount: Number(row.discount_amount) || 0,

@@ -5,6 +5,7 @@ import { Users, Search, Plus, Phone, Mail, MapPin, Calendar, Edit, Trash2, Save,
 import { Customer, CustomerStatus, CustomerNote, InvoiceData, ReceiptData, CompanyConfig } from '../types';
 import { useSales } from '../contexts/SalesContext.tsx';
 import { getSalesInvoiceTotal } from '../lib/financialCalculations';
+import { belongsToCustomer } from '../lib/customerMatching.mjs';
 
 const STATUS_LABELS: Record<CustomerStatus, { label: string, color: string }> = {
   new: { label: 'عميل جديد', color: 'bg-blue-100 text-blue-700' },
@@ -115,9 +116,14 @@ export const CustomerModule: React.FC<{ statementOnly?: boolean }> = ({ statemen
 
   // --- Statement Generation ---
   const customerStatement = useMemo(() => {
-    if (!selectedCustomer) return { transactions: [], totalDebit: 0, totalCredit: 0, balance: 0 };
+    if (!selectedCustomer) return { transactions: [], totalDebit: 0, totalCredit: 0, balance: 0, ambiguousRecords: 0 };
+    const duplicateName = customers.filter(customer => customer.fullName === selectedCustomer.fullName).length > 1;
+    const ambiguousRecords = duplicateName
+      ? allInvoices.filter(invoice => !invoice.customerId && invoice.customerName === selectedCustomer.fullName).length
+        + allReceipts.filter(receipt => !receipt.customerId && receipt.receivedFrom === selectedCustomer.fullName).length
+      : 0;
 
-    const invoices = allInvoices.filter(i => i.customerId ? i.customerId === selectedCustomer.id : i.customerName === selectedCustomer.fullName).map(i => {
+    const invoices = allInvoices.filter(i => belongsToCustomer(i, selectedCustomer, customers, 'customerName')).map(i => {
       const debit = getSalesInvoiceTotal(i);
       return {
         date: i.date, type: 'invoice' as const, number: i.number, description: 'فاتورة مبيعات ضريبية',
@@ -125,7 +131,7 @@ export const CustomerModule: React.FC<{ statementOnly?: boolean }> = ({ statemen
       };
     });
 
-    const receipts = allReceipts.filter(r => r.customerId ? r.customerId === selectedCustomer.id : r.receivedFrom === selectedCustomer.fullName).map(r => ({
+    const receipts = allReceipts.filter(r => belongsToCustomer(r, selectedCustomer, customers, 'receivedFrom')).map(r => ({
       date: r.date, type: 'receipt' as const, number: r.number,
       description: `${r.invoiceId ? `دفعة على الفاتورة ${r.invoiceId}` : (r.forReason || 'دفعة غير مخصصة')} — ${r.paymentMethod === 'cash' ? 'نقداً' : r.paymentMethod === 'check' ? 'شيك' : 'تحويل بنكي'}`,
       debit: 0, credit: r.amount
@@ -140,8 +146,8 @@ export const CustomerModule: React.FC<{ statementOnly?: boolean }> = ({ statemen
     const totalCredit = transactions.reduce((s, t) => s + t.credit, 0);
     const balance = totalDebit - totalCredit;
 
-    return { transactions, totalDebit, totalCredit, balance };
-  }, [selectedCustomer, allInvoices, allReceipts]);
+    return { transactions, totalDebit, totalCredit, balance, ambiguousRecords };
+  }, [selectedCustomer, customers, allInvoices, allReceipts]);
 
   const formatStatementAmount = (amount: number) => amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const balanceLabel = (balance: number) => balance > 0 ? 'مدين' : balance < 0 ? 'دائن' : 'مسدد';
@@ -167,6 +173,7 @@ export const CustomerModule: React.FC<{ statementOnly?: boolean }> = ({ statemen
         </div>
 
         <div id="printable-area" className="print-document bg-white shadow-2xl w-[210mm] min-h-[297mm] relative flex flex-col p-0 print:shadow-none print:w-full print:m-0">
+          {customerStatement.ambiguousRecords > 0 && <p role="alert" className="m-4 p-3 border border-amber-500 text-sm text-amber-900">يوجد {customerStatement.ambiguousRecords} مستند قديم باسم مطابق لأكثر من عميل. لم يُحتسب في الرصيد؛ اربطه بالعميل الصحيح من محرر الفاتورة أو سند القبض لاستكمال الكشف.</p>}
           <div className="flex flex-col flex-1 bg-white">
             <header className="px-10 py-6 border-b-2 border-jilco-900 flex justify-between items-center bg-white shrink-0">
               <div className="w-1/3 text-right">

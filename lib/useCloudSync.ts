@@ -150,7 +150,12 @@ export const useCloudSync = (modules: SyncModule[], cacheScope?: string) => {
                 (item.number && item.number === invoice.number)
                 || (item.id && item.id === (invoice.id || invoice.number))
             );
-            return update ? { ...invoice, paidAmount: Number(update.paidAmount) || 0, status: update.status } : invoice;
+            return update ? {
+                ...invoice, paidAmount: Number(update.paidAmount) || 0, status: update.status,
+                ...(Array.isArray(update.items) ? { items: update.items } : {}),
+                ...(update.grandTotal !== undefined ? { grandTotal: Number(update.grandTotal), discountAmount: Number(update.discountAmount) || 0 } : {}),
+                ...(update.customerId !== undefined ? { customerId: update.customerId || undefined } : {})
+            } : invoice;
         });
 
         invoiceModule?.stateSetter(prev => apply(prev));
@@ -163,7 +168,7 @@ export const useCloudSync = (modules: SyncModule[], cacheScope?: string) => {
     };
 
     const matchesRecordId = (record: any, collection: string, id: string) =>
-        collection === 'jilco_receipts_archive'
+        (collection === 'jilco_receipts_archive' || collection === 'jilco_invoices_archive')
             ? (record.number || record.id) === id || record.id === id
             : (record.id || record.number) === id;
 

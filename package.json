@@ -6,6 +6,7 @@
   "scripts": {
     "test": "node tests/subcontracts.test.mjs",
     "test:financial-migrations": "node tests/financial-migrations.test.mjs",
+    "test:invoices": "node --test tests/invoice-calculations.test.mjs tests/invoice-drafts.test.mjs",
     "typecheck": "tsc --noEmit",
     "dev": "vite",
     "build": "vite build",

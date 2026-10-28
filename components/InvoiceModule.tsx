@@ -8,6 +8,8 @@ import { loggerService } from '../services/loggerService.ts';
 import { useSales } from '../contexts/SalesContext.tsx';
 import { useMaintenance } from '../contexts/MaintenanceContext.tsx';
 import { useData } from '../contexts/DataContext.tsx';
+import { useSupabaseAuth } from '../contexts/SupabaseAuthContext';
+import { invoiceDraftKey, readInvoiceDraft, writeInvoiceDraft } from '../lib/invoiceDrafts.mjs';
 import { amountInArabicWords, calculateInvoiceAmounts, formatInvoiceMoney } from '../lib/invoiceCalculations.mjs';
 
 const localDateString = (date = new Date()) => {
@@ -42,6 +44,11 @@ interface SavedQuote {
 
 export const InvoiceModule: React.FC = () => {
     const { config: companyConfig } = useData();
+    const { user: cloudUser } = useSupabaseAuth();
+    const draftKey = invoiceDraftKey(cloudUser?.company_id, cloudUser?.id);
+    const [restoredDraft] = useState<InvoiceData | null>(() => readInvoiceDraft(localStorage, draftKey));
+    const [hasDraft, setHasDraft] = useState(Boolean(restoredDraft));
+    const [draftError, setDraftError] = useState(false);
     const { currentUser } = useAuth();
     const {
         invoices, customers, receipts, quotes: savedQuotes,
@@ -49,7 +56,7 @@ export const InvoiceModule: React.FC = () => {
     } = useSales();
     const { contracts, tickets } = useMaintenance();
 
-    const [viewMode, setViewMode] = useState<'list' | 'editor' | 'statement'>('list');
+    const [viewMode, setViewMode] = useState<'list' | 'editor' | 'statement'>(restoredDraft ? 'editor' : 'list');
     const [searchTerm, setSearchTerm] = useState('');
     const [creatingInvoice, setCreatingInvoice] = useState(false);
     const creatingInvoiceRef = useRef(false);
@@ -61,7 +68,7 @@ export const InvoiceModule: React.FC = () => {
         if (companyConfig) setConfig({ ...INITIAL_CONFIG, ...companyConfig });
     }, [companyConfig]);
 
-    const [currentInvoice, setCurrentInvoice] = useState<InvoiceData>({
+    const [currentInvoice, setCurrentInvoice] = useState<InvoiceData>(restoredDraft || {
         number: `INV-${new Date().getFullYear()}-001`,
         date: localDateString(),
         dueDate: dateAfterDays(15),
@@ -79,6 +86,13 @@ export const InvoiceModule: React.FC = () => {
     });
 
     useEffect(() => {
+        if (viewMode !== 'editor') return;
+        const saved = writeInvoiceDraft(localStorage, draftKey, currentInvoice);
+        setDraftError(!saved);
+        if (saved) setHasDraft(true);
+    }, [currentInvoice, viewMode, draftKey]);
+
+    useEffect(() => {
         const savedConfig = localStorage.getItem('jilco_quote_data');
         if (savedConfig) {
             try {
@@ -89,6 +103,7 @@ export const InvoiceModule: React.FC = () => {
     }, []);
 
     const handleCreateNew = async () => {
+        if (hasDraft && !window.confirm('توجد مسودة فاتورة محفوظة. هل تريد استبدالها بفاتورة جديدة؟')) return;
         if (creatingInvoiceRef.current) return;
         creatingInvoiceRef.current = true;
         setCreatingInvoice(true);
@@ -182,6 +197,8 @@ export const InvoiceModule: React.FC = () => {
         } else {
             loggerService.addLog(currentUser, 'إنشاء فاتورة', `رقم الفاتورة: ${currentInvoice.number}`, 'المحاسبة');
         }
+        try { if (draftKey) localStorage.removeItem(draftKey); } catch (error) { console.error('Could not clear invoice draft:', error); }
+        setHasDraft(false);
         setViewMode('list');
         } finally {
             savingInvoiceRef.current = false;
@@ -189,13 +206,14 @@ export const InvoiceModule: React.FC = () => {
         }
     };
 
-    const handleDeleteInvoice = async (number: string) => {
+    const handleDeleteInvoice = async (invoice: InvoiceData & { id?: string }) => {
+        const number = invoice.number;
         if (receipts.some(receipt => receipt.invoiceId === number || receipt.invoiceNumber === number)) {
             alert('لا يمكن حذف هذه الفاتورة لأنها مرتبطة بسند قبض. احذف سند القبض أو فك ارتباطه أولاً.');
             return;
         }
         if (window.confirm('هل أنت متأكد من حذف هذه الفاتورة؟')) {
-            const deleted = await deleteSalesRecord('jilco_invoices_archive', number);
+            const deleted = await deleteSalesRecord('jilco_invoices_archive', invoice.id || number);
             if (!deleted) {
                 alert('تعذر حذف الفاتورة من السحابة. تحقق من الاتصال ثم أعد المحاولة.');
                 return;
@@ -217,6 +235,14 @@ export const InvoiceModule: React.FC = () => {
             const customerQuotes = savedQuotes.filter(q => q.details.customerName === customer.fullName);
             setAvailableQuotes(customerQuotes);
         }
+    };
+
+    const openInvoice = (invoice: InvoiceData) => {
+        if (hasDraft && invoice.number !== currentInvoice.number
+            && !window.confirm('توجد مسودة لفاتورة أخرى. هل تريد استبدالها بهذه الفاتورة؟')) return false;
+        setCurrentInvoice(invoice);
+        setViewMode('editor');
+        return true;
     };
 
     const handleImportQuote = (quote: SavedQuote) => {
@@ -244,6 +270,7 @@ export const InvoiceModule: React.FC = () => {
                             <p className="text-gray-500 text-sm">إدارة الفواتير الصادرة للعملاء</p>
                         </div>
                         <div className="flex items-center gap-3">
+                            {hasDraft && <button onClick={() => setViewMode('editor')} className="px-4 py-2.5 rounded-lg border border-jilco-600 font-bold text-jilco-700">استكمال المسودة</button>}
                             <button onClick={async () => {
                                 if(window.confirm('هل أنت متأكد من ترحيل الفواتير من قاعدة البيانات القديمة للجديدة؟')) {
                                     import('../services/cloudService').then(async m => {
@@ -301,8 +328,7 @@ export const InvoiceModule: React.FC = () => {
                                             <button
                                                 title="مشاركة عبر واتساب"
                                                 onClick={() => {
-                                                    setCurrentInvoice(inv);
-                                                    setViewMode('editor');
+                                                    if (!openInvoice(inv)) return;
                                                     setTimeout(() => {
                                                         const shareBtn = document.querySelector('[title="مشاركة المستند"]') as HTMLButtonElement;
                                                         if (shareBtn) shareBtn.click();
@@ -315,9 +341,9 @@ export const InvoiceModule: React.FC = () => {
                                                     <path d="M12 0C5.373 0 0 5.373 0 12c0 2.127.558 4.126 1.528 5.858L0 24l6.335-1.658A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.818 9.818 0 01-5.017-1.376l-.36-.214-3.734.979.994-3.634-.235-.374A9.818 9.818 0 1112 21.818z" />
                                                 </svg>
                                             </button>
-                                            <button title="تعديل" onClick={() => { setCurrentInvoice(inv); setViewMode('editor'); }} className="p-2 text-blue-600 hover:bg-blue-50 rounded-full"><Edit size={16} /></button>
-                                            <button title="طباعة" onClick={() => { setCurrentInvoice(inv); setViewMode('editor'); setTimeout(() => window.print(), 500); }} className="p-2 text-gray-600 hover:bg-gray-50 rounded-full"><Printer size={16} /></button>
-                                            <button title="حذف" onClick={() => handleDeleteInvoice(inv.number)} className="p-2 text-red-500 hover:bg-red-50 rounded-full"><Trash2 size={16} /></button>
+                                            <button title="تعديل" onClick={() => openInvoice(inv)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-full"><Edit size={16} /></button>
+                                            <button title="طباعة" onClick={() => { if (openInvoice(inv)) setTimeout(() => window.print(), 500); }} className="p-2 text-gray-600 hover:bg-gray-50 rounded-full"><Printer size={16} /></button>
+                                            <button title="حذف" onClick={() => handleDeleteInvoice(inv)} className="p-2 text-red-500 hover:bg-red-50 rounded-full"><Trash2 size={16} /></button>
                                         </td>
                                     </tr>
                                 ))}
@@ -336,6 +362,7 @@ export const InvoiceModule: React.FC = () => {
                     <h2 className="text-xl font-bold text-jilco-900 flex items-center gap-2"><FileText className="text-blue-600" /> محرر الفاتورة</h2>
                     <button title="رجوع" onClick={() => setViewMode('list')} className="p-2 hover:bg-gray-100 rounded-full"><ArrowLeft size={20} /></button>
                 </div>
+                <p role="status" className={`text-xs mb-4 ${draftError ? 'text-red-700' : 'text-gray-500'}`}>{draftError ? 'تعذر حفظ المسودة على هذا الجهاز. احفظ الفاتورة قبل مغادرة الصفحة.' : 'تُحفظ مسودة التعديلات على هذا الجهاز. اضغط حفظ لاعتماد الفاتورة في السحابة.'}</p>
 
                 <div className="space-y-6">
                     <div className="grid grid-cols-3 gap-2">
@@ -352,7 +379,7 @@ export const InvoiceModule: React.FC = () => {
 
                     <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 space-y-3">
                         <label className="text-xs font-bold text-gray-700">بيانات العميل</label>
-                        <select title="اختيار العميل" onChange={handleCustomerSelect} className="w-full p-2 border rounded text-sm bg-white font-bold text-black" defaultValue="">
+                        <select title="اختيار العميل" value={currentInvoice.customerId || ''} onChange={handleCustomerSelect} className="w-full p-2 border rounded text-sm bg-white font-bold text-black">
                             <option value="" disabled>-- اختر عميل مسجل --</option>
                             {customers.map(c => <option key={c.id} value={c.id}>{c.fullName}</option>)}
                         </select>
@@ -377,6 +404,7 @@ export const InvoiceModule: React.FC = () => {
                                 const customer = customers.find(c => c.id === contract.customerId);
                                 setCurrentInvoice(prev => ({
                                     ...prev,
+                                    customerId: customer?.id || prev.customerId,
                                     customerName: customer?.fullName || prev.customerName,
                                     customerVatNumber: customer?.vatNumber || prev.customerVatNumber,
                                     items: [{
@@ -399,6 +427,7 @@ export const InvoiceModule: React.FC = () => {
                                 const customer = customers.find(c => c.id === ticket.customerId);
                                 setCurrentInvoice(prev => ({
                                     ...prev,
+                                    customerId: customer?.id || prev.customerId,
                                     customerName: customer?.fullName || prev.customerName,
                                     customerVatNumber: customer?.vatNumber || prev.customerVatNumber,
                                     items: [{

@@ -405,7 +405,49 @@ try {
   await resetRole();
   assert.equal(await count('select count(*)::int n from public.invoices where number=$1', [reserved3]), 0);
 
-  console.log('PASS: 20261024 migrations cover HR RLS, payment backfills, atomic quote/receipt cycles, and invoice reservation guards');
+  await resetRole();
+  await db.exec(`
+    create table public.customers (id uuid primary key default gen_random_uuid(), company_id uuid not null, legacy_id text unique, full_name text);
+    alter table public.customers enable row level security;
+    create policy customers_tenant on public.customers for select to authenticated
+      using (company_id = (select company_id from public.app_users where id = auth.uid()));
+    grant select on public.customers to authenticated;
+  `);
+  await db.query(`insert into public.customers(company_id,legacy_id,full_name) values ($1,'customer-a','Same name'),($1,'customer-a2','Same name'),($2,'customer-b','Other company')`, [companyA,companyB]);
+  await db.exec(migration('20261026130000_enforce_financial_roles_and_receipt_integrity.sql'));
+  await db.exec(migration('20261028153231_enforce_invoice_integrity_and_customer_links.sql'));
+  await asUser(userA);
+  const number = (await db.query('select public.reserve_invoice_number(2035) number')).rows[0].number;
+  const payload = { legacy_id: 'stable-invoice-id', number, customer_name: 'Same name', customer_legacy_id: 'customer-a',
+    items: [{ description: 'Item', quantity: 2, unitPrice: 50, total: 1 }], total: 1, discount_amount: 10, is_tax_inclusive: false };
+  const saveStrict = async value => (await db.query('select public.save_invoice_record($1::jsonb) invoice', [JSON.stringify(value)])).rows[0].invoice;
+  const canonical = await saveStrict(payload);
+  assert.equal(Number(canonical.grandTotal), 103.5, 'server recomputes totals instead of trusting the client');
+  assert.equal(Number(canonical.items[0].total), 100);
+  assert.equal(canonical.customerId, 'customer-a');
+  const persistedCustomer = (await db.query('select customer_legacy_id, customer_id from public.invoices where legacy_id=$1', [payload.legacy_id])).rows[0];
+  assert.equal(persistedCustomer.customer_legacy_id, 'customer-a');
+  assert.ok(persistedCustomer.customer_id);
+  await assert.rejects(saveStrict({ ...payload, customer_legacy_id: 'customer-b' }), /customer.*company/i);
+  await assert.rejects(saveStrict({ ...payload, items: [{quantity: 0, unitPrice: 10}] }), /quantities/i);
+  await assert.rejects(saveStrict({ ...payload, items: [{quantity: 1, unitPrice: -10}] }), /quantities/i);
+  await assert.rejects(saveStrict({ ...payload, items: [] }), /at least one item/i);
+  await saveReceipt('strict-receipt', 'RV-STRICT', 40, number);
+  // Simulates a stale editor whose last loaded paidAmount was zero.
+  await assert.rejects(saveStrict({ ...payload, paidAmount: 0, items: [{quantity: 1, unitPrice: 20}], discount_amount: 0 }), /less than recorded payments/i);
+  assert.equal(Number((await db.query('select total from public.invoices where number=$1',[number])).rows[0].total), 103.5);
+  await assert.rejects(db.query('update public.invoices set items=$1::jsonb where number=$2', [JSON.stringify([{quantity:1,unitPrice:20}]),number]), /less than recorded payments/i);
+  await assert.rejects(saveReceipt('strict-overpay', 'RV-STRICT-OVER', 100, number), /remaining invoice balance/i);
+  await assert.rejects(saveReceipt('strict-duplicate', 'RV-STRICT', 1, null), /duplicate key|unique constraint/i);
+  assert.equal((await db.query('select public.delete_invoice_without_receipts($1) deleted',[number])).rows[0].deleted,false);
+  await db.query('delete from public.invoices where number=$1',[number]);
+  assert.equal(await count('select count(*)::int n from public.invoices where number=$1',[number]),1,'direct deletion cannot bypass linked receipt protection');
+  await db.query('select public.delete_receipt_with_invoice_recalculation($1)', ['strict-receipt']);
+  assert.equal((await db.query('select public.delete_invoice_without_receipts($1) deleted',[number])).rows[0].deleted,true,'deletion accepts a unique invoice number even when legacy_id differs');
+  await asUser(userB);
+  assert.equal((await db.query('select public.delete_invoice_without_receipts($1) deleted',[reserved1])).rows[0].deleted,false);
+
+  console.log('PASS: financial migrations enforce canonical invoice totals, customer ownership, paid balance guards, receipt uniqueness, and safe invoice deletion');
 } finally {
   await db.close();
 }
