@@ -142,6 +142,40 @@ const getBackupKey = (username?: string) =>
 
 export const cloudService = {
 
+  async loadCompanyConfig() {
+    const companyId = await getCurrentCompanyId();
+    const { data, error } = await supabase
+      .from('jilco_realtime_data')
+      .select('record_id, data')
+      .eq('collection', 'jilco_config_db')
+      .eq('company_id', companyId);
+    if (error) throw error;
+
+    const scopedRecord = (data || []).find((row: any) => row.record_id === `singleton_config:${companyId}`);
+    const legacyRecord = (data || []).find((row: any) => row.record_id === 'singleton_config');
+    return scopedRecord?.data || legacyRecord?.data || null;
+  },
+
+  async saveCompanyConfig(configData: any) {
+    try {
+      const companyId = await getCurrentCompanyId();
+      const { error } = await supabase
+        .from('jilco_realtime_data')
+        .upsert({
+          collection: 'jilco_config_db',
+          record_id: `singleton_config:${companyId}`,
+          company_id: companyId,
+          data: configData,
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'collection, record_id' });
+      if (error) throw error;
+      return true;
+    } catch (error) {
+      console.error('Company config save failed:', error);
+      return false;
+    }
+  },
+
   async reserveInvoiceNumber(year: number): Promise<string> {
     const { data, error } = await supabase.rpc('reserve_invoice_number', { p_year: year });
     if (error) throw error;

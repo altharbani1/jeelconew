@@ -35,9 +35,11 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
         // 2. Sync from cloud
         try {
-            const cloudData = await cloudService.loadCollection('jilco_config_db');
-            if (cloudData && cloudData.length > 0 && cloudData[0].data) {
-                setConfig(cloudData[0].data);
+            const cloudConfig = await cloudService.loadCompanyConfig();
+            // A cloud read that started before the user edited the profile must
+            // not replace that newer local draft when it finally resolves.
+            if (cloudConfig && localStorage.getItem('jilco_quote_data') === localConfig) {
+                setConfig(cloudConfig);
             }
         } catch (e) {
             console.error('Failed to load config from cloud:', e);
@@ -108,10 +110,17 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     const saveConfig = async (configData: any): Promise<boolean> => {
         setConfig(configData);
-        const existingData = JSON.parse(localStorage.getItem('jilco_quote_data') || '{}');
-        existingData.config = configData;
-        localStorage.setItem('jilco_quote_data', JSON.stringify(existingData));
-        return await cloudService.saveRecord('jilco_config_db', 'singleton_config', configData);
+        try {
+            const existingData = JSON.parse(localStorage.getItem('jilco_quote_data') || '{}');
+            existingData.config = configData;
+            localStorage.setItem('jilco_quote_data', JSON.stringify(existingData));
+        } catch (error) {
+            console.error('Company config local cache save failed:', error);
+            return false;
+        }
+        const success = await cloudService.saveCompanyConfig(configData);
+        setSyncStatus(success ? 'synced' : 'error');
+        return success;
     };
 
     const saveSpecsDb = async (specsData: any): Promise<boolean> => {

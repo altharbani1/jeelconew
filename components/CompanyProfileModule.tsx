@@ -24,6 +24,8 @@ export const CompanyProfileModule: React.FC = () => {
 
     const [config, setConfig] = useState<CompanyConfig>(INITIAL_CONFIG);
     const [showSaved, setShowSaved] = useState(false);
+    const [saveError, setSaveError] = useState(false);
+    const [saving, setSaving] = useState(false);
     const [uploadingImage, setUploadingImage] = useState(false);
 
     // Load Data
@@ -35,10 +37,17 @@ export const CompanyProfileModule: React.FC = () => {
 
     // Save Data
     const handleSave = async () => {
-        // Save using DataContext which handles Supabase sync internally
-        const success = await saveConfig(config);
-        setShowSaved(success);
-        if (success) setTimeout(() => setShowSaved(false), 3000);
+        setSaving(true);
+        setSaveError(false);
+        try {
+            // DataContext saves a tenant-scoped record and updates the local cache.
+            const success = await saveConfig(config);
+            setShowSaved(success);
+            setSaveError(!success);
+            if (success) setTimeout(() => setShowSaved(false), 3000);
+        } finally {
+            setSaving(false);
+        }
     };
 
     const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'logo' | 'stamp') => {
@@ -106,12 +115,14 @@ export const CompanyProfileModule: React.FC = () => {
 
                     <button
                         onClick={handleSave}
-                        className={`px-6 py-2.5 rounded-lg font-bold flex items-center gap-2 shadow-md transition-all ${showSaved ? 'bg-green-600 hover:bg-green-700' : 'bg-jilco-900 hover:bg-jilco-800'} text-white`}
+                        disabled={saving}
+                        className={`px-6 py-2.5 rounded-lg font-bold flex items-center gap-2 shadow-md transition-all disabled:opacity-60 ${showSaved ? 'bg-green-600 hover:bg-green-700' : 'bg-jilco-900 hover:bg-jilco-800'} text-white`}
                     >
                         {showSaved ? <CheckCircle2 size={18} /> : <Save size={18} />}
-                        {showSaved ? 'تم الحفظ بنجاح' : 'حفظ التغييرات'}
+                        {saving ? 'جارٍ الحفظ...' : showSaved ? 'تم الحفظ بنجاح' : 'حفظ التغييرات'}
                     </button>
                 </div>
+                {saveError && <p role="alert" className="mb-5 text-sm font-bold text-red-700">تعذر حفظ التغييرات. بقيت بياناتك في هذه الصفحة؛ تحقق من الاتصال ثم أعد المحاولة.</p>}
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     {/* Left Column: Branding Images & Cloud */}
