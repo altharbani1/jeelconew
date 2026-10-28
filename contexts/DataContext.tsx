@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, ReactNode } from 'react';
 import { cloudService } from '../services/cloudService';
 
 interface DataContextType {
@@ -17,6 +17,7 @@ const DataContext = createContext<DataContextType | undefined>(undefined);
 
 export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const [config, setConfig] = useState<any>(null);
+    const configSaveQueue = useRef<Promise<boolean>>(Promise.resolve(true));
     const [syncStatus, setSyncStatus] = useState<'idle' | 'syncing' | 'synced' | 'error'>('idle');
 
     const [specsDb, setSpecsDb] = useState<any>({});
@@ -118,7 +119,10 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             console.error('Company config local cache save failed:', error);
             return false;
         }
-        const success = await cloudService.saveCompanyConfig(configData);
+        // Preserve edit order when an automatic save overlaps another save.
+        const queuedSave = configSaveQueue.current.catch(() => false).then(() => cloudService.saveCompanyConfig(configData));
+        configSaveQueue.current = queuedSave;
+        const success = await queuedSave;
         setSyncStatus(success ? 'synced' : 'error');
         return success;
     };

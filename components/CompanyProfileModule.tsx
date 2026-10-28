@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Building, Upload, Trash2, CreditCard, Save, Phone, Mail, MapPin, FileSignature, User, CheckCircle2, Download, DatabaseBackup, AlertTriangle, Cloud, CloudRain, Server, RefreshCw, HardDrive, Info, Eye } from 'lucide-react';
 import { CompanyConfig, BankAccount } from '../types';
 import { cloudService } from '../services/cloudService.ts';
@@ -27,16 +27,45 @@ export const CompanyProfileModule: React.FC = () => {
     const [saveError, setSaveError] = useState(false);
     const [saving, setSaving] = useState(false);
     const [uploadingImage, setUploadingImage] = useState(false);
+    const pendingBankConfig = useRef<CompanyConfig | null>(null);
+    const bankSaveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const saveConfigRef = useRef(saveConfig);
+    saveConfigRef.current = saveConfig;
+
+    useEffect(() => () => {
+        if (bankSaveTimer.current) clearTimeout(bankSaveTimer.current);
+        // The provider remains mounted when navigating to another module.
+        if (pendingBankConfig.current) void saveConfigRef.current(pendingBankConfig.current);
+    }, []);
+
+    const updateBankConfig = (next: CompanyConfig) => {
+        setConfig(next);
+        pendingBankConfig.current = next;
+        setShowSaved(false);
+        if (bankSaveTimer.current) clearTimeout(bankSaveTimer.current);
+        bankSaveTimer.current = setTimeout(async () => {
+            const draft = pendingBankConfig.current;
+            pendingBankConfig.current = null;
+            if (!draft) return;
+            setSaving(true);
+            const success = await saveConfigRef.current(draft);
+            setSaving(false);
+            setSaveError(!success);
+            setShowSaved(success);
+        }, 600);
+    };
 
     // Load Data
     useEffect(() => {
-        if (globalConfig) {
+        if (globalConfig && !pendingBankConfig.current) {
             setConfig(globalConfig);
         }
     }, [globalConfig]);
 
     // Save Data
     const handleSave = async () => {
+        if (bankSaveTimer.current) clearTimeout(bankSaveTimer.current);
+        pendingBankConfig.current = null;
         setSaving(true);
         setSaveError(false);
         try {
@@ -78,26 +107,20 @@ export const CompanyProfileModule: React.FC = () => {
     };
 
     const handleBankChange = (index: number, field: keyof BankAccount, value: string) => {
-        setConfig(prev => {
-            const newBanks = [...prev.bankAccounts];
-            newBanks[index] = { ...newBanks[index], [field]: value };
-            return { ...prev, bankAccounts: newBanks };
-        });
+        const newBanks = [...config.bankAccounts];
+        newBanks[index] = { ...newBanks[index], [field]: value };
+        updateBankConfig({ ...config, bankAccounts: newBanks });
     };
 
     const addBankAccount = () => {
-        setConfig(prev => ({
-            ...prev,
-            bankAccounts: [...prev.bankAccounts, { id: Date.now().toString(), bankName: 'بنك جديد', accountNumber: '', iban: 'SA' }]
-        }));
+        updateBankConfig({
+            ...config,
+            bankAccounts: [...config.bankAccounts, { id: crypto.randomUUID(), bankName: 'بنك جديد', accountNumber: '', iban: 'SA' }]
+        });
     };
 
     const removeBankAccount = (index: number) => {
-        setConfig(prev => {
-            const newBanks = [...prev.bankAccounts];
-            newBanks.splice(index, 1);
-            return { ...prev, bankAccounts: newBanks };
-        });
+        updateBankConfig({ ...config, bankAccounts: config.bankAccounts.filter((_, i) => i !== index) });
     };
 
 
@@ -134,7 +157,7 @@ export const CompanyProfileModule: React.FC = () => {
                             <h3 className="font-bold text-gold-400 mb-4 flex items-center gap-2 border-b border-jilco-800 pb-2">
                                 <Info size={18} /> التحديثات المباشرة
                             </h3>
-                            <p className="text-xs text-gray-300">يتم حفظ ومزامنة بيانات الشركة تلقائياً عبر السحابة لحظة التعديل.</p>
+                            <p className="text-xs text-gray-300">تُحفظ الحسابات البنكية تلقائياً بعد التعديل. استخدم زر حفظ التغييرات لبقية بيانات الشركة.</p>
                         </div>
 
 
