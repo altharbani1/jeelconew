@@ -41,6 +41,9 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             // not replace that newer local draft when it finally resolves.
             if (cloudConfig && localStorage.getItem('jilco_quote_data') === localConfig) {
                 setConfig(cloudConfig);
+                // Legacy document modules read this cache when they open.
+                const cached = JSON.parse(localConfig || '{}');
+                localStorage.setItem('jilco_quote_data', JSON.stringify({ ...cached, config: cloudConfig }));
             }
         } catch (e) {
             console.error('Failed to load config from cloud:', e);
@@ -117,7 +120,7 @@ export const DataProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
             localStorage.setItem('jilco_quote_data', JSON.stringify(existingData));
         } catch (error) {
             console.error('Company config local cache save failed:', error);
-            return false;
+            // Large logo/stamp previews can exceed browser storage; still save to the cloud.
         }
         // Preserve edit order when an automatic save overlaps another save.
         const queuedSave = configSaveQueue.current.catch(() => false).then(() => cloudService.saveCompanyConfig(configData));

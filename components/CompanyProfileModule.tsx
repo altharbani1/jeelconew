@@ -23,6 +23,8 @@ export const CompanyProfileModule: React.FC = () => {
     const { config: globalConfig, saveConfig } = useData();
 
     const [config, setConfig] = useState<CompanyConfig>(INITIAL_CONFIG);
+    const latestConfig = useRef(config);
+    latestConfig.current = config;
     const [showSaved, setShowSaved] = useState(false);
     const [saveError, setSaveError] = useState(false);
     const [saving, setSaving] = useState(false);
@@ -58,7 +60,7 @@ export const CompanyProfileModule: React.FC = () => {
     // Load Data
     useEffect(() => {
         if (globalConfig && !pendingBankConfig.current) {
-            setConfig(globalConfig);
+            setConfig({ ...INITIAL_CONFIG, ...globalConfig, bankAccounts: globalConfig.bankAccounts || [] });
         }
     }, [globalConfig]);
 
@@ -87,16 +89,14 @@ export const CompanyProfileModule: React.FC = () => {
             reader.onload = async (ev) => {
                 if (ev.target?.result) {
                     const base64 = ev.target.result as string;
-                    const previewConfig = { ...config, [type]: base64 };
-                    setConfig(previewConfig);
-                    await saveConfig(previewConfig);
+                    const previewConfig = { ...latestConfig.current, [type]: base64 };
+                    updateBankConfig(previewConfig);
                     // رفع لـ Supabase Storage في الخلفية
                     setUploadingImage(true);
                     const url = await cloudService.uploadImage(base64, `jilco_${type}_${Date.now()}`);
                     if (url) {
-                        const uploadedConfig = { ...previewConfig, [type]: url };
-                        setConfig(uploadedConfig);
-                        await saveConfig(uploadedConfig);
+                        const uploadedConfig = { ...latestConfig.current, [type]: url };
+                        updateBankConfig(uploadedConfig);
                         console.log(`✅ ${type} uploaded to Supabase:`, url);
                     }
                     setUploadingImage(false);
@@ -157,7 +157,7 @@ export const CompanyProfileModule: React.FC = () => {
                             <h3 className="font-bold text-gold-400 mb-4 flex items-center gap-2 border-b border-jilco-800 pb-2">
                                 <Info size={18} /> التحديثات المباشرة
                             </h3>
-                            <p className="text-xs text-gray-300">تُحفظ الحسابات البنكية تلقائياً بعد التعديل. استخدم زر حفظ التغييرات لبقية بيانات الشركة.</p>
+                            <p className="text-xs text-gray-300">يُحفظ الشعار والختم وبيانات الشركة والحسابات البنكية تلقائياً بعد التعديل، ويمكنك الحفظ أيضاً من الزر العلوي.</p>
                         </div>
 
 
@@ -171,7 +171,7 @@ export const CompanyProfileModule: React.FC = () => {
                                 {config.logo ? (
                                     <>
                                         <img src={config.logo} alt="Logo" className="w-full h-full object-contain p-4" />
-                                        <button title="حذف الشعار" onClick={() => setConfig(c => ({ ...c, logo: null }))} className="absolute top-2 right-2 bg-red-500 text-white p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"><Trash2 size={14} /></button>
+                                        <button title="حذف الشعار" onClick={() => updateBankConfig({ ...config, logo: null })} className="absolute top-2 right-2 bg-red-500 text-white p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"><Trash2 size={14} /></button>
                                     </>
                                 ) : (
                                     <div className="text-center text-gray-400">
@@ -195,7 +195,7 @@ export const CompanyProfileModule: React.FC = () => {
                                 {config.stamp ? (
                                     <>
                                         <img src={config.stamp} alt="Stamp" className="w-full h-full object-contain p-4" />
-                                        <button title="حذف الختم" onClick={() => setConfig(c => ({ ...c, stamp: null }))} className="absolute top-2 right-2 bg-red-500 text-white p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"><Trash2 size={14} /></button>
+                                        <button title="حذف الختم" onClick={() => updateBankConfig({ ...config, stamp: null })} className="absolute top-2 right-2 bg-red-500 text-white p-1.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"><Trash2 size={14} /></button>
                                     </>
                                 ) : (
                                     <div className="text-center text-gray-400">
@@ -220,27 +220,27 @@ export const CompanyProfileModule: React.FC = () => {
                             <div className="space-y-4">
                                 <div>
                                     <label className="block text-xs font-bold text-gray-500 mb-1">اسم الشركة (العنوان الرئيسي)</label>
-                                    <input title="اسم الشركة" placeholder="اسم الشركة" type="text" value={config.headerTitle} onChange={e => setConfig({ ...config, headerTitle: e.target.value })} className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-jilco-500 outline-none text-sm text-black font-bold" />
+                                    <input title="اسم الشركة" placeholder="اسم الشركة" type="text" value={config.headerTitle} onChange={e => updateBankConfig({ ...config, headerTitle: e.target.value })} className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-jilco-500 outline-none text-sm text-black font-bold" />
                                 </div>
                                 <div>
                                     <label className="block text-xs font-bold text-gray-500 mb-1">العنوان الفرعي (Subtitle)</label>
-                                    <input title="العنوان الفرعي" placeholder="العنوان الفرعي" type="text" value={config.headerSubtitle} onChange={e => setConfig({ ...config, headerSubtitle: e.target.value })} className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-jilco-500 outline-none text-sm text-black font-bold" />
+                                    <input title="العنوان الفرعي" placeholder="العنوان الفرعي" type="text" value={config.headerSubtitle} onChange={e => updateBankConfig({ ...config, headerSubtitle: e.target.value })} className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-jilco-500 outline-none text-sm text-black font-bold" />
                                 </div>
                                 <div>
                                     <label className="block text-xs font-bold text-gray-500 mb-1">الرقم الضريبي (VAT Number)</label>
-                                    <input title="الرقم الضريبي" placeholder="الرقم الضريبي" type="text" value={config.taxNumber} onChange={e => setConfig({ ...config, taxNumber: e.target.value })} className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-jilco-500 outline-none text-sm text-black font-bold" />
+                                    <input title="الرقم الضريبي" placeholder="الرقم الضريبي" type="text" value={config.taxNumber} onChange={e => updateBankConfig({ ...config, taxNumber: e.target.value })} className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-jilco-500 outline-none text-sm text-black font-bold" />
                                 </div>
                                 <div>
                                     <label className="block text-xs font-bold text-gray-500 mb-1">رقم السجل التجاري</label>
-                                    <input title="رقم السجل التجاري" placeholder="أدخل رقم السجل المعتمد" type="text" value={config.commercialRegistration || ''} onChange={e => setConfig({ ...config, commercialRegistration: e.target.value })} className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-jilco-500 outline-none text-sm text-black font-bold" />
+                                    <input title="رقم السجل التجاري" placeholder="أدخل رقم السجل المعتمد" type="text" value={config.commercialRegistration || ''} onChange={e => updateBankConfig({ ...config, commercialRegistration: e.target.value })} className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-jilco-500 outline-none text-sm text-black font-bold" />
                                 </div>
                                 <div>
                                     <label className="block text-xs font-bold text-gray-500 mb-1">الموقع الإلكتروني</label>
-                                    <input title="الموقع الإلكتروني" placeholder="example.com" type="text" value={config.website || ''} onChange={e => setConfig({ ...config, website: e.target.value })} className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-jilco-500 outline-none text-sm text-black font-bold" dir="ltr" />
+                                    <input title="الموقع الإلكتروني" placeholder="example.com" type="text" value={config.website || ''} onChange={e => updateBankConfig({ ...config, website: e.target.value })} className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-jilco-500 outline-none text-sm text-black font-bold" dir="ltr" />
                                 </div>
                                 <div>
                                     <label className="block text-xs font-bold text-gray-500 mb-1">نص التذييل (Footer Text)</label>
-                                    <input title="نص التذييل" placeholder="نص التذييل" type="text" value={config.footerText} onChange={e => setConfig({ ...config, footerText: e.target.value })} className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-jilco-500 outline-none text-sm text-black font-bold" />
+                                    <input title="نص التذييل" placeholder="نص التذييل" type="text" value={config.footerText} onChange={e => updateBankConfig({ ...config, footerText: e.target.value })} className="w-full p-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-jilco-500 outline-none text-sm text-black font-bold" />
                                 </div>
                             </div>
                         </div>
@@ -253,14 +253,14 @@ export const CompanyProfileModule: React.FC = () => {
                                     <label className="block text-xs font-bold text-gray-500 mb-1">رقم الهاتف الرسمي</label>
                                     <div className="relative">
                                         <Phone size={16} className="absolute right-3 top-3 text-gray-400" />
-                                        <input title="رقم الهاتف" placeholder="رقم الهاتف" type="text" value={config.contactPhone} onChange={e => setConfig({ ...config, contactPhone: e.target.value })} className="w-full pr-9 pl-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-jilco-500 outline-none text-sm text-black font-bold" dir="ltr" />
+                                        <input title="رقم الهاتف" placeholder="رقم الهاتف" type="text" value={config.contactPhone} onChange={e => updateBankConfig({ ...config, contactPhone: e.target.value })} className="w-full pr-9 pl-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-jilco-500 outline-none text-sm text-black font-bold" dir="ltr" />
                                     </div>
                                 </div>
                                 <div>
                                     <label className="block text-xs font-bold text-gray-500 mb-1">البريد الإلكتروني</label>
                                     <div className="relative">
                                         <Mail size={16} className="absolute right-3 top-3 text-gray-400" />
-                                        <input title="البريد الإلكتروني" placeholder="البريد الإلكتروني" type="email" value={config.contactEmail} onChange={e => setConfig({ ...config, contactEmail: e.target.value })} className="w-full pr-9 pl-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-jilco-500 outline-none text-sm text-black font-bold" dir="ltr" />
+                                        <input title="البريد الإلكتروني" placeholder="البريد الإلكتروني" type="email" value={config.contactEmail} onChange={e => updateBankConfig({ ...config, contactEmail: e.target.value })} className="w-full pr-9 pl-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-jilco-500 outline-none text-sm text-black font-bold" dir="ltr" />
                                     </div>
                                 </div>
                             </div>

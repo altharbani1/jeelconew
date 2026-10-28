@@ -7,6 +7,7 @@ import { useAuth } from '../contexts/AuthContext.tsx';
 import { loggerService } from '../services/loggerService.ts';
 import { useSales } from '../contexts/SalesContext.tsx';
 import { useMaintenance } from '../contexts/MaintenanceContext.tsx';
+import { useData } from '../contexts/DataContext.tsx';
 import { amountInArabicWords, calculateInvoiceAmounts, formatInvoiceMoney } from '../lib/invoiceCalculations.mjs';
 
 const localDateString = (date = new Date()) => {
@@ -40,6 +41,7 @@ interface SavedQuote {
 }
 
 export const InvoiceModule: React.FC = () => {
+    const { config: companyConfig } = useData();
     const { currentUser } = useAuth();
     const {
         invoices, customers, receipts, quotes: savedQuotes,
@@ -55,6 +57,9 @@ export const InvoiceModule: React.FC = () => {
     const savingInvoiceRef = useRef(false);
     const [productsDb, setProductsDb] = useState<SupplierProduct[]>([]);
     const [config, setConfig] = useState<CompanyConfig>(INITIAL_CONFIG);
+    useEffect(() => {
+        if (companyConfig) setConfig({ ...INITIAL_CONFIG, ...companyConfig });
+    }, [companyConfig]);
 
     const [currentInvoice, setCurrentInvoice] = useState<InvoiceData>({
         number: `INV-${new Date().getFullYear()}-001`,
@@ -534,11 +539,14 @@ export const InvoiceModule: React.FC = () => {
                     <div className="absolute inset-3 border-[6px] border-jilco-900 pointer-events-none z-0"></div>
                     <div className="absolute inset-[18px] border border-gold-500 pointer-events-none z-0"></div>
                     <div className="relative z-10 flex flex-col flex-1 m-[28px] bg-white">
-                        <header className="px-10 py-6 border-b-2 border-jilco-100 flex justify-between items-center bg-white h-[160px] relative overflow-hidden shrink-0">
+                        <header className="px-10 py-6 border-b-2 border-jilco-100 flex justify-between items-center bg-white min-h-[180px] relative shrink-0">
                             <div className="w-1/3 text-right">
                                 <h1 className="text-2xl font-black text-jilco-900 mb-0.5">{config.headerTitle}</h1>
                                 <p className="text-[10px] font-bold text-gray-500 mb-1">{config.headerSubtitle}</p>
                                 <p className="text-[11px] font-black text-jilco-800">الرقم الضريبي: {config.taxNumber}</p>
+                                {config.commercialRegistration && <p className="text-[10px] text-gray-600">السجل التجاري: {config.commercialRegistration}</p>}
+                                {config.contactPhone && <p className="text-[10px]" dir="ltr">{config.contactPhone}</p>}
+                                {config.contactEmail && <p className="text-[10px]" dir="ltr">{config.contactEmail}</p>}
                             </div>
                             <div className="w-1/3 flex justify-center">
                                 {config.logo && <img src={config.logo} alt="Logo" className="h-32 w-auto object-contain" />}
@@ -644,13 +652,25 @@ export const InvoiceModule: React.FC = () => {
 
                             <div className="mt-8 border-t-2 border-gray-100 pt-4 text-center">
                                 <p className="text-xs text-gray-400 font-bold mb-1">المبلغ كتابة: <span className="text-jilco-900 font-black">{amountInArabicWords(grandTotal)}</span></p>
+                                <div className="flex justify-between items-end gap-4 mt-4 text-right">
+                                    <div className="space-y-2 text-[10px]">
+                                        {(config.bankAccounts || []).filter(bank => bank.bankName?.trim()).map(bank => (
+                                            <div key={bank.id}>
+                                                <p className="font-bold">{bank.bankName}</p>
+                                                {bank.accountNumber && <p>رقم الحساب: <span dir="ltr">{bank.accountNumber}</span></p>}
+                                                {bank.iban && <p dir="ltr">IBAN: {bank.iban}</p>}
+                                            </div>
+                                        ))}
+                                    </div>
+                                    {config.stamp && <img src={config.stamp} alt="ختم الشركة" className="h-24 w-32 object-contain shrink-0" />}
+                                </div>
                             </div>
                         </div>
 
                         <footer className="w-full bg-white shrink-0 mt-auto">
                             <div className="bg-jilco-900 text-white py-3 px-10 flex justify-between items-center text-[10px] font-bold h-[45px]">
                                 <div className="flex items-center gap-2"><MapPin size={12} className="text-gold-400" /><span>{config.footerText}</span></div>
-                                <div className="flex items-center gap-2" dir="ltr"><Globe size={12} className="text-gold-400" /><span>www.jilco-elevators.com</span></div>
+                                {config.website && <div className="flex items-center gap-2" dir="ltr"><Globe size={12} className="text-gold-400" /><span>{config.website}</span></div>}
                             </div>
                         </footer>
                     </div>

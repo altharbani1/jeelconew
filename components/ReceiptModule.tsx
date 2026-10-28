@@ -79,6 +79,7 @@ const INITIAL_CONFIG: CompanyConfig = {
 };
 
 export const ReceiptModule: React.FC<{ initialView?: 'list' | 'editor' | 'statement' }> = ({ initialView = 'list' }) => {
+    const { config: companyConfig } = useData();
     const { currentUser } = useAuth();
     const {
         receipts, customers, invoices, setReceipts,
@@ -106,6 +107,9 @@ export const ReceiptModule: React.FC<{ initialView?: 'list' | 'editor' | 'statem
     });
 
     const [config, setConfig] = useState<CompanyConfig>(INITIAL_CONFIG);
+    useEffect(() => {
+        if (companyConfig) setConfig({ ...INITIAL_CONFIG, ...companyConfig });
+    }, [companyConfig]);
 
     useEffect(() => {
         const savedConfig = localStorage.getItem('jilco_quote_data');
