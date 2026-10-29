@@ -1,10 +1,19 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Printer, FileSignature, Building, User, ShieldCheck, FileText, Phone, Mail, Globe, MapPin, AlertCircle, ClipboardList, ChevronDown, ArrowLeft, Plus, Search, Edit, Trash2, Save, Send, Import, X, DollarSign, Cpu, Settings, Zap } from 'lucide-react';
 import { ContractData, CompanyConfig, TechnicalSpecs, SpecsDatabase, Customer, QuoteItem, QuoteDetails } from '../types';
 import { useData } from '../contexts/DataContext.tsx';
 import { useSales } from '../contexts/SalesContext.tsx';
 import { useProject } from '../contexts/ProjectContext.tsx';
+import { useSupabaseAuth } from '../contexts/SupabaseAuthContext';
+import { useAuth } from '../contexts/AuthContext';
+import { cloudService } from '../services/cloudService';
+import { allocateContractPayments, validateContract, importQuoteIntoContract, contractDraftKey, readContractDraft, writeContractDraft } from '../lib/contractCalculations.mjs';
+
+const localContractDate = () => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+};
 
 // Interface for saved quotes structure in localStorage
 interface SavedQuote {
@@ -92,33 +101,33 @@ const EMPTY_TECHNICAL_SPECS: TechnicalSpecs = {
 
 // --- Helper Components for Preview ---
 const QuoteHeader: React.FC<{ config: CompanyConfig }> = ({ config }) => (
-    <header className="px-10 py-6 border-b-2 border-jilco-100 flex justify-between items-center h-[160px] shrink-0">
+    <header className="contract-branding px-10 py-6 border-b-2 border-jilco-100 flex justify-between items-center min-h-[160px] gap-4 shrink-0">
         <div className="w-1/3 text-right">
             <h1 className="text-2xl font-black text-jilco-900 mb-0.5">{config.headerTitle}</h1>
             <p className="text-[10px] font-bold text-gray-500 mb-3">{config.headerSubtitle}</p>
             <div className="text-[9px] text-gray-400 font-bold border-r-2 border-gold-500 pr-2 leading-tight">
-                <p>سجل تجاري: ١٠١٠٧٢٤٥٨٢</p>
-                <p>الرقم الضريبي: ٣١٠٢٤٥٦٧٨٩٠٠٠٠٣</p>
+                {config.commercialRegistration?.trim() && <p>سجل تجاري: {config.commercialRegistration}</p>}
+                {config.taxNumber?.trim() && <p>الرقم الضريبي: {config.taxNumber}</p>}
             </div>
         </div>
         <div className="w-1/3 flex justify-center">
             {config.logo ? (
-                <img src={config.logo} alt="Logo" className="h-32 w-auto object-contain" />
+                <img src={config.logo} alt="شعار الشركة" className="max-h-28 max-w-full w-auto object-contain" />
             ) : (
                 <div className="h-24 w-24 bg-gray-50 border border-dashed border-gray-200 rounded-full flex items-center justify-center text-[8px] text-gray-300 uppercase">Logo</div>
             )}
         </div>
         <div className="w-1/3 text-left flex flex-col items-end" dir="ltr">
-            <h2 className="text-lg font-black text-jilco-900 tracking-tighter">JILCO ELEVATORS</h2>
+            <h2 className="text-lg font-black text-jilco-900 tracking-tighter break-words">{config.headerSubtitle}</h2>
             <div className="mt-3 space-y-1">
-                <div className="flex items-center gap-2 text-[10px] font-black text-gray-700 bg-gray-50 px-2 py-1 rounded-l-full border-r-2 border-jilco-600">
+                {config.contactPhone?.trim() && <div className="flex items-center gap-2 text-[10px] font-black text-gray-700 bg-gray-50 px-2 py-1 rounded-l-full border-r-2 border-jilco-600">
                     <span>{config.contactPhone}</span>
                     <Phone size={10} className="text-jilco-600" />
-                </div>
-                <div className="flex items-center gap-2 text-[10px] font-black text-gray-700 bg-gray-50 px-2 py-1 rounded-l-full border-r-2 border-gold-500">
+                </div>}
+                {config.contactEmail?.trim() && <div className="flex items-center gap-2 text-[10px] font-black text-gray-700 bg-gray-50 px-2 py-1 rounded-l-full border-r-2 border-gold-500 break-all">
                     <span>{config.contactEmail}</span>
                     <Mail size={10} className="text-gold-600" />
-                </div>
+                </div>}
             </div>
         </div>
     </header>
@@ -126,21 +135,36 @@ const QuoteHeader: React.FC<{ config: CompanyConfig }> = ({ config }) => (
 
 const QuoteFooter: React.FC<{ config: CompanyConfig }> = ({ config }) => (
     <footer className="w-full bg-white shrink-0 mt-auto">
-        <div className="bg-jilco-900 text-white py-3 px-10 flex justify-between items-center text-[10px] font-bold h-[45px]">
-            <div className="flex items-center gap-2">
+        <div className="bg-jilco-900 text-white py-3 px-10 flex justify-between items-center gap-3 text-[10px] font-bold min-h-[45px]">
+            {config.footerText?.trim() && <div className="flex items-center gap-2">
                 <MapPin size={12} className="text-gold-400" />
-                <span>{config.footerText || 'المملكة العربية السعودية - الرياض'}</span>
-            </div>
-            <div className="flex items-center gap-2" dir="ltr">
+                <span>{config.footerText}</span>
+            </div>}
+            {config.website?.trim() && <div className="flex items-center gap-2 break-all" dir="ltr">
                 <Globe size={12} className="text-gold-400" />
-                <span>www.jilco-elevators.com</span>
-            </div>
+                <span>{config.website}</span>
+            </div>}
         </div>
     </footer>
 );
 
 export const ContractModule: React.FC = () => {
-    const { specsDb: globalSpecsDb } = useData();
+    const { specsDb: globalSpecsDb, config: globalConfig } = useData();
+    const { user: cloudUser } = useSupabaseAuth();
+    const { hasPermission } = useAuth();
+    const draftKey = contractDraftKey(cloudUser?.company_id, cloudUser?.id);
+    const activeDraftKeyRef = useRef(draftKey);
+    activeDraftKeyRef.current = draftKey;
+    const [loadedDraftKey, setLoadedDraftKey] = useState(draftKey);
+    const [restoredDraft] = useState(() => readContractDraft(localStorage, draftKey));
+    const [currentContractId, setCurrentContractId] = useState<string | null>(restoredDraft?.id || null);
+    const [hasDraft, setHasDraft] = useState(Boolean(restoredDraft));
+    const draftBaselineRef = useRef<string | null>(null);
+    const [draftError, setDraftError] = useState(false);
+    const [saving, setSaving] = useState(false);
+    const savingRef = useRef(false);
+    const [creating, setCreating] = useState(false);
+    const creatingRef = useRef(false);
     const {
         contracts,
         saveProjectRecord, deleteProjectRecord
@@ -150,7 +174,7 @@ export const ContractModule: React.FC = () => {
         quotes: savedQuotes
     } = useSales();
 
-    const [viewMode, setViewMode] = useState<'list' | 'editor'>('list');
+    const [viewMode, setViewMode] = useState<'list' | 'editor'>(restoredDraft ? 'editor' : 'list');
     const [searchTerm, setSearchTerm] = useState('');
     const [activeTab, setActiveTab] = useState<'details' | 'specs' | 'payments' | 'legal'>('details');
     const [config, setConfig] = useState<CompanyConfig>(INITIAL_CONFIG);
@@ -158,8 +182,8 @@ export const ContractModule: React.FC = () => {
     // Specs Database State (fallback to default if context is empty)
     const specsDb = globalSpecsDb && Object.keys(globalSpecsDb).length > 0 ? globalSpecsDb : DEFAULT_OPTIONS;
 
-    const [currentContract, setCurrentContract] = useState<ContractData>({
-        number: '', date: new Date().toISOString().split('T')[0], firstPartyName: 'شركة جيلكو للمصاعد',
+    const [currentContract, setCurrentContract] = useState<ContractData>(restoredDraft?.data || {
+        number: '', date: localContractDate(), firstPartyName: 'شركة جيلكو للمصاعد',
         secondPartyName: '', secondPartyId: '', location: '', totalValue: 0, elevatorType: '', stops: 2, durationMonths: 2, elevatorCount: 1, internalDoorsCount: 1, externalDoorsCount: 1, accessControl: '',
         paymentTerms: DEFAULT_PAYMENT_TERMS.map(term => ({ ...term })),
         firstPartyObligations: DEFAULT_FIRST_PARTY,
@@ -168,23 +192,63 @@ export const ContractModule: React.FC = () => {
         worksDuration: DEFAULT_DURATION
     });
 
-    const [currentSpecs, setCurrentSpecs] = useState<TechnicalSpecs>({ ...EMPTY_TECHNICAL_SPECS });
+    const [currentSpecs, setCurrentSpecs] = useState<TechnicalSpecs>({ ...EMPTY_TECHNICAL_SPECS, ...(restoredDraft?.specs || {}) });
 
     // Load Config
     useEffect(() => {
-        const global = localStorage.getItem('jilco_quote_data');
-        if (global) try {
-            const parsed = JSON.parse(global);
-            if (parsed.config) setConfig(parsed.config);
-        } catch (e) { }
-    }, []);
+        if (globalConfig) setConfig({ ...INITIAL_CONFIG, ...globalConfig });
+    }, [globalConfig]);
+
+    useEffect(() => {
+        if (loadedDraftKey === draftKey) return;
+        const draft = readContractDraft(localStorage, draftKey);
+        draftBaselineRef.current = null;
+        setCurrentContractId(draft?.id || null);
+        setCurrentContract(draft?.data || {
+            number: '', date: localContractDate(), firstPartyName: globalConfig?.headerTitle || 'شركة جيلكو للمصاعد',
+            secondPartyName: '', secondPartyId: '', location: '', totalValue: 0, elevatorType: '', stops: 2, durationMonths: 2,
+            elevatorCount: 1, internalDoorsCount: 1, externalDoorsCount: 1, accessControl: '',
+            paymentTerms: DEFAULT_PAYMENT_TERMS.map(term => ({ ...term })),
+            firstPartyObligations: DEFAULT_FIRST_PARTY, secondPartyObligations: DEFAULT_SECOND_PARTY,
+            handoverAndWarranty: DEFAULT_HANDOVER, worksDuration: DEFAULT_DURATION
+        });
+        setCurrentSpecs({ ...EMPTY_TECHNICAL_SPECS, ...(draft?.specs || {}) });
+        setHasDraft(Boolean(draft));
+        setDraftError(false);
+        setViewMode(draft ? 'editor' : 'list');
+        setLoadedDraftKey(draftKey);
+    }, [draftKey, loadedDraftKey, globalConfig]);
+
+    useEffect(() => {
+        // Wait for the new identity's state before writing under its storage key.
+        if (loadedDraftKey !== draftKey) return;
+        if (viewMode !== 'editor' || !currentContractId) return;
+        const draft = { id: currentContractId, data: currentContract, specs: currentSpecs };
+        if (JSON.stringify(draft) === draftBaselineRef.current) {
+            try { if (draftKey) localStorage.removeItem(draftKey); } catch (error) { console.error('Failed to clear unchanged contract draft:', error); }
+            setHasDraft(false);
+            return;
+        }
+        const saved = writeContractDraft(localStorage, draftKey, draft);
+        setDraftError(!saved);
+        if (saved) setHasDraft(true);
+    }, [viewMode, currentContractId, currentContract, currentSpecs, draftKey, loadedDraftKey]);
 
     // Actions
-    const handleCreateNew = () => {
-        const faCount = contracts.filter(c => c.data?.number?.startsWith('FA-')).length;
+    const handleCreateNew = async () => {
+        if (creatingRef.current || savingRef.current) return;
+        if (!draftKey || loadedDraftKey !== draftKey) return alert('انتظر اكتمال تحميل حسابك قبل إنشاء العقد.');
+        if (hasDraft && !window.confirm('توجد مسودة عقد محفوظة. هل تريد استبدالها بعقد جديد؟')) return;
+        creatingRef.current = true;
+        setCreating(true);
+        try {
+        const number = await cloudService.reserveContractNumber(new Date().getFullYear());
+        if (activeDraftKeyRef.current !== draftKey) return;
+        draftBaselineRef.current = null;
+        setCurrentContractId(crypto.randomUUID());
         setCurrentContract({
-            number: `FA-${450 + faCount + 1}`,
-            date: new Date().toISOString().split('T')[0],
+            number,
+            date: localContractDate(),
             firstPartyName: config.headerTitle || 'شركة جيلكو للمصاعد',
             secondPartyName: '', secondPartyId: '', location: '', totalValue: 0, elevatorType: '', stops: 2, durationMonths: 2, elevatorCount: 1, internalDoorsCount: 1, externalDoorsCount: 1, accessControl: '',
             paymentTerms: DEFAULT_PAYMENT_TERMS.map(term => ({ ...term })),
@@ -194,64 +258,98 @@ export const ContractModule: React.FC = () => {
             worksDuration: DEFAULT_DURATION
         });
         setCurrentSpecs({ ...EMPTY_TECHNICAL_SPECS });
+        setActiveTab('details');
         setViewMode('editor');
+        } catch (error) {
+            console.error('Contract number reservation failed:', error);
+            alert('تعذر حجز رقم العقد من السحابة. تحقق من الاتصال ثم أعد المحاولة.');
+        } finally {
+            creatingRef.current = false;
+            setCreating(false);
+        }
     };
 
     const handleImportQuote = (quote: any) => { // Using explicit 'any' since SavedQuote type differed
+        if (savingRef.current) return;
         if (window.confirm(`استيراد بيانات عرض السعر رقم ${quote.details?.number || quote.id}؟`)) {
-            // Handle varying quote structures
-            const items = quote.items || [];
-            const details = quote.details || {};
-            const qTechSpecs = quote.techSpecs || {};
-
-            // Calculate total quantity from items (sum of quantities)
-            const totalQty = items.reduce((sum: number, item: any) => sum + (item.quantity || 1), 0);
-
-            setCurrentContract(prev => ({
-                ...prev,
-                secondPartyName: details.customerName || quote.customerName || '',
-                location: details.projectName || quote.projectName || '',
-                totalValue: items.reduce((s: number, i: any) => s + (i.total || 0), 0) * 1.15, // Including tax
-                paymentTerms: details.paymentTerms || prev.paymentTerms,
-                elevatorCount: totalQty > 0 ? totalQty : 1, // Import count or default to 1
-                firstPartyObligations: details.firstPartyObligations || prev.firstPartyObligations,
-                secondPartyObligations: details.secondPartyObligations || prev.secondPartyObligations,
-                handoverAndWarranty: details.handoverAndWarranty || prev.handoverAndWarranty,
-                worksDuration: details.worksDuration || prev.worksDuration
-            }));
-            setCurrentSpecs(qTechSpecs);
-            alert('تم استيراد البيانات والمواصفات وعدد المصاعد بنجاح.');
+            try {
+                const imported = importQuoteIntoContract(currentContract, quote, customers);
+                setCurrentContract(imported.contract);
+                setCurrentSpecs({ ...EMPTY_TECHNICAL_SPECS, ...imported.specs });
+                alert(`تم استيراد بيانات العرض وضريبته ومواصفاته. راجع عدد المصاعد يدوياً؛ كميات الملحقات لا تمثل مصاعد.${imported.customerNeedsSelection ? '\nيرجى اختيار العميل الصحيح من قائمة العملاء؛ لم يُربط العقد تلقائياً لعدم وجود تطابق فريد.' : ''}`);
+            } catch (error) { alert(error instanceof Error ? error.message : 'تعذر استيراد بيانات عرض السعر.'); }
         }
     };
 
     const handleSave = async () => {
-        if (!currentContract.secondPartyName) return alert('يرجى تحديد الطرف الثاني');
-
-        // Ensure the ID exists (creating one based on contract number if necessary)
-        const recordId = currentContract.number || `FA-${Date.now()}`;
+        if (savingRef.current) return;
+        if (!draftKey || loadedDraftKey !== draftKey) return alert('انتظر اكتمال تحميل حسابك قبل حفظ العقد.');
+        const validation = validateContract(currentContract);
+        if (validation) return alert(validation);
+        if (!currentContractId || !currentContract.number.trim()) return alert('تعذر تحديد هوية العقد. أنشئ عقداً جديداً لحجز رقمه.');
+        const linkedCustomer = currentContract.secondPartyId ? customers.find(customer => customer.id === currentContract.secondPartyId) : null;
+        if (currentContract.secondPartyId && (!linkedCustomer || linkedCustomer.fullName !== currentContract.secondPartyName)) return alert('اسم العميل لا يطابق العميل المرتبط. اختر العميل الصحيح من القائمة.');
+        const recordId = currentContractId;
         const contractObj = {
-            id: recordId, // Adding ID for the new data handling structure
-            data: { ...currentContract, number: recordId },
+            id: recordId,
+            data: { ...currentContract, totalValue: Math.round((Number(currentContract.totalValue) + Number.EPSILON) * 100) / 100 },
             specs: currentSpecs
         };
-
+        savingRef.current = true;
+        setSaving(true);
+        try {
         const saved = await saveProjectRecord('jilco_contracts_archive', recordId, contractObj);
-        if (!saved) return alert('تعذر حفظ العقد. لم يتم إغلاق نموذج التعديل حتى لا تفقد تغييراتك.');
+        if (activeDraftKeyRef.current !== draftKey) return;
+        if (!saved) return alert('تعذر حفظ العقد في السحابة. بقيت مسودتك في المحرر؛ أعد المحاولة بعد التحقق من الاتصال.');
+        try { if (draftKey) localStorage.removeItem(draftKey); } catch (error) { console.error('Failed to clear contract draft:', error); }
+        draftBaselineRef.current = JSON.stringify(contractObj);
+        setHasDraft(false);
         setViewMode('list');
+        } catch (error) {
+            console.error('Contract save failed:', error);
+            if (activeDraftKeyRef.current === draftKey) alert('تعذر حفظ العقد في السحابة. بقيت مسودتك في المحرر؛ أعد المحاولة بعد التحقق من الاتصال.');
+        } finally { savingRef.current = false; setSaving(false); }
     };
 
     const openSavedContract = (saved: any, printAfterOpen = false) => {
+        if (savingRef.current || creatingRef.current) return;
+        const recordId = saved.id || saved.data?.id || saved.data?.number;
+        if (hasDraft && !window.confirm('توجد مسودة عقد غير معتمدة. هل تريد استبدالها بالنسخة المحفوظة من هذا العقد؟')) return;
         const savedTerms = Array.isArray(saved.data?.paymentTerms) && saved.data.paymentTerms.length
             ? saved.data.paymentTerms
             : DEFAULT_PAYMENT_TERMS;
-        setCurrentContract({
+        const contractToOpen = {
             ...saved.data,
             paymentTerms: savedTerms.map((term: any) => ({ ...term }))
-        });
-        setCurrentSpecs({ ...EMPTY_TECHNICAL_SPECS, ...(saved.specs || {}) });
+        };
+        const specsToOpen = { ...EMPTY_TECHNICAL_SPECS, ...(saved.specs || {}) };
+        draftBaselineRef.current = JSON.stringify({ id: recordId, data: contractToOpen, specs: specsToOpen });
+        try { if (draftKey) localStorage.removeItem(draftKey); } catch (error) { console.error('Failed to clear replaced contract draft:', error); }
+        setHasDraft(false);
+        setCurrentContract(contractToOpen);
+        setCurrentContractId(recordId);
+        setCurrentSpecs(specsToOpen);
         setActiveTab('details');
         setViewMode('editor');
-        if (printAfterOpen) setTimeout(() => window.print(), 500);
+        if (printAfterOpen) {
+            const validation = validateContract(contractToOpen);
+            if (validation) alert(`يحتاج العقد إلى مراجعة قبل الطباعة: ${validation}`);
+            else setTimeout(() => window.print(), 500);
+        }
+    };
+
+    const handleDelete = async (saved: any) => {
+        if (savingRef.current || creatingRef.current) return;
+        if (!hasPermission('delete_records')) return alert('لا تملك صلاحية حذف العقود.');
+        if (!window.confirm(`هل تريد حذف العقد رقم ${saved.data?.number || ''}؟ لا يمكن التراجع عن الحذف من هذه الشاشة.`)) return;
+        const deleted = await deleteProjectRecord('jilco_contracts_archive', saved.id || saved.data?.id || saved.data?.number);
+        if (activeDraftKeyRef.current !== draftKey) return;
+        if (!deleted) alert('تعذر حذف العقد من السحابة. لم يُحذف من الأرشيف؛ تحقق من الاتصال والصلاحية.');
+        else if ((saved.id || saved.data?.id || saved.data?.number) === currentContractId) {
+            try { if (draftKey) localStorage.removeItem(draftKey); } catch (error) { console.error('Failed to clear deleted contract draft:', error); }
+            setHasDraft(false);
+            setCurrentContractId(null);
+        }
     };
 
     const handleCustomerSelect = (customerId: string) => {
@@ -266,6 +364,14 @@ export const ContractModule: React.FC = () => {
         }
     };
 
+    const handlePrint = () => {
+        const validation = validateContract(currentContract);
+        if (validation) return alert(`راجع العقد قبل الطباعة: ${validation}`);
+        window.print();
+    };
+
+    if (loadedDraftKey !== draftKey) return <div role="status" className="p-8">جارٍ تحميل عقود الحساب…</div>;
+
     if (viewMode === 'list') {
         return (
             <div className="flex-1 bg-gray-100 p-8 overflow-auto h-full animate-fade-in">
@@ -278,16 +384,17 @@ export const ContractModule: React.FC = () => {
                             <p className="text-gray-500 text-sm mt-1">إدارة ومتابعة عقود التوريد والتركيب</p>
                         </div>
                         <div className="flex items-center gap-3">
+                            {hasDraft && <button onClick={() => setViewMode('editor')} className="px-4 py-2.5 border border-jilco-600 text-jilco-700 rounded-lg font-bold">استكمال المسودة</button>}
                             <button onClick={async () => {
                                 if(window.confirm('هل أنت متأكد من ترحيل العقود من قاعدة البيانات القديمة للجديدة؟')) {
                                     import('../services/cloudService').then(async m => {
-                                        const count = await m.cloudService.migrateLegacyContracts();
-                                        alert(`✅ تم ترحيل ${count} عقد بنجاح للجدول الجديد! يرجى تحديث الصفحة.`);
+                                        const result = await m.cloudService.migrateLegacyContracts();
+                                        alert(result.failed ? `تم ترحيل ${result.migrated} عقد، وتعذر ترحيل ${result.failed}. راجع الأرقام والبيانات والصلاحيات ثم أعد المحاولة.` : `تم ترحيل ${result.migrated} عقد بنجاح. يرجى تحديث الصفحة.`);
                                     });
                                 }
                             }} className="bg-orange-500 text-white px-4 py-2.5 rounded-lg font-bold flex items-center gap-2 hover:bg-orange-600 shadow-sm text-sm">ترحيل البيانات للجدول الجديد</button>
-                            <button onClick={handleCreateNew} className="bg-jilco-600 text-white px-6 py-2.5 rounded-lg font-bold flex items-center gap-2 hover:bg-jilco-700 shadow-md">
-                                <Plus size={20} /> عقد جديد
+                            <button onClick={handleCreateNew} disabled={creating} className="bg-jilco-600 text-white px-6 py-2.5 rounded-lg font-bold flex items-center gap-2 hover:bg-jilco-700 shadow-md disabled:opacity-60">
+                                <Plus size={20} /> {creating ? 'جارٍ حجز الرقم…' : 'عقد جديد'}
                             </button>
                         </div>
                     </div>
@@ -331,7 +438,7 @@ export const ContractModule: React.FC = () => {
                                             >
                                                 <Printer size={16} />
                                             </button>
-                                            <button title="حذف" onClick={async () => await deleteProjectRecord('jilco_contracts_archive', c.id || c.data.number)} className="p-2 text-red-500 hover:bg-red-50 rounded-full"><Trash2 size={16} /></button>
+                                            {hasPermission('delete_records') && <button title="حذف" onClick={() => handleDelete(c)} className="p-2 text-red-500 hover:bg-red-50 rounded-full"><Trash2 size={16} /></button>}
                                         </td>
                                     </tr>
                                 ))}
@@ -354,16 +461,19 @@ export const ContractModule: React.FC = () => {
                         <p className="text-[10px] opacity-60">صياغة العقود القانونية للمؤسسة</p>
                     </div>
                     <div className="flex gap-2">
-                        <button title="حفظ" onClick={handleSave} className="bg-green-600 p-2.5 rounded-xl hover:bg-green-700 shadow-lg"><Save size={18} /></button>
-                        <button title="طباعة" onClick={() => window.print()} className="bg-gold-500 p-2.5 rounded-xl hover:bg-gold-600 shadow-lg"><Printer size={18} /></button>
+                        <button title="حفظ" onClick={handleSave} disabled={saving} className="bg-green-600 p-2.5 rounded-xl hover:bg-green-700 shadow-lg disabled:opacity-60"><Save size={18} />{saving && <span className="text-xs">جارٍ الحفظ…</span>}</button>
+                        <button title="طباعة" onClick={handlePrint} className="bg-gold-500 p-2.5 rounded-xl hover:bg-gold-600 shadow-lg"><Printer size={18} /></button>
                         <button title="العودة" onClick={() => setViewMode('list')} className="bg-white/10 p-2.5 rounded-xl hover:bg-white/20"><ArrowLeft size={18} /></button>
                     </div>
                 </div>
+
+                <p role="status" className={`px-4 py-2 text-xs ${draftError ? 'text-red-700 bg-red-50' : 'text-gray-600 bg-gray-50'}`}>{draftError ? 'تعذر حفظ المسودة على هذا الجهاز. احفظ العقد قبل مغادرة الصفحة.' : 'تُحفظ مسودتك على هذا الجهاز. اضغط حفظ لاعتماد العقد في السحابة.'}</p>
 
                 {/* Quick Import Quote Bar */}
                 <div className="p-4 bg-amber-50 border-b border-amber-100">
                     <label className="block text-[10px] font-black text-amber-800 mb-2 uppercase flex items-center gap-1"><Import size={12} /> استيراد من عرض سعر</label>
                     <select title="استيراد من عرض سعر"
+                        disabled={saving}
                         onChange={e => {
                             const q = savedQuotes.find(sq => sq.id === e.target.value);
                             if (q) handleImportQuote(q);
@@ -383,27 +493,27 @@ export const ContractModule: React.FC = () => {
                     <button onClick={() => setActiveTab('legal')} className={`flex-1 min-w-[100px] py-4 text-xs font-black transition-all ${activeTab === 'legal' ? 'border-b-4 border-jilco-600 text-jilco-900 bg-white' : 'text-gray-400'}`}>البنود القانونية</button>
                 </div>
 
-                <div className="p-6 space-y-6 overflow-y-auto flex-1 bg-gray-50/30">
+                <div inert={saving} className="p-6 space-y-6 overflow-y-auto flex-1 bg-gray-50/30">
                     {activeTab === 'details' && (
                         <div className="space-y-4 animate-fade-in">
                             <div className="bg-blue-50 p-3 rounded-xl border border-blue-200">
                                 <label className="text-[10px] font-black text-blue-800 mb-1 flex items-center gap-1"><User size={12} /> ربط العقد بعميل مسجل</label>
-                                <select title="اختر العميل" onChange={e => handleCustomerSelect(e.target.value)} className="w-full p-2 text-xs border border-gray-400 rounded-lg outline-none bg-white text-black font-bold" defaultValue="">
+                                <select title="اختر العميل" value={currentContract.secondPartyId || ''} onChange={e => handleCustomerSelect(e.target.value)} className="w-full p-2 text-xs border border-gray-400 rounded-lg outline-none bg-white text-black font-bold">
                                     <option value="" disabled>-- اختر العميل --</option>
                                     {customers.map(c => <option key={c.id} value={c.id}>{c.fullName}</option>)}
                                 </select>
                             </div>
-                            <div><label className="block text-[10px] font-black text-gray-500 mb-1">رقم العقد</label><input title="رقم العقد" placeholder="رقم العقد" type="text" value={currentContract.number} onChange={e => setCurrentContract({ ...currentContract, number: e.target.value })} className="w-full p-2.5 border border-gray-400 rounded-lg font-mono text-sm bg-white text-black font-bold" /></div>
+                            <div><label className="block text-[10px] font-black text-gray-500 mb-1">رقم العقد</label><input title="رقم العقد محجوز من السحابة ولا يُعدّل يدوياً" placeholder="رقم العقد" type="text" value={currentContract.number} readOnly className="w-full p-2.5 border border-gray-400 rounded-lg font-mono text-sm bg-gray-100 text-black font-bold" /></div>
                             <div><label className="block text-[10px] font-black text-gray-500 mb-1">تاريخ العقد</label><input title="تاريخ العقد" type="date" value={currentContract.date} onChange={e => setCurrentContract({ ...currentContract, date: e.target.value })} className="w-full p-2.5 border border-gray-400 rounded-lg text-sm bg-white text-black font-bold" /></div>
                             <div><label className="block text-[10px] font-black text-gray-500 mb-1">اسم العميل (الطرف الثاني)</label><input title="اسم العميل" placeholder="اسم العميل" type="text" value={currentContract.secondPartyName} onChange={e => setCurrentContract({ ...currentContract, secondPartyName: e.target.value })} className="w-full p-2.5 border border-gray-400 rounded-lg text-sm bg-white text-black font-bold" /></div>
                             <div><label className="block text-[10px] font-black text-gray-500 mb-1">الموقع / المدينة</label><input title="الموقع" placeholder="الموقع" type="text" value={currentContract.location} onChange={e => setCurrentContract({ ...currentContract, location: e.target.value })} className="w-full p-2.5 border border-gray-400 rounded-lg text-sm bg-white text-black font-bold" /></div>
 
                             <div className="grid grid-cols-2 gap-4">
-                                <div><label className="block text-[10px] font-black text-gray-500 mb-1">قيمة العقد (شامل الضريبة)</label><input title="قيمة العقد" placeholder="قيمة العقد" type="number" value={currentContract.totalValue} onChange={e => setCurrentContract({ ...currentContract, totalValue: parseFloat(e.target.value) || 0 })} className="w-full p-2.5 border border-gray-400 rounded-lg font-black text-green-700 bg-white" /></div>
-                                <div><label className="block text-[10px] font-black text-gray-500 mb-1">عدد المصاعد</label><input title="عدد المصاعد" placeholder="عدد المصاعد" type="number" value={currentContract.elevatorCount || 1} onChange={e => setCurrentContract({ ...currentContract, elevatorCount: parseFloat(e.target.value) || 1 })} className="w-full p-2.5 border border-gray-400 rounded-lg font-black text-center bg-white text-black" /></div>
+                                <div><label className="block text-[10px] font-black text-gray-500 mb-1">قيمة العقد (شامل الضريبة)</label><input title="قيمة العقد" placeholder="قيمة العقد" type="number" min="0.01" step="0.01" value={currentContract.totalValue} onChange={e => setCurrentContract({ ...currentContract, totalValue: Number(e.target.value) })} className="w-full p-2.5 border border-gray-400 rounded-lg font-black text-green-700 bg-white" /></div>
+                                <div><label className="block text-[10px] font-black text-gray-500 mb-1">عدد المصاعد</label><input title="عدد المصاعد" placeholder="عدد المصاعد" type="number" min="1" step="1" value={currentContract.elevatorCount} onChange={e => setCurrentContract({ ...currentContract, elevatorCount: Number(e.target.value) })} className="w-full p-2.5 border border-gray-400 rounded-lg font-black text-center bg-white text-black" /></div>
                             </div>
 
-                            <div><label className="block text-[10px] font-black text-gray-500 mb-1">مدة التنفيذ (أشهر)</label><input title="مدة التنفيذ" placeholder="مدة التنفيذ" type="number" value={currentContract.durationMonths} onChange={e => setCurrentContract({ ...currentContract, durationMonths: parseInt(e.target.value) || 2 })} className="w-full p-2.5 border border-gray-400 rounded-lg text-sm bg-white text-black font-bold" /></div>
+                            <div><label className="block text-[10px] font-black text-gray-500 mb-1">مدة التنفيذ التقديرية (أشهر)</label><input title="مدة التنفيذ" placeholder="مدة التنفيذ" type="number" min="1" step="1" value={currentContract.durationMonths} onChange={e => { const months = Number(e.target.value); setCurrentContract({ ...currentContract, durationMonths: months, worksDuration: months > 0 ? `${months} أشهر` : '' }); }} className="w-full p-2.5 border border-gray-400 rounded-lg text-sm bg-white text-black font-bold" /><p className="text-[10px] text-gray-500 mt-1">يمكن تخصيص نص المدة النهائي ضمن البنود القانونية؛ وهو النص المعتمد في الطباعة.</p></div>
                         </div>
                     )}
 
@@ -555,7 +665,7 @@ export const ContractModule: React.FC = () => {
 
             {/* Preview Area (Container for A4 Pages) */}
             <div className="flex-1 bg-gray-200 p-8 overflow-auto flex justify-center items-start print:p-0 print:m-0 print:bg-white print:overflow-visible print:block">
-                <div id="printable-area" className="flex flex-col items-center gap-10 print:block print:gap-0 print:w-full">
+                <div id="printable-area" className="contracts-print-document flex flex-col items-center gap-10 print:block print:gap-0 print:w-full" dir="rtl">
 
                     {/* PAGE 1: CONTRACT DETAILS - USING a4-page CLASS */}
                     <div className="a4-page bg-white shadow-2xl mb-10 print:mb-0 mx-auto flex flex-col relative">
@@ -565,7 +675,7 @@ export const ContractModule: React.FC = () => {
                         <div className="absolute inset-[18px] border border-gold-500 pointer-events-none z-0"></div>
                         <div className="absolute inset-[24px] border border-gray-100 pointer-events-none z-0"></div>
 
-                        <div className="relative z-10 flex flex-col flex-1 m-[28px] bg-white">
+                        <div className="contract-page-inner relative z-10 flex flex-col flex-1 m-[28px] bg-white">
                             <QuoteHeader config={config} />
 
                             {/* Contract Number Badge - يسار أسفل الترويسة */}
@@ -577,7 +687,7 @@ export const ContractModule: React.FC = () => {
                             </div>
 
                             {/* Body */}
-                            <div className="px-12 py-6 flex-1 text-xs leading-loose relative overflow-hidden">
+                            <div className="contract-page-body px-12 py-6 flex-1 text-xs leading-loose relative">
                                 <div className="absolute inset-0 flex items-center justify-center opacity-[0.03] pointer-events-none z-0"><h1 className="text-[140px] font-bold rotate-[-15deg]">CONTRACT</h1></div>
                                 <div className="relative z-10">
                                     <div className="text-center mb-8 border-b-2 border-jilco-900 pb-2"><h2 className="text-2xl font-black text-jilco-900">عقد توريد وتركيب مصعد</h2></div>
@@ -586,7 +696,11 @@ export const ContractModule: React.FC = () => {
                                         <p><span className="font-bold underline">الطرف الأول (المقاول):</span> {currentContract.firstPartyName} - ويمثلها في هذا العقد الإدارة المختصة.</p>
                                         <p><span className="font-bold underline">الطرف الثاني (العميل):</span> {currentContract.secondPartyName} - ومقره في {currentContract.location}.</p>
                                         <p className="font-bold border-r-4 border-gold-500 pr-3 bg-gray-50 p-2 mt-6">موضوع العقد:</p>
-                                        <p>اتفق الطرفان على قيام الطرف الأول بتوريد وتركيب عدد (<span className="font-bold px-1">{currentContract.elevatorCount || 1}</span>) مصعد ({currentSpecs.elevatorType || 'محدد بالمواصفات'}) للطرف الثاني بقيمة إجمالية قدرها <span className="font-black text-jilco-900 text-sm">{currentContract.totalValue.toLocaleString()} ر.س</span> شاملة الضريبة، وذلك وفقاً للجدول الزمني والمواصفات المرفقة.</p>
+                                        <p>اتفق الطرفان على قيام الطرف الأول بتوريد وتركيب عدد (<span className="font-bold px-1">{currentContract.elevatorCount || 1}</span>) مصعد ({currentSpecs.elevatorType || 'محدد بالمواصفات'}) للطرف الثاني بقيمة إجمالية قدرها <span className="font-black text-jilco-900 text-sm">{Number(currentContract.totalValue || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ر.س</span> شاملة الضريبة، وذلك وفقاً لمدة التنفيذ والمواصفات المرفقة.</p>
+                                        <div className="contract-duration border-r-4 border-jilco-700 bg-jilco-50 p-3">
+                                            <span className="font-bold">مدة تنفيذ الأعمال: </span>
+                                            <span className="whitespace-pre-line">{currentContract.worksDuration?.trim() || (currentContract.durationMonths > 0 ? `${currentContract.durationMonths} أشهر` : 'يحددها الطرفان قبل توقيع العقد')}</span>
+                                        </div>
 
                                         <div className="mt-6 grid grid-cols-2 gap-x-8 gap-y-2">
                                             <div className="flex justify-between border-b border-gray-100 pb-1"><span className="text-gray-500">نوع الماكينة:</span> <span className="font-bold">{currentSpecs.driveType || '...'}</span></div>
@@ -601,28 +715,24 @@ export const ContractModule: React.FC = () => {
 
                                         <p className="font-bold border-r-4 border-gold-500 pr-3 bg-gray-50 p-2 mt-6">جدول الدفعات:</p>
                                         <div className="grid grid-cols-2 gap-4">
-                                            {(currentContract.paymentTerms || [
-                                                { name: 'الدفعة الأولى (توقيع العقد)', percentage: 40 },
-                                                { name: 'الدفعة الثانية (عند توريد السكك)', percentage: 30 },
-                                                { name: 'الدفعة الثالثة (عند توريد الماكينة)', percentage: 20 },
-                                                { name: 'الدفعة الرابعة (التسليم والتشغيل)', percentage: 10 }
-                                            ]).map((t, i) => (
-                                                <div key={i} className="flex justify-between items-center p-2 border border-gray-100 rounded">
+                                            {allocateContractPayments(currentContract.totalValue, currentContract.paymentTerms || []).map((t: any, i: number) => (
+                                                <div key={i} className="contract-payment-row flex justify-between items-center gap-2 p-2 border border-gray-100 rounded">
                                                     <span className="text-[10px] text-gray-500">{t.name}</span>
-                                                    <span className="font-bold">{t.percentage}% - {((currentContract.totalValue * t.percentage) / 100).toLocaleString()}</span>
+                                                    <span className="font-bold whitespace-nowrap" dir="ltr">{t.percentage}% — {Number(t.amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} SAR</span>
                                                 </div>
                                             ))}
                                         </div>
+                                        {allocateContractPayments(currentContract.totalValue, currentContract.paymentTerms || []).length === 0 && <p className="text-amber-800 border border-amber-400 p-2">جدول الدفعات غير مكتمل. يجب أن يكون مجموع النسب 100% قبل اعتماد العقد.</p>}
                                     </div>
                                 </div>
                             </div>
 
                             {/* Signatures */}
-                            <div className="px-12 py-10 grid grid-cols-2 gap-16 shrink-0 relative">
+                            <div className="contract-signatures px-12 py-10 grid grid-cols-2 gap-16 shrink-0 relative">
                                 <div className="text-center relative">
                                     <p className="font-bold text-sm mb-12">توقيع الطرف الأول</p>
                                     <div className="w-40 border-b-2 border-jilco-900 mx-auto"></div>
-                                    {config.stamp && <img src={config.stamp} alt="Stamp" className="absolute bottom-4 left-1/2 -translate-x-1/2 w-32 opacity-90 mix-blend-multiply" />}
+                                    {config.stamp && <img src={config.stamp} alt="ختم الشركة" className="absolute bottom-4 left-1/2 -translate-x-1/2 w-32 max-h-28 object-contain opacity-90 mix-blend-multiply" />}
                                 </div>
                                 <div className="text-center">
                                     <p className="font-bold text-sm mb-12">توقيع الطرف الثاني (العميل)</p>
@@ -641,10 +751,10 @@ export const ContractModule: React.FC = () => {
                         <div className="absolute inset-[18px] border border-gold-500 pointer-events-none z-0"></div>
                         <div className="absolute inset-[24px] border border-gray-100 pointer-events-none z-0"></div>
 
-                        <div className="relative z-10 flex flex-col flex-1 m-[28px] bg-white">
+                        <div className="contract-page-inner relative z-10 flex flex-col flex-1 m-[28px] bg-white">
                             <QuoteHeader config={config} />
 
-                            <div className="px-10 py-6 flex-1 flex flex-col">
+                            <div className="contract-page-body px-10 py-6 flex-1 flex flex-col">
                                 <div className="flex items-center justify-between border-b-2 border-jilco-900 pb-4 mb-6">
                                     <h3 className="text-xl font-black text-jilco-900 flex items-center gap-3 uppercase tracking-tighter">
                                         <div className="w-10 h-10 bg-jilco-900 text-gold-500 flex items-center justify-center rounded-xl shadow-lg"><Zap size={20} /></div>
@@ -653,7 +763,7 @@ export const ContractModule: React.FC = () => {
                                     <span className="text-[10px] font-black text-gray-400 uppercase tracking-[0.3em]">Technical Data</span>
                                 </div>
 
-                                <div className="grid grid-cols-1 border border-gray-200 rounded-2xl overflow-hidden shadow-sm mb-8">
+                                <div className="grid grid-cols-1 border border-gray-200 rounded-2xl shadow-sm mb-8">
                                     {[
                                         { label: 'نوع المصعد (Elevator Type)', value: currentSpecs.elevatorType },
                                         { label: 'الحمولة (Capacity)', value: currentSpecs.capacity },
@@ -672,15 +782,15 @@ export const ContractModule: React.FC = () => {
                                         { label: 'جهاز الطوارئ (Emergency)', value: currentSpecs.emergency },
                                         ...(currentContract.accessControl ? [{ label: 'نظام التحكم بالوصول (Access Control)', value: currentContract.accessControl }] : []),
                                     ].map((row, i) => (
-                                        <div key={i} className={`flex border-b border-gray-100 last:border-0 ${i % 2 === 0 ? 'bg-gray-50/50' : 'bg-white'}`}>
+                                        <div key={i} className={`contract-spec-row flex border-b border-gray-100 last:border-0 ${i % 2 === 0 ? 'bg-gray-50/50' : 'bg-white'}`}>
                                             <div className="w-1/3 p-2.5 font-black text-[10px] text-jilco-700 bg-gray-100/30 border-l border-gray-100 uppercase tracking-tighter flex items-center">{row.label}</div>
                                             <div className="w-2/3 p-2.5 text-[11px] font-black text-black uppercase flex items-center">{row.value || 'سيتم التحديد لاحقاً'}</div>
                                         </div>
                                     ))}
                                 </div>
 
-                                <QuoteFooter config={config} />
                             </div>
+                            <QuoteFooter config={config} />
                         </div>
                     </div>
 
@@ -691,10 +801,10 @@ export const ContractModule: React.FC = () => {
                         <div className="absolute inset-[18px] border border-gold-500 pointer-events-none z-0"></div>
                         <div className="absolute inset-[24px] border border-gray-100 pointer-events-none z-0"></div>
 
-                        <div className="relative z-10 flex flex-col flex-1 m-[28px] bg-white">
+                        <div className="contract-page-inner relative z-10 flex flex-col flex-1 m-[28px] bg-white">
                             <QuoteHeader config={config} />
 
-                            <div className="px-10 py-6 flex-1 flex flex-col relative overflow-hidden">
+                            <div className="contract-page-body px-10 py-6 flex-1 flex flex-col relative">
                                 <div className="absolute inset-0 flex items-center justify-center opacity-[0.02] pointer-events-none z-0"><h1 className="text-[120px] font-bold rotate-[-15deg]">LEGAL ANNEX</h1></div>
                                 <div className="relative z-10">
                                     <div className="flex items-center justify-between border-b-2 border-jilco-900 pb-4 mb-6">
@@ -708,20 +818,20 @@ export const ContractModule: React.FC = () => {
                                     <div className="space-y-6 text-xs leading-relaxed">
                                         <div>
                                             <h4 className="font-bold border-r-4 border-gold-500 pr-3 bg-gray-50 p-2 text-jilco-900">التزامات الطرف الأول (المقاول):</h4>
-                                            <div className="whitespace-pre-line pr-4 mt-2">{currentContract.firstPartyObligations}</div>
+                                            <div className="contract-legal-text whitespace-pre-line pr-4 mt-2">{currentContract.firstPartyObligations}</div>
                                         </div>
 
                                         <div>
                                             <h4 className="font-bold border-r-4 border-gold-500 pr-3 bg-gray-50 p-2 text-jilco-900">التزامات الطرف الثاني (العميل):</h4>
-                                            <div className="whitespace-pre-line pr-4 mt-2">{currentContract.secondPartyObligations}</div>
+                                            <div className="contract-legal-text whitespace-pre-line pr-4 mt-2">{currentContract.secondPartyObligations}</div>
                                         </div>
 
                                         <div>
                                             <h4 className="font-bold border-r-4 border-gold-500 pr-3 bg-gray-50 p-2 text-jilco-900">شروط التسليم والضمان والصيانة:</h4>
-                                            <div className="whitespace-pre-line pr-4 mt-2">{currentContract.handoverAndWarranty}</div>
+                                            <div className="contract-legal-text whitespace-pre-line pr-4 mt-2">{currentContract.handoverAndWarranty}</div>
                                         </div>
 
-                                        <div className="mt-8 border-t border-gray-200 pt-6 grid grid-cols-2 gap-16">
+                                        <div className="contract-signatures mt-8 border-t border-gray-200 pt-6 grid grid-cols-2 gap-16">
                                             <div className="text-center">
                                                 <p className="font-bold text-sm mb-12">توقيع الطرف الأول</p>
                                                 <div className="w-40 border-b-2 border-gray-300 mx-auto"></div>

@@ -143,6 +143,13 @@ const getBackupKey = (username?: string) =>
 
 export const cloudService = {
 
+  async reserveContractNumber(year: number): Promise<string> {
+    const { data, error } = await supabase.rpc('reserve_contract_number', { p_year: year });
+    if (error) throw error;
+    if (typeof data !== 'string' || !new RegExp(`^FA-${year}-\\d{3,}$`).test(data)) throw new Error('Invalid reserved contract number');
+    return data;
+  },
+
   async loadCompanyConfig() {
     const companyId = await getCurrentCompanyId();
     const { data, error } = await supabase
@@ -346,6 +353,26 @@ export const cloudService = {
 
   // 9. الاستماع للتغييرات الحية على مجموعة معينة (Subscribe)
   subscribeToCollection(collection: string, onUpdate: (payload: any) => void) {
+    if (collection === 'jilco_contracts_archive') {
+      let disposed = false;
+      let request = 0;
+      let channel: ReturnType<typeof supabase.channel> | undefined;
+      void getCurrentCompanyId().then(company => {
+        if (disposed) return;
+        channel = supabase.channel(`realtime_contracts:${company}`)
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'contracts', filter: `company_id=eq.${company}` }, async () => {
+            const current = ++request;
+            onUpdate({ eventType: 'SNAPSHOT_LOADING', requestId: current });
+            try {
+              const records = await cloudService.loadCollection(collection);
+              if (!disposed && current === request) onUpdate({ eventType: 'SNAPSHOT', records, requestId: current });
+            } catch {
+              if (!disposed && current === request) onUpdate({ eventType: 'ERROR', requestId: current });
+            }
+          }).subscribe();
+      }).catch(() => { if (!disposed) onUpdate({ eventType: 'ERROR' }); });
+      return () => { disposed = true; if (channel) void supabase.removeChannel(channel); };
+    }
     if (collection === 'jilco_customers') {
       const channel = supabase.channel(`realtime_customers`)
         .on('postgres_changes', { event: '*', schema: 'public', table: 'customers' }, (payload: any) => {
@@ -558,7 +585,9 @@ export const cloudService = {
 
       if (phase3Collections[collection]) {
           const cfg = phase3Collections[collection];
-          const { data, error } = await supabase.from(cfg.table).select('*');
+          let query = supabase.from(cfg.table).select('*');
+          if (collection === 'jilco_contracts_archive') query = query.eq('company_id', await getCurrentCompanyId());
+          const { data, error } = await query;
           if (error) throw error;
           return (data || []).map((row: any) => ({ record_id: row.legacy_id || row.id, data: cfg.mapFn(row) }));
       }
@@ -581,7 +610,7 @@ export const cloudService = {
       // The quote cache may be retained offline only when the fetch itself
       // failed. Returning [] here would make a network/RLS error look like an
       // authoritative empty archive and could hide a genuine sync problem.
-      if (collection === 'jilco_quotes_archive') throw e;
+      if (collection === 'jilco_quotes_archive' || collection === 'jilco_contracts_archive') throw e;
       return [];
     }
   },
@@ -707,7 +736,7 @@ export const cloudService = {
                  // Check if it's wrapped in { data: {...} } or not
                  const d = payloadRecord.data ? payloadRecord.data : payloadRecord;
                  return {
-                     legacy_id: payloadRecord.id || d.number, number: d.number, date: d.date, first_party_name: d.firstPartyName,
+                     legacy_id: payloadRecord.id || d.id || recordId, number: d.number, date: d.date, first_party_name: d.firstPartyName,
                      second_party_name: d.secondPartyName, second_party_id: d.secondPartyId,
                      location: d.location, total_value: d.totalValue, elevator_type: d.elevatorType,
                      stops: d.stops, elevator_count: d.elevatorCount, internal_doors_count: d.internalDoorsCount,
@@ -758,6 +787,11 @@ export const cloudService = {
       if (phase3Upserts[collection]) {
           const cfg = phase3Upserts[collection];
           const payload = cfg.mapFn(dataObj);
+          if (collection === 'jilco_contracts_archive') {
+            const { data, error } = await supabase.rpc('save_contract_record', { p_contract: payload });
+            if (error) throw error;
+            return data === true;
+          }
           const { error } = await supabase.from(cfg.table).upsert(payload, { onConflict: 'legacy_id' });
           if (error) throw error;
           return true;
@@ -784,9 +818,9 @@ export const cloudService = {
       return true;
     } catch (e) {
       console.error(`Failed to save record ${recordId} in ${collection}:`, e);
-      // Quote lists load only relational rows. A legacy fallback must not turn
+      // Financial document lists load only relational rows. A legacy fallback must not turn
       // an aborted atomic save into an apparent success.
-      if (collection === 'jilco_quotes_archive') return false;
+      if (collection === 'jilco_quotes_archive' || collection === 'jilco_contracts_archive') return false;
       // Keep the original record even when a legacy-to-relational mapping is
       // incomplete. It can be reviewed and normalized from the generic store
       // instead of being silently lost during migration.
@@ -805,6 +839,11 @@ export const cloudService = {
   // 12. حذف سجل
   async deleteRecord(collection: string, recordId: string) {
     try {
+      if (collection === 'jilco_contracts_archive') {
+        const { data, error } = await supabase.rpc('delete_contract_record', { p_legacy_id: recordId });
+        if (error) throw error;
+        return data === true;
+      }
       if (collection === 'jilco_receipts_archive') {
         return (await deleteReceiptWithInvoiceRecalculation(recordId)).success;
       }
@@ -951,12 +990,35 @@ export const cloudService = {
   // 15. Data Migration Tool for Contracts
   async migrateLegacyContracts() {
       try {
-        const { data, error } = await supabase.from('jilco_realtime_data').select('record_id, data').eq('collection', 'jilco_contracts_archive');
-        if (error || !data) return false;
+        const companyId = await getCurrentCompanyId();
+        const { data, error } = await supabase.from('jilco_realtime_data').select('record_id, data')
+          .eq('collection', 'jilco_contracts_archive').eq('company_id', companyId);
+        if (error) throw error;
         let migrated = 0;
-        for (const row of data) { await this.saveRecord('jilco_contracts_archive', row.record_id, row.data); migrated++; }
-        return migrated;
-      } catch { return -1; }
+        let failed = 0;
+        for (const row of data || []) {
+          const record = row.data?.data && typeof row.data.data === 'object' ? row.data.data : row.data;
+          const legacyId = row.data?.id || record?.id || row.record_id;
+          try {
+            if (!legacyId || !record?.number) throw new Error('Missing legacy contract identity');
+            const { data: reserved, error: reservationError } = await supabase.rpc('reserve_existing_contract_number', {
+              p_legacy_id: String(legacyId), p_number: String(record.number)
+            });
+            if (reservationError) throw reservationError;
+            if (reserved !== true) throw new Error('Contract number was not reserved');
+            const normalized = { ...row.data, id: legacyId, data: record };
+            if (await this.saveRecord('jilco_contracts_archive', String(legacyId), normalized)) migrated++;
+            else failed++;
+          } catch (error) {
+            console.error(`Failed to migrate legacy contract ${row.record_id}:`, error);
+            failed++;
+          }
+        }
+        return { migrated, failed };
+      } catch (error) {
+        console.error('Failed to load legacy contracts for migration:', error);
+        return { migrated: 0, failed: 1 };
+      }
   },
 
   // 16. Data Migration Tool for Invoices

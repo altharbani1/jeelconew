@@ -79,6 +79,28 @@
       box-sizing: border-box;
     }
 
+    .contracts-print-document {
+      width: 210mm;
+      max-width: none;
+    }
+
+    .contracts-print-document .a4-page {
+      width: 210mm;
+      min-height: 297mm;
+      height: auto;
+      overflow: visible;
+      box-sizing: border-box;
+    }
+
+    .contracts-print-document .contract-page-inner {
+      min-height: calc(297mm - 56px);
+    }
+
+    .contracts-print-document .contract-legal-text,
+    .contracts-print-document .contract-page-body {
+      overflow-wrap: anywhere;
+    }
+
     /* --- PROFESSIONAL PRINT ENGINE CSS v4.0 --- */
     @media print {
 
@@ -238,6 +260,48 @@
         overflow: visible !important;
         page-break-inside: auto !important;
         break-inside: auto !important;
+      }
+
+      /* Contract annexes can exceed one sheet. Use normal document flow so
+         every clause and the signatures continue instead of being clipped. */
+      .contracts-print-document .a4-page {
+        height: auto !important;
+        min-height: 297mm !important;
+        overflow: visible !important;
+        display: block !important;
+        page-break-inside: auto !important;
+        break-inside: auto !important;
+      }
+
+      .contracts-print-document .contract-page-inner,
+      .contracts-print-document .contract-page-body {
+        display: block !important;
+        height: auto !important;
+        overflow: visible !important;
+        flex: none !important;
+      }
+
+      .contracts-print-document header,
+      .contracts-print-document footer,
+      .contracts-print-document .contract-signatures,
+      .contracts-print-document .contract-spec-row,
+      .contracts-print-document .contract-payment-row {
+        page-break-inside: avoid !important;
+        break-inside: avoid !important;
+      }
+
+      .contracts-print-document h2,
+      .contracts-print-document h3,
+      .contracts-print-document h4 {
+        page-break-after: avoid !important;
+        break-after: avoid !important;
+      }
+
+      .contracts-print-document .contract-legal-text {
+        page-break-inside: auto !important;
+        break-inside: auto !important;
+        orphans: 3;
+        widows: 3;
       }
 
       .a4-page:last-of-type {

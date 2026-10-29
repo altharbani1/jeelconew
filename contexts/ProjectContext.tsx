@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 import { useCloudSync } from '../lib/useCloudSync';
+import { useSupabaseAuth } from './SupabaseAuthContext';
 
 interface ProjectContextType {
     projects: any[];
@@ -24,6 +25,7 @@ interface ProjectContextType {
 const ProjectContext = createContext<ProjectContextType | undefined>(undefined);
 
 export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+    const { user: cloudUser } = useSupabaseAuth();
     const [projects, setProjects] = useState<any[]>([]);
     const [phases, setPhases] = useState<any[]>([]);
     const [contracts, setContracts] = useState<any[]>([]);
@@ -42,7 +44,9 @@ export const ProjectProvider: React.FC<{ children: ReactNode }> = ({ children })
         { collection: 'jilco_warranties_archive', stateSetter: setWarranties }
     ];
 
-    const { syncStatus, saveRecord, deleteRecord } = useCloudSync(modules);
+    const contractCacheScope = cloudUser?.company_id && cloudUser?.id
+        ? `${cloudUser.company_id}::${cloudUser.id}` : undefined;
+    const { syncStatus, saveRecord, deleteRecord } = useCloudSync(modules, contractCacheScope);
 
     return (
         <ProjectContext.Provider value={{

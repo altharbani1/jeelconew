@@ -7,6 +7,7 @@
     "test": "node tests/subcontracts.test.mjs",
     "test:financial-migrations": "node tests/financial-migrations.test.mjs",
     "test:invoices": "node --test tests/invoice-calculations.test.mjs tests/invoice-drafts.test.mjs",
+    "test:contracts": "node --test tests/contracts.test.mjs tests/contract-migrations.test.mjs tests/contract-service.test.mjs",
     "typecheck": "tsc --noEmit",
     "dev": "vite",
     "build": "vite build",

@@ -9,9 +9,9 @@ interface SyncModule {
 type SyncStatus = 'idle' | 'syncing' | 'synced' | 'error';
 
 const getLocalCacheKey = (collection: string, cacheScope?: string) => {
-    // Quote archives contain customer and commercial data. Never use the old
+    // Quote and contract archives contain customer and commercial data. Never use the old
     // unscoped key: it can belong to another signed-in account on this device.
-    if (collection === 'jilco_quotes_archive') {
+    if (collection === 'jilco_quotes_archive' || collection === 'jilco_contracts_archive') {
         return cacheScope ? `${collection}::${cacheScope}` : null;
     }
     return collection;
@@ -23,6 +23,29 @@ export const useCloudSync = (modules: SyncModule[], cacheScope?: string) => {
     // ✅ useRef لتجنب stale closure — يضمن وصول saveRecord/deleteRecord لأحدث stateSetters
     const modulesRef = useRef(modules);
     modulesRef.current = modules;
+    const scopeRef = useRef(cacheScope);
+    scopeRef.current = cacheScope;
+    const scopeGeneration = useRef(0);
+    const loadSequence = useRef<Record<string, number>>({});
+    const contractRevision = useRef(0);
+
+    const upsertContract = (records: any[], id: string, contract: any) => {
+        const number = contract.data?.number || contract.number;
+        return [{ ...contract, id }, ...records.filter(record => {
+            const recordId = record.id || record.data?.id;
+            if (recordId) return recordId !== id;
+            return !number || (record.data?.number || record.number) !== number;
+        })];
+    };
+
+    const updateContractCache = (scope: string | undefined, update: (records: any[]) => any[]) => {
+        try {
+            const key = getLocalCacheKey('jilco_contracts_archive', scope);
+            if (!key) return;
+            const cached = JSON.parse(localStorage.getItem(key) || '[]');
+            localStorage.setItem(key, JSON.stringify(update(Array.isArray(cached) ? cached : [])));
+        } catch (error) { console.error('Contract cloud operation succeeded but its local cache could not be updated:', error); }
+    };
 
     const sortNewestFirst = (arr: any[]) => {
         return [...arr].sort((a, b) => {
@@ -34,63 +57,126 @@ export const useCloudSync = (modules: SyncModule[], cacheScope?: string) => {
 
     useEffect(() => {
         const mods = modulesRef.current;
+        const generation = ++scopeGeneration.current;
+        const isCurrent = () => scopeGeneration.current === generation && scopeRef.current === cacheScope;
         // Don't keep the previous account's in-memory quote list while the next
         // account's cloud data is loading (or if the account is unavailable).
         mods.find(({ collection }) => collection === 'jilco_quotes_archive')?.stateSetter([]);
-        loadAllInternal(mods);
+        mods.find(({ collection }) => collection === 'jilco_contracts_archive')?.stateSetter([]);
+        loadAllInternal(mods, cacheScope, generation);
 
         // الاشتراك في التحديثات اللحظية لكل collection
-        const unsubscribes = mods.map(({ collection, stateSetter }) =>
-            cloudService.subscribeToCollection(collection, (payload) => {
+        const unsubscribes = mods.map(({ collection, stateSetter }) => {
+            if (collection === 'jilco_contracts_archive' && !cacheScope) return () => {};
+            let snapshotRequest: { id: number; revision: number } | undefined;
+            return cloudService.subscribeToCollection(collection, (payload) => {
+                if (!isCurrent()) return;
+                if (collection === 'jilco_contracts_archive' && payload.eventType === 'SNAPSHOT_LOADING') {
+                    snapshotRequest = { id: payload.requestId, revision: contractRevision.current };
+                    return;
+                }
+                if (collection === 'jilco_contracts_archive' && payload.eventType === 'ERROR') {
+                    setSyncStatus('error');
+                    return;
+                }
+                if (collection === 'jilco_contracts_archive' && payload.eventType === 'SNAPSHOT') {
+                    if (!Array.isArray(payload.records)) { setSyncStatus('error'); return; }
+                    if (snapshotRequest && snapshotRequest.id === payload.requestId && snapshotRequest.revision !== contractRevision.current) {
+                        // The snapshot began before a local cloud mutation completed.
+                        // Fetch again so concurrent changes from other users are retained too.
+                        void loadAllInternal([{ collection, stateSetter }], cacheScope, generation);
+                        return;
+                    }
+                    ++contractRevision.current;
+                    const snapshot = sortNewestFirst(payload.records.map((row: any) => ({ ...row.data, id: row.record_id })));
+                    stateSetter((prev: any[]) => isCurrent() ? snapshot : prev);
+                    updateContractCache(cacheScope, () => snapshot);
+                    setSyncStatus('synced');
+                    return;
+                }
                 setSyncStatus('syncing');
 
                 if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
                     const updatedRecord = payload.new;
-                    stateSetter((prev: any[]) => {
-                        const exists = prev.find(q => (q.id || q.number) === updatedRecord.record_id);
-                        const newArr = exists
-                            ? prev.map(q => (q.id || q.number) === updatedRecord.record_id ? updatedRecord.data : q)
-                            : [updatedRecord.data, ...prev];
-                        return sortNewestFirst(newArr);
-                    });
+                    if (collection === 'jilco_contracts_archive') {
+                        ++contractRevision.current;
+                        const contract = { ...updatedRecord.data, id: updatedRecord.record_id };
+                        stateSetter((prev: any[]) => isCurrent()
+                            ? sortNewestFirst(upsertContract(prev, updatedRecord.record_id, contract)) : prev);
+                        updateContractCache(cacheScope, records => sortNewestFirst(upsertContract(records, updatedRecord.record_id, contract)));
+                    } else {
+                        stateSetter((prev: any[]) => {
+                            if (!isCurrent()) return prev;
+                            const exists = prev.find(q => (q.id || q.number) === updatedRecord.record_id);
+                            const newArr = exists
+                                ? prev.map(q => (q.id || q.number) === updatedRecord.record_id ? updatedRecord.data : q)
+                                : [updatedRecord.data, ...prev];
+                            return sortNewestFirst(newArr);
+                        });
+                    }
                 } else if (payload.eventType === 'DELETE') {
+                    if (collection === 'jilco_contracts_archive') ++contractRevision.current;
                     const deletedId = payload.old.record_id;
-                    stateSetter((prev: any[]) => prev.filter(q => (q.id || q.number) !== deletedId));
+                    stateSetter((prev: any[]) => {
+                        if (!isCurrent()) return prev;
+                        return prev.filter(q => !matchesRecordId(q, collection, deletedId));
+                    });
+                    if (collection === 'jilco_contracts_archive') updateContractCache(cacheScope,
+                        records => records.filter(record => !matchesRecordId(record, collection, deletedId)));
                 }
 
-                setTimeout(() => setSyncStatus('synced'), 1000);
-            })
-        );
+                setTimeout(() => { if (isCurrent()) setSyncStatus('synced'); }, 1000);
+            });
+        });
 
         const refreshSubcontractCosts = () => { void loadAllInternal(modulesRef.current); };
         window.addEventListener('subcontract-data-changed', refreshSubcontractCosts);
         return () => {
+            ++scopeGeneration.current;
             unsubscribes.forEach(unsub => unsub());
             window.removeEventListener('subcontract-data-changed', refreshSubcontractCosts);
         };
     }, [cacheScope]); // eslint-disable-line react-hooks/exhaustive-deps
 
-    const loadAllInternal = async (mods: SyncModule[]) => {
+    const loadAllInternal = async (mods: SyncModule[], requestedScope = cacheScope, generation = scopeGeneration.current) => {
+        const isCurrent = () => scopeRef.current === requestedScope && scopeGeneration.current === generation;
         setSyncStatus('syncing');
         try {
             await Promise.all(mods.map(async ({ collection, stateSetter }) => {
+                if (!isCurrent()) return;
+                const sequence = (loadSequence.current[collection] || 0) + 1;
+                loadSequence.current[collection] = sequence;
+                const isCollectionCurrent = () => isCurrent() && loadSequence.current[collection] === sequence;
+                if (collection === 'jilco_contracts_archive' && !requestedScope) {
+                    stateSetter([]);
+                    return;
+                }
                 // 1. محلي أولاً للسرعة
-                const localKey = getLocalCacheKey(collection, cacheScope);
+                const localKey = getLocalCacheKey(collection, requestedScope);
                 const localData = localKey ? localStorage.getItem(localKey) : null;
                 let localRecords: any[] = [];
                 if (localData) {
                     try {
                         const parsedLocal = JSON.parse(localData);
                         localRecords = Array.isArray(parsedLocal) ? parsedLocal : [];
-                        stateSetter(sortNewestFirst(localRecords));
+                        stateSetter(prev => isCollectionCurrent() ? sortNewestFirst(localRecords) : prev);
                     } catch (e) { }
                 }
 
                 // 2. السحابة
+                const revision = contractRevision.current;
+                const isLoadCurrent = () => isCollectionCurrent() && (collection !== 'jilco_contracts_archive'
+                    || contractRevision.current === revision);
                 const cloudData = await cloudService.loadCollection(collection);
+                // A response started before a confirmed save, delete or realtime
+                // snapshot must not restore older records over the newer archive.
+                if (!isLoadCurrent()) return;
                 if (cloudData && cloudData.length > 0) {
                     const parsed = cloudData.map((row: any) => {
                         const item = row.data;
+                        // A read must never delete and recreate contracts. Their server
+                        // identifier and persisted fields are authoritative.
+                        if (collection === 'jilco_contracts_archive') return { ...item, id: row.record_id };
                         // Self-healing
                         const localId = item.id || item.number;
                         if (localId && localId !== row.record_id) {
@@ -98,47 +184,22 @@ export const useCloudSync = (modules: SyncModule[], cacheScope?: string) => {
                                 cloudService.saveRecord(collection, localId, item);
                             });
                         }
-                        if (collection !== 'jilco_contracts_archive') return item;
-
-                        // Old relational rows did not persist payment terms or technical specs.
-                        // Recover only fields that are still empty in the cloud from this browser's
-                        // last full copy. Once saved, the cloud values become authoritative.
-                        const local = localRecords.find((record: any) => {
-                            const recordId = record.id || record.data?.id;
-                            const itemId = item.id || item.data?.id;
-                            const recordNumber = record.number || record.data?.number;
-                            const itemNumber = item.number || item.data?.number;
-                            return (recordId && itemId && recordId === itemId)
-                                || (recordNumber && itemNumber && recordNumber === itemNumber);
-                        });
-                        if (!local) return item;
-                        return {
-                            ...local,
-                            ...item,
-                            data: {
-                                ...local.data,
-                                ...item.data,
-                                paymentTerms: item.data?.paymentTerms?.length
-                                    ? item.data.paymentTerms
-                                    : (local.data?.paymentTerms || [])
-                            },
-                            specs: { ...(local.specs || {}), ...(item.specs || {}) }
-                        };
+                        return item;
                     });
-                    stateSetter(sortNewestFirst(parsed));
+                    stateSetter(prev => isLoadCurrent() ? sortNewestFirst(parsed) : prev);
                     if (localKey) localStorage.setItem(localKey, JSON.stringify(parsed));
-                } else if (collection === 'jilco_quotes_archive' && cloudData && localKey) {
+                } else if ((collection === 'jilco_quotes_archive' || collection === 'jilco_contracts_archive') && cloudData && localKey) {
                     // A successful empty cloud response is authoritative. Remove
                     // stale records for this same account instead of preserving them.
-                    stateSetter([]);
+                    stateSetter(prev => isLoadCurrent() ? [] : prev);
                     localStorage.setItem(localKey, '[]');
                 }
-                // Failed cloud reads throw and retain only this account's quote cache.
+                // Failed cloud reads throw and retain only this identity's scoped cache.
             }));
-            setSyncStatus('synced');
+            if (isCurrent()) setSyncStatus('synced');
         } catch (e) {
             console.error('useCloudSync loadAll error:', e);
-            setSyncStatus('error');
+            if (isCurrent()) setSyncStatus('error');
         }
     };
 
@@ -168,11 +229,34 @@ export const useCloudSync = (modules: SyncModule[], cacheScope?: string) => {
     };
 
     const matchesRecordId = (record: any, collection: string, id: string) =>
-        (collection === 'jilco_receipts_archive' || collection === 'jilco_invoices_archive')
+        collection === 'jilco_contracts_archive'
+            ? (record.id || record.data?.id || record.data?.number || record.number) === id
+            : (collection === 'jilco_receipts_archive' || collection === 'jilco_invoices_archive')
             ? (record.number || record.id) === id || record.id === id
             : (record.id || record.number) === id;
 
     const saveRecord = async (collection: string, id: string, data: any): Promise<boolean> => {
+        if (collection === 'jilco_contracts_archive') {
+            const requestedScope = cacheScope;
+            const generation = scopeGeneration.current;
+            const isCurrent = () => scopeRef.current === requestedScope && scopeGeneration.current === generation;
+            if (!requestedScope || !isCurrent()) return false;
+            setSyncStatus('syncing');
+            try {
+                const success = await cloudService.saveRecord(collection, id, data);
+                if (!isCurrent()) return false;
+                if (!success) { setSyncStatus('error'); return false; }
+                ++contractRevision.current;
+                const mod = modulesRef.current.find(module => module.collection === collection);
+                mod?.stateSetter(prev => isCurrent() ? sortNewestFirst(upsertContract(prev, id, data)) : prev);
+                updateContractCache(requestedScope, records => sortNewestFirst(upsertContract(records, id, data)));
+                setSyncStatus('synced');
+                return true;
+            } catch (error) {
+                if (isCurrent()) setSyncStatus('error');
+                return false;
+            }
+        }
         setSyncStatus('syncing');
         try {
             const mod = modulesRef.current.find(m => m.collection === collection);
@@ -226,19 +310,32 @@ export const useCloudSync = (modules: SyncModule[], cacheScope?: string) => {
     };
 
     const deleteRecord = async (collection: string, id: string): Promise<boolean> => {
+        const requestedScope = cacheScope;
+        const generation = scopeGeneration.current;
+        const isCurrent = () => scopeRef.current === requestedScope && scopeGeneration.current === generation;
+        if (collection === 'jilco_contracts_archive' && !requestedScope) return false;
         setSyncStatus('syncing');
         try {
             const result = collection === 'jilco_receipts_archive'
                 ? await cloudService.deleteReceiptWithInvoiceRecalculation(id)
                 : { success: await cloudService.deleteRecord(collection, id), invoices: [] };
+            if (collection === 'jilco_contracts_archive' && !isCurrent()) return false;
             if (!result.success) {
                 setSyncStatus('error');
                 return false;
             }
+            if (collection === 'jilco_contracts_archive') ++contractRevision.current;
 
             const mod = modulesRef.current.find(m => m.collection === collection);
             if (mod) {
-                mod.stateSetter(prev => prev.filter((q: any) => !matchesRecordId(q, collection, id)));
+                mod.stateSetter(prev => collection === 'jilco_contracts_archive' && !isCurrent()
+                    ? prev : prev.filter((q: any) => !matchesRecordId(q, collection, id)));
+            }
+
+            if (collection === 'jilco_contracts_archive') {
+                updateContractCache(requestedScope, records => records.filter(record => !matchesRecordId(record, collection, id)));
+                setSyncStatus('synced');
+                return true;
             }
 
             const localKey = getLocalCacheKey(collection, cacheScope);
@@ -266,7 +363,7 @@ export const useCloudSync = (modules: SyncModule[], cacheScope?: string) => {
             setSyncStatus('synced');
             return true;
         } catch (e) {
-            setSyncStatus('error');
+            if (collection !== 'jilco_contracts_archive' || isCurrent()) setSyncStatus('error');
             return false;
         }
     };
