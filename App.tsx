@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { AuthProvider, useAuth } from './contexts/AuthContext.tsx';
 import { DataProvider, useData } from './contexts/DataContext.tsx';
-import { LanguageProvider } from './contexts/LanguageContext.tsx';
 import { useSales } from './contexts/SalesContext.tsx';
 import { useHR } from './contexts/HRContext.tsx';
 import { useProject } from './contexts/ProjectContext.tsx';
@@ -74,9 +73,9 @@ const MainApp: React.FC = () => {
   }
 
   return (
-    <div className="flex w-full h-screen overflow-hidden bg-gray-100 print:h-auto print:min-h-screen print:block print:overflow-visible">
+    <div className="flex flex-col md:flex-row w-full h-dvh overflow-hidden bg-gray-100 print:h-auto print:min-h-screen print:block print:overflow-visible">
       <SystemNav currentView={currentView} setView={setCurrentView} syncStatus={activeSyncStatus} />
-      <main className="flex-1 relative flex flex-col h-screen overflow-hidden print:h-auto print:min-h-screen print:block print:overflow-visible">
+      <main className="flex-1 min-h-0 min-w-0 relative flex flex-col overflow-hidden print:h-auto print:min-h-screen print:block print:overflow-visible">
         {currentView === 'dashboard' && <Dashboard setView={setCurrentView} />}
         {currentView === 'users' && <UserManagementModule />}
         {currentView === 'activity_log' && <ActivityLogModule />}
@@ -137,9 +136,7 @@ const App: React.FC = () => {
                   <ElevatorProvider>
                     <MaintenanceProvider>
                       <SubcontractProvider>
-                        <LanguageProvider>
-                          <MainApp />
-                        </LanguageProvider>
+                        <MainApp />
                       </SubcontractProvider>
                     </MaintenanceProvider>
                   </ElevatorProvider>

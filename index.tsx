@@ -1,5 +1,6 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
+import { LanguageProvider } from './contexts/LanguageContext';
 import App from './App.tsx';
 import { SupabaseAuthProvider } from './contexts/SupabaseAuthContext';
 
@@ -9,7 +10,9 @@ if (rootElement) {
   root.render(
     <React.StrictMode>
       <SupabaseAuthProvider>
-        <App />
+        <LanguageProvider>
+          <App />
+        </LanguageProvider>
       </SupabaseAuthProvider>
     </React.StrictMode>
   );

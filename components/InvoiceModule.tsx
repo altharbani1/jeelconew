@@ -7,6 +7,7 @@ import { useAuth } from '../contexts/AuthContext.tsx';
 import { loggerService } from '../services/loggerService.ts';
 import { useSales } from '../contexts/SalesContext.tsx';
 import { useMaintenance } from '../contexts/MaintenanceContext.tsx';
+import { useLanguage } from '../contexts/LanguageContext';
 import { useData } from '../contexts/DataContext.tsx';
 import { useSupabaseAuth } from '../contexts/SupabaseAuthContext';
 import { invoiceDraftKey, readInvoiceDraft, writeInvoiceDraft } from '../lib/invoiceDrafts.mjs';
@@ -43,12 +44,19 @@ interface SavedQuote {
 }
 
 export const InvoiceModule: React.FC = () => {
+    const { language, direction } = useLanguage();
+    const copy = (ar: string, en: string) => language === 'en' ? en : ar;
     const { config: companyConfig } = useData();
     const { user: cloudUser } = useSupabaseAuth();
     const draftKey = invoiceDraftKey(cloudUser?.company_id, cloudUser?.id);
     const [restoredDraft] = useState<InvoiceData | null>(() => readInvoiceDraft(localStorage, draftKey));
     const [hasDraft, setHasDraft] = useState(Boolean(restoredDraft));
     const [draftError, setDraftError] = useState(false);
+    const [previewOpen, setPreviewOpen] = useState(false);
+    const [previewScale, setPreviewScale] = useState(1);
+    const [editorError, setEditorError] = useState<{ field: string; message: string } | null>(null);
+    const editorLayout = useRef<HTMLDivElement>(null);
+    const editorPanel = useRef<HTMLDivElement>(null);
     const { currentUser } = useAuth();
     const {
         invoices, customers, receipts, quotes: savedQuotes,
@@ -57,6 +65,27 @@ export const InvoiceModule: React.FC = () => {
     const { contracts, tickets } = useMaintenance();
 
     const [viewMode, setViewMode] = useState<'list' | 'editor' | 'statement'>(restoredDraft ? 'editor' : 'list');
+    useEffect(() => {
+        const layout = editorLayout.current;
+        if (!layout) return;
+        const observer = new ResizeObserver(([entry]) => {
+            setPreviewScale(Math.max(0.1, Math.min(1, (entry.contentRect.width - 24) / (210 * 96 / 25.4))));
+        });
+        observer.observe(layout);
+        return () => observer.disconnect();
+    }, [viewMode]);
+
+    const showEditorError = (field: string, message: string) => {
+        setEditorError({ field, message });
+        requestAnimationFrame(() => editorPanel.current?.querySelector<HTMLElement>(`#invoice-${field}`)?.focus());
+    };
+    const fieldError = (field: string) => ({
+        'aria-invalid': editorError?.field === field || undefined,
+        'aria-describedby': editorError?.field === field ? `invoice-error-${field}` : undefined,
+    });
+    const errorMessage = (field: string) => editorError?.field === field && (
+        <p id={`invoice-error-${field}`} role="alert" className="mt-2 text-sm text-red-700">{editorError.message}</p>
+    );
     const [searchTerm, setSearchTerm] = useState('');
     const [creatingInvoice, setCreatingInvoice] = useState(false);
     const creatingInvoiceRef = useRef(false);
@@ -133,16 +162,18 @@ export const InvoiceModule: React.FC = () => {
 
     const handleSaveInvoice = async () => {
         if (savingInvoiceRef.current) return;
-        if (!currentInvoice.customerName) return alert('يرجى اختيار العميل');
-        if (currentInvoice.items.length === 0) return alert('يرجى إضافة بند واحد على الأقل');
-        if (!currentInvoice.date || !currentInvoice.dueDate) return alert('يرجى إدخال تاريخ الفاتورة وتاريخ الاستحقاق.');
-        if (currentInvoice.dueDate < currentInvoice.date) return alert('يجب أن يكون تاريخ الاستحقاق في يوم الفاتورة أو بعده.');
+        if (!currentInvoice.customerName) return showEditorError('customer', copy("يرجى اختيار العميل", "Select a customer."));
+        if (!currentInvoice.items.length) return showEditorError('description', copy("يرجى إضافة بند واحد على الأقل", "Add at least one item."));
+        if (!currentInvoice.date) return showEditorError('date', copy("يرجى إدخال تاريخ الفاتورة.", "Enter the invoice date."));
+        if (!currentInvoice.dueDate) return showEditorError('due-date', copy("يرجى إدخال تاريخ الاستحقاق.", "Enter the due date."));
+        if (currentInvoice.dueDate < currentInvoice.date) return showEditorError('due-date', copy("يجب أن يكون تاريخ الاستحقاق في يوم الفاتورة أو بعده.", "The due date must be on or after the invoice date."));
         const invalidItem = currentInvoice.items.find(item =>
             !Number.isFinite(Number(item.quantity)) || Number(item.quantity) <= 0
             || !Number.isFinite(Number(item.unitPrice)) || Number(item.unitPrice) < 0
         );
-        if (invalidItem) return alert('تحقق من البنود: الكمية يجب أن تكون أكبر من صفر والسعر لا يمكن أن يكون سالباً.');
+        if (invalidItem) return showEditorError('save', copy("تحقق من البنود: الكمية يجب أن تكون أكبر من صفر والسعر لا يمكن أن يكون سالباً.", "Check the items. Quantities must be positive and prices cannot be negative."));
 
+        setEditorError(null);
         savingInvoiceRef.current = true;
         setSavingInvoice(true);
         try {
@@ -154,7 +185,7 @@ export const InvoiceModule: React.FC = () => {
         }));
         const amounts = calculateInvoiceAmounts(normalizedItems, currentInvoice.discountAmount, currentInvoice.isTaxInclusive);
         if (Number(currentInvoice.paidAmount || 0) > amounts.grandTotal + 0.01) {
-            return alert('إجمالي الدفعات المسجلة أكبر من قيمة الفاتورة الجديدة. راجع سندات القبض أو عدّلها قبل تخفيض الإجمالي.');
+            return showEditorError('save', copy("إجمالي الدفعات المسجلة أكبر من قيمة الفاتورة الجديدة. راجع سندات القبض أو عدّلها قبل تخفيض الإجمالي.", "Recorded payments exceed the new invoice total. Review the receipts before lowering the total."));
         }
 
         const invoiceToSave = {
@@ -187,7 +218,7 @@ export const InvoiceModule: React.FC = () => {
             } catch (error) {
                 console.error('Invoice save failed and its local cache could not be rolled back:', error);
             }
-            alert('تعذر حفظ الفاتورة في السحابة. لم تُعتمد التغييرات؛ تحقق من الاتصال أو رقم الفاتورة ثم أعد المحاولة.');
+            showEditorError('save', copy("تعذر حفظ الفاتورة في السحابة. تحقق من الاتصال أو رقم الفاتورة ثم أعد المحاولة.", "The invoice could not be saved. Check your connection or invoice number and try again."));
             return;
         }
 
@@ -199,6 +230,7 @@ export const InvoiceModule: React.FC = () => {
         }
         try { if (draftKey) localStorage.removeItem(draftKey); } catch (error) { console.error('Could not clear invoice draft:', error); }
         setHasDraft(false);
+        setPreviewOpen(false);
         setViewMode('list');
         } finally {
             savingInvoiceRef.current = false;
@@ -262,15 +294,15 @@ export const InvoiceModule: React.FC = () => {
 
     if (viewMode === 'list') {
         return (
-            <div className="flex-1 bg-gray-100 p-8 overflow-auto h-full animate-fade-in">
+            <div lang={language} dir={direction} className="flex-1 min-w-0 bg-gray-100 p-3 sm:p-8 overflow-auto h-full animate-fade-in">
                 <div className="max-w-6xl mx-auto">
-                    <div className="flex justify-between items-center mb-8">
+                    <div className="flex flex-wrap gap-4 justify-between items-center mb-8">
                         <div>
-                            <h1 className="text-2xl font-bold text-jilco-900">أرشيف الفواتير الضريبية</h1>
-                            <p className="text-gray-500 text-sm">إدارة الفواتير الصادرة للعملاء</p>
+                            <h1 className="text-2xl font-bold text-jilco-900">{copy("أرشيف الفواتير الضريبية", "Tax invoices")}</h1>
+                            <p className="text-gray-500 text-sm">{copy("إدارة الفواتير الصادرة للعملاء", "Manage invoices issued to customers")}</p>
                         </div>
-                        <div className="flex items-center gap-3">
-                            {hasDraft && <button onClick={() => setViewMode('editor')} className="px-4 py-2.5 rounded-lg border border-jilco-600 font-bold text-jilco-700">استكمال المسودة</button>}
+                        <div className="flex flex-wrap items-center gap-3">
+                            {hasDraft && <button onClick={() => setViewMode('editor')} className="px-4 py-2.5 rounded-lg border border-jilco-600 font-bold text-jilco-700">{copy("استكمال المسودة", "Resume draft")}</button>}
                             <button onClick={async () => {
                                 if(window.confirm('هل أنت متأكد من ترحيل الفواتير من قاعدة البيانات القديمة للجديدة؟')) {
                                     import('../services/cloudService').then(async m => {
@@ -282,73 +314,75 @@ export const InvoiceModule: React.FC = () => {
                                         }
                                     });
                                 }
-                            }} className="bg-orange-500 text-white px-4 py-2.5 rounded-lg font-bold flex items-center gap-2 hover:bg-orange-600 shadow-sm text-sm">ترحيل البيانات للجدول الجديد</button>
+                            }} className="bg-orange-500 text-white px-4 py-2.5 rounded-lg font-bold flex items-center gap-2 hover:bg-orange-600 shadow-sm text-sm">{copy("ترحيل البيانات للجدول الجديد", "Migrate invoice data")}</button>
                             <button onClick={handleCreateNew} disabled={creatingInvoice} className="bg-jilco-600 text-white px-6 py-2.5 rounded-lg font-bold flex items-center gap-2 hover:bg-jilco-700 shadow-md disabled:cursor-wait disabled:opacity-60">
-                                <Plus size={20} /> {creatingInvoice ? 'جارٍ حجز رقم الفاتورة…' : 'فاتورة جديدة'}
+                                <Plus size={20} /> {creatingInvoice ? copy("جارٍ حجز رقم الفاتورة…", "Reserving invoice number…") : copy("فاتورة جديدة", "New invoice")}
                             </button>
                         </div>
                     </div>
                     <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
                         <div className="p-4 border-b border-gray-100 flex gap-4">
                             <div className="relative flex-1">
-                                <Search className="absolute right-3 top-2.5 text-gray-400" size={18} />
-                                <input title="بحث" type="text" placeholder="بحث برقم الفاتورة أو اسم العميل..." className="w-full pr-10 pl-4 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-jilco-500 outline-none" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
+                                <Search className="absolute start-3 top-2.5 text-gray-400" size={18} />
+                                <input title={copy("بحث", "Search")} type="text" placeholder={copy("بحث برقم الفاتورة أو اسم العميل...", "Search by invoice number or customer name…")} className="w-full ps-10 pe-4 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-jilco-500 outline-none" value={searchTerm} onChange={e => setSearchTerm(e.target.value)} />
                             </div>
                         </div>
-                        <table className="w-full text-sm text-right">
-                            <thead className="bg-gray-900 text-white">
-                                <tr>
-                                    <th className="p-4 font-black">رقم الفاتورة</th>
-                                    <th className="p-4 font-black">العميل</th>
-                                    <th className="p-4 font-black">التاريخ</th>
-                                    <th className="p-4 font-black">تاريخ الاستحقاق</th>
-                                    <th className="p-4 font-black">الإجمالي</th>
-                                    <th className="p-4 font-black">الحالة</th>
-                                    <th className="p-4 text-center font-black">إجراءات</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-100">
-                                {invoices.filter(i => (i.number || '').includes(searchTerm) || (i.customerName || '').includes(searchTerm)).map(inv => (
-                                    <tr key={inv.number} className="hover:bg-gray-50 transition-colors">
-                                        <td className="p-4 font-mono font-bold text-jilco-900">{inv.number}</td>
-                                        <td className="p-4 font-bold">{inv.customerName}</td>
-                                        <td className="p-4 font-mono text-xs">{inv.date}</td>
-                                        <td className={`p-4 font-mono text-xs ${invoiceOverdue(inv) ? 'font-black text-red-700' : ''}`}>
-                                            {inv.dueDate || '—'}{invoiceOverdue(inv) && <span className="mr-2 rounded bg-red-50 px-2 py-1 font-sans">متأخرة</span>}
-                                        </td>
-                                        <td className="p-4 font-black text-green-700">
-                                            {formatInvoiceMoney(calculateInvoiceAmounts(inv.items || [], inv.discountAmount, inv.isTaxInclusive).grandTotal)}
-                                        </td>
-                                        <td className="p-4">
-                                            <span className={`px-2 py-1 rounded text-[10px] font-bold ${invoiceOverdue(inv) ? 'bg-red-100 text-red-700' : inv.status === 'paid' ? 'bg-green-100 text-green-700' : inv.status === 'partial' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'}`}>
-                                                {invoiceOverdue(inv) ? (inv.status === 'partial' ? 'متأخرة جزئياً' : 'متأخرة') : inv.status === 'paid' ? 'مدفوعة' : inv.status === 'partial' ? 'مدفوعة جزئياً' : 'بانتظار الدفع'}
-                                            </span>
-                                        </td>
-                                        <td className="p-4 flex justify-center gap-2">
-                                            <button
-                                                title="مشاركة عبر واتساب"
-                                                onClick={() => {
-                                                    if (!openInvoice(inv)) return;
-                                                    setTimeout(() => {
-                                                        const shareBtn = document.querySelector('[title="مشاركة المستند"]') as HTMLButtonElement;
-                                                        if (shareBtn) shareBtn.click();
-                                                    }, 300);
-                                                }}
-                                                className="p-2 text-green-600 hover:bg-green-50 rounded-full"
-                                            >
-                                                <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current" xmlns="http://www.w3.org/2000/svg">
-                                                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z" />
-                                                    <path d="M12 0C5.373 0 0 5.373 0 12c0 2.127.558 4.126 1.528 5.858L0 24l6.335-1.658A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.818 9.818 0 01-5.017-1.376l-.36-.214-3.734.979.994-3.634-.235-.374A9.818 9.818 0 1112 21.818z" />
-                                                </svg>
-                                            </button>
-                                            <button title="تعديل" onClick={() => openInvoice(inv)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-full"><Edit size={16} /></button>
-                                            <button title="طباعة" onClick={() => { if (openInvoice(inv)) setTimeout(() => window.print(), 500); }} className="p-2 text-gray-600 hover:bg-gray-50 rounded-full"><Printer size={16} /></button>
-                                            <button title="حذف" onClick={() => handleDeleteInvoice(inv)} className="p-2 text-red-500 hover:bg-red-50 rounded-full"><Trash2 size={16} /></button>
-                                        </td>
+                        <div className="overflow-x-auto" tabIndex={0} role="region" aria-label={copy("جدول الفواتير", "Invoices table")}>
+                            <table className="w-full min-w-[720px] text-sm text-start">
+                                <thead className="bg-gray-900 text-white">
+                                    <tr>
+                                        <th className="p-4 font-black">{copy("رقم الفاتورة", "Invoice number")}</th>
+                                        <th className="p-4 font-black">{copy("العميل", "Customer")}</th>
+                                        <th className="p-4 font-black">{copy("التاريخ", "Date")}</th>
+                                        <th className="p-4 font-black">{copy("تاريخ الاستحقاق", "Due date")}</th>
+                                        <th className="p-4 font-black">{copy("الإجمالي", "Total")}</th>
+                                        <th className="p-4 font-black">{copy("الحالة", "Status")}</th>
+                                        <th className="p-4 text-center font-black">{copy("إجراءات", "Actions")}</th>
                                     </tr>
-                                ))}
-                            </tbody>
-                        </table>
+                                </thead>
+                                <tbody className="divide-y divide-gray-100">
+                                    {invoices.filter(i => (i.number || '').includes(searchTerm) || (i.customerName || '').includes(searchTerm)).map(inv => (
+                                        <tr key={inv.number} className="hover:bg-gray-50 transition-colors">
+                                            <td className="p-4 font-mono font-bold text-jilco-900">{inv.number}</td>
+                                            <td className="p-4 font-bold">{inv.customerName}</td>
+                                            <td className="p-4 font-mono text-xs">{inv.date}</td>
+                                            <td className={`p-4 font-mono text-xs ${invoiceOverdue(inv) ? 'font-black text-red-700' : ''}`}>
+                                                {inv.dueDate || '—'}{invoiceOverdue(inv) && <span className="ms-2 rounded bg-red-50 px-2 py-1 font-sans">{copy("متأخرة", "Overdue")}</span>}
+                                            </td>
+                                            <td className="p-4 font-black text-green-700">
+                                                {formatInvoiceMoney(calculateInvoiceAmounts(inv.items || [], inv.discountAmount, inv.isTaxInclusive).grandTotal)}
+                                            </td>
+                                            <td className="p-4">
+                                                <span className={`px-2 py-1 rounded text-[10px] font-bold ${invoiceOverdue(inv) ? 'bg-red-100 text-red-700' : inv.status === 'paid' ? 'bg-green-100 text-green-700' : inv.status === 'partial' ? 'bg-blue-100 text-blue-700' : 'bg-amber-100 text-amber-700'}`}>
+                                                    {invoiceOverdue(inv) ? (inv.status === 'partial' ? copy("متأخرة جزئياً", "Partially paid and overdue") : copy("متأخرة", "Overdue")) : inv.status === 'paid' ? copy("مدفوعة", "Paid") : inv.status === 'partial' ? copy("مدفوعة جزئياً", "Partially paid") : copy("بانتظار الدفع", "Awaiting payment")}
+                                                </span>
+                                            </td>
+                                            <td className="p-4 flex justify-center gap-2">
+                                                <button
+                                                    title={copy("مشاركة عبر واتساب", "Share via WhatsApp")}
+                                                    onClick={() => {
+                                                        if (!openInvoice(inv)) return;
+                                                        setTimeout(() => {
+                                                            const shareBtn = document.querySelector('[title="مشاركة المستند"]') as HTMLButtonElement;
+                                                            if (shareBtn) shareBtn.click();
+                                                        }, 300);
+                                                    }}
+                                                    className="p-2 text-green-600 hover:bg-green-50 rounded-full"
+                                                >
+                                                    <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current" xmlns="http://www.w3.org/2000/svg">
+                                                        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z" />
+                                                        <path d="M12 0C5.373 0 0 5.373 0 12c0 2.127.558 4.126 1.528 5.858L0 24l6.335-1.658A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.818 9.818 0 01-5.017-1.376l-.36-.214-3.734.979.994-3.634-.235-.374A9.818 9.818 0 1112 21.818z" />
+                                                    </svg>
+                                                </button>
+                                                <button title={copy("تعديل", "Edit")} onClick={() => openInvoice(inv)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-full"><Edit size={16} /></button>
+                                                <button title={copy("طباعة", "Print")} onClick={() => { if (openInvoice(inv)) setTimeout(() => window.print(), 500); }} className="p-2 text-gray-600 hover:bg-gray-50 rounded-full"><Printer size={16} /></button>
+                                                <button title={copy("حذف", "Delete")} onClick={() => handleDeleteInvoice(inv)} className="p-2 text-red-500 hover:bg-red-50 rounded-full"><Trash2 size={16} /></button>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -356,18 +390,22 @@ export const InvoiceModule: React.FC = () => {
     }
 
     return (
-        <div className="flex flex-col lg:flex-row h-full w-full overflow-hidden print:block">
-            <div className="w-full lg:w-1/3 bg-white border-l border-gray-200 h-full overflow-y-auto p-6 no-print shadow-lg z-10">
+        <div ref={editorLayout} lang={language} dir={direction} className="relative flex flex-col lg:flex-row h-full w-full min-w-0 overflow-hidden print:block">
+            <div className="no-print flex shrink-0 gap-2 border-b bg-white p-2 lg:hidden" role="group" aria-label={copy("عرض الفاتورة", "Invoice view")}>
+                <button type="button" aria-pressed={!previewOpen} onClick={() => setPreviewOpen(false)} className={`flex-1 rounded p-2 font-bold ${!previewOpen ? 'bg-jilco-900 text-white' : 'bg-gray-100'}`}>{copy("تحرير", "Edit")}</button>
+                <button type="button" aria-pressed={previewOpen} onClick={() => setPreviewOpen(true)} className={`flex-1 rounded p-2 font-bold ${previewOpen ? 'bg-jilco-900 text-white' : 'bg-gray-100'}`}>{copy("معاينة", "Preview")}</button>
+            </div>
+            <div ref={editorPanel} className={`${previewOpen ? 'hidden lg:block' : ''} w-full lg:w-1/3 min-h-0 flex-1 lg:flex-none bg-white border-e border-gray-200 overflow-y-auto p-3 sm:p-6 no-print shadow-lg z-10`}>
                 <div className="mb-6 flex items-center justify-between border-b border-gray-100 pb-4">
-                    <h2 className="text-xl font-bold text-jilco-900 flex items-center gap-2"><FileText className="text-blue-600" /> محرر الفاتورة</h2>
-                    <button title="رجوع" onClick={() => setViewMode('list')} className="p-2 hover:bg-gray-100 rounded-full"><ArrowLeft size={20} /></button>
+                    <h2 className="text-xl font-bold text-jilco-900 flex items-center gap-2"><FileText className="text-blue-600" /> {copy("محرر الفاتورة", "Invoice editor")}</h2>
+                    <button title={copy("رجوع", "Back")} onClick={() => { setPreviewOpen(false); setEditorError(null); setViewMode('list'); }} className="p-2 hover:bg-gray-100 rounded-full"><ArrowLeft size={20} /></button>
                 </div>
-                <p role="status" className={`text-xs mb-4 ${draftError ? 'text-red-700' : 'text-gray-500'}`}>{draftError ? 'تعذر حفظ المسودة على هذا الجهاز. احفظ الفاتورة قبل مغادرة الصفحة.' : 'تُحفظ مسودة التعديلات على هذا الجهاز. اضغط حفظ لاعتماد الفاتورة في السحابة.'}</p>
+                <p role="status" className={`text-xs mb-4 ${draftError ? 'text-red-700' : 'text-gray-500'}`}>{draftError ? copy("تعذر حفظ المسودة على هذا الجهاز. احفظ الفاتورة قبل مغادرة الصفحة.", "The draft could not be saved on this device. Save the invoice before leaving.") : copy("تُحفظ مسودة التعديلات على هذا الجهاز. اضغط حفظ لاعتماد الفاتورة في السحابة.", "Your draft stays on this device. Select Save to save the invoice to the cloud.")}</p>
 
                 <div className="space-y-6">
-                    <div className="grid grid-cols-3 gap-2">
-                        <button onClick={handleSaveInvoice} disabled={savingInvoice} className="bg-green-600 text-white py-2 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-green-700 disabled:cursor-wait disabled:opacity-60"><Save size={18} /> {savingInvoice ? 'جارٍ الحفظ…' : 'حفظ'}</button>
-                        <button onClick={() => window.print()} className="bg-jilco-900 text-white py-2 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-jilco-800"><Printer size={18} /> طباعة</button>
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                        <button id="invoice-save" aria-describedby={fieldError('save')['aria-describedby']} onClick={handleSaveInvoice} disabled={savingInvoice} className="bg-green-600 text-white py-2 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-green-700 disabled:cursor-wait disabled:opacity-60"><Save size={18} /> {savingInvoice ? copy("جارٍ الحفظ…", "Saving…") : copy("حفظ", "Save")}</button>
+                        <button onClick={() => window.print()} className="bg-jilco-900 text-white py-2 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-jilco-800"><Printer size={18} /> {copy("طباعة", "Print")}</button>
                         <ShareButton
                             elementId="printable-area"
                             fileName={`فاتورة_${currentInvoice.number}`}
@@ -377,19 +415,21 @@ export const InvoiceModule: React.FC = () => {
                         />
                     </div>
 
+                    {errorMessage('save')}
                     <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 space-y-3">
-                        <label className="text-xs font-bold text-gray-700">بيانات العميل</label>
-                        <select title="اختيار العميل" value={currentInvoice.customerId || ''} onChange={handleCustomerSelect} className="w-full p-2 border rounded text-sm bg-white font-bold text-black">
-                            <option value="" disabled>-- اختر عميل مسجل --</option>
+                        <label htmlFor="invoice-customer" className="text-xs font-bold text-gray-700">{copy("بيانات العميل", "Customer details")}</label>
+                        <select id="invoice-customer" {...fieldError('customer')} value={currentInvoice.customerId || ''} onChange={handleCustomerSelect} className="w-full p-2 border rounded text-sm bg-white font-bold text-black">
+                            <option value="" disabled>{copy("-- اختر عميل مسجل --", "Select a registered customer")}</option>
                             {customers.map(c => <option key={c.id} value={c.id}>{c.fullName}</option>)}
                         </select>
+                        {errorMessage('customer')}
                         {availableQuotes.length > 0 && (
                             <div className="bg-amber-50 p-2 rounded border border-amber-200 mt-2">
-                                <p className="text-[10px] font-bold text-amber-800 mb-1">عروض أسعار مرتبطة بالعميل:</p>
+                                <p className="text-[10px] font-bold text-amber-800 mb-1">{copy("عروض أسعار مرتبطة بالعميل:", "Customer quotations")}</p>
                                 {availableQuotes.map(q => (
-                                    <button key={q.id} onClick={() => handleImportQuote(q)} className="w-full text-right p-1.5 hover:bg-amber-100 text-[10px] font-bold flex justify-between items-center border-b border-amber-100 last:border-0">
+                                    <button key={q.id} onClick={() => handleImportQuote(q)} className="w-full text-start p-1.5 hover:bg-amber-100 text-[10px] font-bold flex justify-between items-center border-b border-amber-100 last:border-0">
                                         <span>{q.details.number}</span>
-                                        <span className="text-amber-600 underline">استيراد البنود</span>
+                                        <span className="text-amber-600 underline">{copy("استيراد البنود", "Import items")}</span>
                                     </button>
                                 ))}
                             </div>
@@ -397,8 +437,8 @@ export const InvoiceModule: React.FC = () => {
                     </div>
 
                     <div className="bg-orange-50 p-4 rounded-lg border border-orange-200 space-y-3">
-                        <label className="text-xs font-bold text-orange-800 flex items-center gap-1"><Wrench size={14} /> استيراد بنود صيانة (تلقائي)</label>
-                        <select title="استيراد من عقد صيانة" onChange={(e) => {
+                        <label className="text-xs font-bold text-orange-800 flex items-center gap-1"><Wrench size={14} /> {copy("استيراد بنود صيانة (تلقائي)", "Import maintenance items")}</label>
+                        <select title={copy("استيراد من عقد صيانة", "Import from a maintenance contract")} onChange={(e) => {
                             const contract = contracts.find(c => c.id === e.target.value);
                             if (contract) {
                                 const customer = customers.find(c => c.id === contract.customerId);
@@ -418,10 +458,10 @@ export const InvoiceModule: React.FC = () => {
                                 }));
                             }
                         }} className="w-full p-2 border border-orange-300 rounded-lg bg-white font-bold text-sm outline-none mb-2 focus:ring-1 focus:ring-orange-500">
-                            <option value="">-- استيراد من عقد صيانة --</option>
+                            <option value="">{copy("-- استيراد من عقد صيانة --", "Select a maintenance contract")}</option>
                             {contracts.map(c => <option key={c.id} value={c.id}>عقد {c.number} ({customers.find(cust => cust.id === c.customerId)?.fullName})</option>)}
                         </select>
-                        <select title="استيراد من تذكرة أعطال" onChange={(e) => {
+                        <select title={copy("استيراد من تذكرة أعطال", "Import from a service ticket")} onChange={(e) => {
                             const ticket = tickets.find(t => t.id === e.target.value);
                             if (ticket) {
                                 const customer = customers.find(c => c.id === ticket.customerId);
@@ -441,7 +481,7 @@ export const InvoiceModule: React.FC = () => {
                                 }));
                             }
                         }} className="w-full p-2 border border-orange-300 rounded-lg bg-white font-bold text-sm outline-none focus:ring-1 focus:ring-orange-500">
-                            <option value="">-- استيراد من تذكرة أعطال --</option>
+                            <option value="">{copy("-- استيراد من تذكرة أعطال --", "Select a service ticket")}</option>
                             {tickets.map(t => <option key={t.id} value={t.id}>تذكرة {t.number} ({customers.find(cust => cust.id === t.customerId)?.fullName})</option>)}
                         </select>
                     </div>
@@ -449,59 +489,69 @@ export const InvoiceModule: React.FC = () => {
                     <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 space-y-3">
                         <div className="grid grid-cols-2 gap-3">
                             <div>
-                                <label className="block text-[10px] font-bold text-gray-500 mb-1">رقم الفاتورة</label>
-                                <input title="رقم الفاتورة يُحجز تلقائياً ولا يمكن تغييره يدوياً" placeholder="رقم الفاتورة" type="text" value={currentInvoice.number} readOnly className="w-full p-2 border rounded text-sm bg-gray-50 font-bold text-gray-700" />
+                                <label className="block text-[10px] font-bold text-gray-500 mb-1">{copy("رقم الفاتورة", "Invoice number")}</label>
+                                <input title={copy("رقم الفاتورة يُحجز تلقائياً ولا يمكن تغييره يدوياً", "The invoice number is reserved automatically")} placeholder={copy("رقم الفاتورة", "Invoice number")} type="text" value={currentInvoice.number} readOnly className="w-full p-2 border rounded text-sm bg-gray-50 font-bold text-gray-700" />
                             </div>
                             <div>
-                                <label className="block text-[10px] font-bold text-gray-500 mb-1">التاريخ</label>
-                                <input title="التاريخ" type="date" value={currentInvoice.date} onChange={e => setCurrentInvoice({ ...currentInvoice, date: e.target.value })} className="w-full p-2 border rounded text-sm bg-white font-bold" />
+                                <label htmlFor="invoice-date" className="block text-[10px] font-bold text-gray-500 mb-1">{copy("التاريخ", "Date")}</label>
+                                <input id="invoice-date" {...fieldError('date')} title={copy("التاريخ", "Date")} type="date" value={currentInvoice.date} onChange={e => setCurrentInvoice({ ...currentInvoice, date: e.target.value })} className="w-full p-2 border rounded text-sm bg-white font-bold" />
+                                {errorMessage('date')}
                             </div>
                         </div>
                         <div className="grid grid-cols-2 gap-3 mt-3">
                             <div>
-                                <label className="block text-[10px] font-bold text-gray-500 mb-1">تاريخ الاستحقاق</label>
-                                <input title="تاريخ الاستحقاق" type="date" min={currentInvoice.date} value={currentInvoice.dueDate || ''} onChange={e => setCurrentInvoice({ ...currentInvoice, dueDate: e.target.value })} className="w-full p-2 border rounded text-sm bg-white font-bold" />
+                                <label htmlFor="invoice-due-date" className="block text-[10px] font-bold text-gray-500 mb-1">{copy("تاريخ الاستحقاق", "Due date")}</label>
+                                <input id="invoice-due-date" {...fieldError('due-date')} title={copy("تاريخ الاستحقاق", "Due date")} type="date" min={currentInvoice.date} value={currentInvoice.dueDate || ''} onChange={e => setCurrentInvoice({ ...currentInvoice, dueDate: e.target.value })} className="w-full p-2 border rounded text-sm bg-white font-bold" />
+                                {errorMessage('due-date')}
                             </div>
-                            <div className="flex items-end text-xs font-bold text-gray-500">{invoiceOverdue(currentInvoice) ? 'هذه الفاتورة تجاوزت تاريخ الاستحقاق.' : 'تظهر حالة التأخير تلقائياً بعد تاريخ الاستحقاق.'}</div>
+                            <div className="flex items-end text-xs font-bold text-gray-500">{invoiceOverdue(currentInvoice) ? copy("هذه الفاتورة تجاوزت تاريخ الاستحقاق.", "This invoice is overdue.") : copy("تظهر حالة التأخير تلقائياً بعد تاريخ الاستحقاق.", "The status updates automatically after the due date.")}</div>
                         </div>
                         <div className="grid grid-cols-2 gap-3 mt-3">
                             <div>
-                                <label className="block text-[10px] font-bold text-gray-500 mb-1">خصم مكتسب (مبلغ مالي)</label>
-                                <input title="خصم مكتسب" type="number" min="0" step="0.01" value={currentInvoice.discountAmount || ''} onChange={e => setCurrentInvoice({ ...currentInvoice, discountAmount: parseFloat(e.target.value) || 0 })} className="w-full p-2 border rounded text-sm bg-white font-bold" placeholder="مثال: 500" />
+                                <label className="block text-[10px] font-bold text-gray-500 mb-1">{copy("خصم مكتسب (مبلغ مالي)", "Discount amount")}</label>
+                                <input title={copy("خصم مكتسب", "Discount")} type="number" min="0" step="0.01" value={currentInvoice.discountAmount || ''} onChange={e => setCurrentInvoice({ ...currentInvoice, discountAmount: parseFloat(e.target.value) || 0 })} className="w-full p-2 border rounded text-sm bg-white font-bold" placeholder={copy("مثال: 500", "Example: 500")} />
                             </div>
                             <div className="flex items-end pb-1">
                                 <label className="flex items-center gap-2 cursor-pointer bg-white p-2 w-full border border-gray-200 rounded text-sm font-bold shadow-sm transition-all hover:bg-gray-50">
                                     <input
-                                        title="تفعيل الضريبة"
+                                        title={copy("تفعيل الضريبة", "Include tax")}
                                         type="checkbox"
                                         checked={currentInvoice.isTaxInclusive ?? false}
                                         onChange={e => setCurrentInvoice({ ...currentInvoice, isTaxInclusive: e.target.checked })}
                                         className="w-4 h-4 text-jilco-600 rounded border-gray-300 focus:ring-jilco-500 cursor-pointer"
                                     />
-                                    <span>إجمالي الفاتورة تشمل الضريبة (15%)</span>
+                                    <span>{copy("إجمالي الفاتورة تشمل الضريبة (15%)", "Invoice total includes tax (15%)")}</span>
                                 </label>
                             </div>
                         </div>
                     </div>
 
                     <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
-                        <h3 className="text-xs font-bold text-gray-700 mb-4">إضافة أصناف يدوياً</h3>
+                        <h3 className="text-xs font-bold text-gray-700 mb-4">{copy("إضافة أصناف يدوياً", "Add items manually")}</h3>
                         <div className="space-y-3">
-                            <input title="اسم الصنف / الوصف" type="text" placeholder="اسم الصنف / الوصف" value={currentItem.description} onChange={e => setCurrentItem({ ...currentItem, description: e.target.value })} className="w-full p-2 border rounded text-sm bg-white font-bold" />
+                            <input id="invoice-description" {...fieldError('description')} title={copy("اسم الصنف / الوصف", "Item name or description")} type="text" placeholder={copy("اسم الصنف / الوصف", "Item name or description")} value={currentItem.description} onChange={e => setCurrentItem({ ...currentItem, description: e.target.value })} className="w-full p-2 border rounded text-sm bg-white font-bold" />
+                            {errorMessage('description')}
                             <div className="grid grid-cols-2 gap-3">
-                                <input title="الكمية" type="number" min="0.01" step="0.01" placeholder="الكمية" value={currentItem.quantity} onChange={e => setCurrentItem({ ...currentItem, quantity: parseFloat(e.target.value) || 0 })} className="p-2 border rounded text-sm text-center bg-white font-bold" />
-                                <input title="سعر الوحدة" type="number" min="0" step="0.01" placeholder="سعر الوحدة" value={currentItem.unitPrice} onChange={e => setCurrentItem({ ...currentItem, unitPrice: parseFloat(e.target.value) || 0 })} className="p-2 border rounded text-sm text-center bg-white font-bold" />
+                                <input id="invoice-quantity" {...fieldError('quantity')} title={copy("الكمية", "Quantity")} type="number" min="0.01" step="0.01" placeholder={copy("الكمية", "Quantity")} value={currentItem.quantity} onChange={e => setCurrentItem({ ...currentItem, quantity: parseFloat(e.target.value) || 0 })} className="w-full min-w-0 p-2 border rounded text-sm text-center bg-white font-bold" />
+                                <input id="invoice-price" {...fieldError('price')} title={copy("سعر الوحدة", "Unit price")} type="number" min="0" step="0.01" placeholder={copy("سعر الوحدة", "Unit price")} value={currentItem.unitPrice} onChange={e => setCurrentItem({ ...currentItem, unitPrice: parseFloat(e.target.value) || 0 })} className="p-2 border rounded text-sm text-center bg-white font-bold" />
                             </div>
+                            {errorMessage('quantity')}
+                            {errorMessage('price')}
                             <button
                                 onClick={() => {
                                     if (!currentItem.description.trim()) {
-                                        alert('يرجى كتابة اسم أو وصف الصنف');
+                                        showEditorError('description', copy("يرجى كتابة اسم أو وصف الصنف", "Enter an item name or description."));
                                         return;
                                     }
-                                    if (!Number.isFinite(currentItem.quantity) || currentItem.quantity <= 0 || !Number.isFinite(currentItem.unitPrice) || currentItem.unitPrice < 0) {
-                                        alert('أدخل كمية أكبر من صفر وسعراً لا يقل عن صفر.');
+                                    if (!Number.isFinite(currentItem.quantity) || currentItem.quantity <= 0) {
+                                        showEditorError('quantity', copy("أدخل كمية أكبر من صفر.", "Enter a quantity greater than zero."));
                                         return;
                                     }
+                                    if (!Number.isFinite(currentItem.unitPrice) || currentItem.unitPrice < 0) {
+                                        showEditorError('price', copy("أدخل سعراً لا يقل عن صفر.", "Enter a price of zero or more."));
+                                        return;
+                                    }
+                                    setEditorError(null);
                                     const item = {
                                         ...currentItem,
                                         id: Date.now().toString(),
@@ -512,7 +562,7 @@ export const InvoiceModule: React.FC = () => {
                                 }}
                                 className="w-full bg-blue-600 text-white py-2 rounded font-bold text-sm hover:bg-blue-700 active:bg-blue-800 transition-colors"
                             >
-                                + إضافة للجدول
+                                {copy("إضافة بند", "Add item")}
                             </button>
                         </div>
                     </div>
@@ -520,15 +570,15 @@ export const InvoiceModule: React.FC = () => {
                     {(currentInvoice.items || []).length > 0 && (
                         <div className="border border-blue-200 rounded-lg overflow-hidden bg-white">
                             <div className="bg-blue-600 text-white px-3 py-2 text-xs font-black">
-                                الأصناف المضافة ({currentInvoice.items.length})
+                                {copy("الأصناف المضافة", "Added items")} ({currentInvoice.items.length})
                             </div>
                             <table className="w-full text-xs">
                                 <thead className="bg-gray-800 text-white">
                                     <tr>
-                                        <th className="p-2 text-right font-bold">الصنف</th>
-                                        <th className="p-2 text-center font-bold w-10">كمية</th>
-                                        <th className="p-2 text-center font-bold w-16">السعر</th>
-                                        <th className="p-2 text-center font-bold w-16">الإجمالي</th>
+                                        <th className="p-2 text-start font-bold">{copy("الصنف", "Item")}</th>
+                                        <th className="p-2 text-center font-bold w-10">{copy("كمية", "Qty")}</th>
+                                        <th className="p-2 text-center font-bold w-16">{copy("السعر", "Price")}</th>
+                                        <th className="p-2 text-center font-bold w-16">{copy("الإجمالي", "Total")}</th>
                                         <th className="p-2 w-8"></th>
                                     </tr>
                                 </thead>
@@ -541,9 +591,9 @@ export const InvoiceModule: React.FC = () => {
                                             <td className="p-2 text-center font-black text-green-700">{formatInvoiceMoney(item.total)}</td>
                                             <td className="p-2 text-center">
                                                 <button
-                                                    title="حذف البند"
+                                                    title={copy("حذف البند", "Remove item")}
                                                     onClick={() => setCurrentInvoice(prev => ({ ...prev, items: (prev.items || []).filter(i => i.id !== item.id) }))}
-                                                    className="text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                    className="text-red-400 hover:text-red-600 transition-colors"
                                                 ><Trash2 size={13} /></button>
                                             </td>
                                         </tr>
@@ -551,7 +601,7 @@ export const InvoiceModule: React.FC = () => {
                                 </tbody>
                                 <tfoot className="bg-gray-50 border-t-2 border-gray-200">
                                     <tr>
-                                        <td colSpan={3} className="p-2 text-right font-black text-gray-600 text-[10px] uppercase">الإجمالي الفرعي:</td>
+                                        <td colSpan={3} className="p-2 text-start font-black text-gray-600 text-[10px] uppercase">{copy("الإجمالي الفرعي:", "Subtotal")}</td>
                                         <td className="p-2 text-center font-black text-jilco-900">{formatInvoiceMoney(subtotal)}</td>
                                         <td></td>
                                     </tr>
@@ -563,8 +613,8 @@ export const InvoiceModule: React.FC = () => {
             </div>
 
             {/* Invoice Preview View */}
-            <div className="flex-1 bg-gray-200 p-8 overflow-auto flex justify-center items-start print:p-0 print:bg-white print:overflow-visible print:block">
-                <div id="printable-area" className="invoice-print-document bg-white shadow-2xl w-[210mm] min-h-[297mm] p-0 relative flex flex-col print:shadow-none print:w-full">
+            <div className={`${previewOpen ? 'relative' : 'absolute [inset-inline-start:100%] lg:static'} flex-1 min-h-0 min-w-0 bg-gray-200 p-3 lg:p-8 overflow-auto print:static print:p-0 print:bg-white print:overflow-visible print:block`}>
+                <div id="printable-area" lang="ar" dir="rtl" style={{ '--invoice-preview-scale': previewOpen ? previewScale : 1 } as React.CSSProperties} className="invoice-print-document bg-white shadow-2xl mx-auto w-[210mm] min-h-[297mm] p-0 relative flex flex-col [zoom:var(--invoice-preview-scale)] lg:[zoom:1] print:[zoom:1] print:shadow-none print:w-full">
                     <div className="absolute inset-3 border-[6px] border-jilco-900 pointer-events-none z-0"></div>
                     <div className="absolute inset-[18px] border border-gold-500 pointer-events-none z-0"></div>
                     <div className="relative z-10 flex flex-col flex-1 m-[28px] bg-white">
