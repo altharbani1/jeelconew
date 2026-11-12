@@ -448,6 +448,66 @@ try {
   assert.equal((await db.query('select public.delete_invoice_without_receipts($1) deleted',[reserved1])).rows[0].deleted,false);
 
   console.log('PASS: financial migrations enforce canonical invoice totals, customer ownership, paid balance guards, receipt uniqueness, and safe invoice deletion');
+  await resetRole();
+  await db.exec(migration('20261012193000_subcontract_accounting_foundation.sql'));
+  await db.exec(migration('20261013133423_repair_subcontract_accounting.sql').split('create or replace function public.guard_posted_subcontract_voucher')[0]);
+  await asUser(userA);
+  const historicNumber = (await db.query('select public.reserve_invoice_number(2036) number')).rows[0].number;
+  const historic = { ...payload, legacy_id: 'historic-opening', number: historicNumber, date: '2036-01-01',
+    items: [{quantity:1, unitPrice:100}], discount_amount: 0, is_tax_inclusive: true };
+  await saveStrict(historic);
+  await resetRole();
+  await db.exec("update public.invoices set paid_amount = 30 where legacy_id = 'historic-opening'");
+  await db.exec(migration('20261112153000_invoice_accounting_lifecycle.sql'));
+  await asUser(userA);
+
+  const currentNumber = (await db.query('select public.reserve_invoice_number(2036) number')).rows[0].number;
+  const current = { ...historic, legacy_id: 'new-accounted-invoice', number: currentNumber };
+  await saveStrict(current);
+  await saveStrict(current);
+  assert.equal(await count("select count(*)::int n from public.accounting_journals where source_type='sales_invoice'"), 1);
+  const journalLines = (await db.query(`
+    select a.code, l.debit::float debit, l.credit::float credit
+    from public.accounting_entry_lines l
+    join public.accounting_journals j on j.id=l.journal_id and j.company_id=l.company_id
+    join public.chart_of_accounts a on a.id=l.account_id and a.company_id=l.company_id
+    where j.source_type='sales_invoice' order by a.code`)).rows;
+  assert.deepEqual(journalLines, [
+    {code:'1200', debit:100, credit:0},
+    {code:'2130', debit:0, credit:13.04},
+    {code:'4100', debit:0, credit:86.96},
+  ]);
+
+  const savePayment = (invoice, amount, customer = null) => db.query(
+    'select public.save_receipt_with_invoice_recalculation($1::jsonb)',
+    [JSON.stringify({legacy_id:'accounted-receipt', number:'ACCOUNTED-RV', date:'2036-01-01',
+      payment_method:'cash', invoice_number:invoice, customer_legacy_id:customer, amount})]
+  );
+  await assert.rejects(savePayment(currentNumber, 1, 'customer-a2'), /must match/);
+  await assert.rejects(savePayment(currentNumber, 100.01), /remaining invoice balance/);
+  await savePayment(currentNumber, 99.99);
+  await savePayment(currentNumber, 99.99);
+  assert.equal(await count("select count(*)::int n from public.accounting_journals where source_type='customer_receipt'"), 1);
+  assert.deepEqual((await db.query("select status, paid_amount::float paid from public.invoices where legacy_id='new-accounted-invoice'")).rows[0],
+    {status:'partial', paid:99.99});
+  assert.equal((await db.query("select customer_legacy_id from public.receipts where legacy_id='accounted-receipt'")).rows[0].customer_legacy_id, 'customer-a');
+  await assert.rejects(saveStrict({...current, due_date:'2036-02-01'}), /details cannot be changed/);
+  await assert.rejects(db.query("select public.void_invoice_record('new-accounted-invoice', 'Correction')"), /reverse linked payments/i);
+
+  await savePayment(historicNumber, 20);
+  assert.equal((await db.query("select paid_amount::float paid from public.invoices where legacy_id='historic-opening'")).rows[0].paid, 50);
+  await db.query("select public.delete_receipt_with_invoice_recalculation('accounted-receipt')");
+  assert.equal((await db.query("select paid_amount::float paid from public.invoices where legacy_id='historic-opening'")).rows[0].paid, 30);
+
+  assert.equal((await db.query("select public.void_invoice_record('new-accounted-invoice', 'Correction') ok")).rows[0].ok, true);
+  assert.equal((await db.query("select public.void_invoice_record('new-accounted-invoice', 'Correction') ok")).rows[0].ok, true);
+  assert.equal(await count("select count(*)::int n from public.accounting_journals where source_type='reversal'"), 3);
+  assert.equal((await db.query("select status from public.invoices where legacy_id='new-accounted-invoice'")).rows[0].status, 'cancelled');
+  await assert.rejects(savePayment(currentNumber, 1), /cancelled invoices/i);
+  await assert.rejects(db.query("delete from public.invoices where legacy_id='new-accounted-invoice'"), /rather than deleted/);
+
+  console.log('PASS: posted invoice and receipt journals, reversals, issued records, exact halalas, customer consistency, and historical balances');
+
 } finally {
   await db.close();
 }

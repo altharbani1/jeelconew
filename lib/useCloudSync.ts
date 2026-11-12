@@ -151,7 +151,11 @@ export const useCloudSync = (modules: SyncModule[], cacheScope?: string) => {
                 || (item.id && item.id === (invoice.id || invoice.number))
             );
             return update ? {
-                ...invoice, paidAmount: Number(update.paidAmount) || 0, status: update.status,
+                ...invoice,
+                ...(update.paidAmount !== undefined ? { paidAmount: Number(update.paidAmount) || 0 } : {}),
+                ...(update.openingPaidAmount !== undefined ? { openingPaidAmount: Number(update.openingPaidAmount) || 0 } : {}),
+                ...(update.status !== undefined ? { status: update.status } : {}),
+                ...(update.voidReason !== undefined ? { voidReason: update.voidReason } : {}),
                 ...(Array.isArray(update.items) ? { items: update.items } : {}),
                 ...(update.grandTotal !== undefined ? { grandTotal: Number(update.grandTotal), discountAmount: Number(update.discountAmount) || 0 } : {}),
                 ...(update.customerId !== undefined ? { customerId: update.customerId || undefined } : {})
@@ -176,6 +180,35 @@ export const useCloudSync = (modules: SyncModule[], cacheScope?: string) => {
         setSyncStatus('syncing');
         try {
             const mod = modulesRef.current.find(m => m.collection === collection);
+            if (collection === 'jilco_invoices_archive') {
+                const result = await cloudService.saveInvoiceRecord(id, data);
+                if (!result.success || !result.invoice) {
+                    setSyncStatus('error');
+                    return false;
+                }
+
+                const saved = { ...data, ...result.invoice, customerId: result.invoice.customerId || undefined };
+                const apply = (records: any[]) => sortNewestFirst(
+                    records.some(record => matchesRecordId(record, collection, id))
+                        ? records.map(record => matchesRecordId(record, collection, id) ? saved : record)
+                        : [saved, ...records]
+                );
+                mod?.stateSetter(apply);
+                try {
+                    const raw = localStorage.getItem(collection);
+                    let cached: unknown = [];
+                    try {
+                        cached = raw ? JSON.parse(raw) : [];
+                    } catch {
+                        // A malformed cache is replaceable after cloud confirmation.
+                    }
+                    localStorage.setItem(collection, JSON.stringify(apply(Array.isArray(cached) ? cached : [])));
+                } catch (error) {
+                    console.error('Invoice saved, but its local cache could not be updated:', error);
+                }
+                setSyncStatus('synced');
+                return true;
+            }
             if (mod) {
                 mod.stateSetter(prev => {
                     const exists = prev.find((q: any) => matchesRecordId(q, collection, id));
@@ -199,11 +232,6 @@ export const useCloudSync = (modules: SyncModule[], cacheScope?: string) => {
 
             const result = collection === 'jilco_receipts_archive'
                 ? await cloudService.saveReceiptWithInvoiceRecalculation(id, data)
-                : collection === 'jilco_invoices_archive'
-                    ? await cloudService.saveInvoiceRecord(id, data).then(invoiceResult => ({
-                        success: invoiceResult.success,
-                        invoices: invoiceResult.invoice ? [invoiceResult.invoice] : []
-                    }))
                 : { success: await cloudService.saveRecord(collection, id, data), invoices: [] };
 
             if (result.success && localKey && collection === 'jilco_quotes_archive') {
@@ -271,10 +299,19 @@ export const useCloudSync = (modules: SyncModule[], cacheScope?: string) => {
         }
     };
 
+    const voidInvoiceRecord = async (id: string, reason: string): Promise<boolean> => {
+        setSyncStatus('syncing');
+        const saved = await cloudService.voidInvoiceRecord(id, reason.trim());
+        if (saved) applyInvoicePaymentUpdates([{ id, number: id, status: 'cancelled', voidReason: reason.trim() }]);
+        setSyncStatus(saved ? 'synced' : 'error');
+        return saved;
+    };
+
     return {
         syncStatus,
         saveRecord,
         deleteRecord,
+        voidInvoiceRecord,
         reserveInvoiceNumber: (year: number) => cloudService.reserveInvoiceNumber(year),
         loadAll: () => loadAllInternal(modulesRef.current)
     };

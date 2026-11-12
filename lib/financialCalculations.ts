@@ -8,6 +8,8 @@ export const getSalesInvoiceTotal = (invoice: Partial<InvoiceData>): number => {
 };
 
 export const getInvoicePaymentStatus = (paid: number, total: number): InvoiceData['status'] => {
-  if (paid >= total - 0.01) return 'paid';
-  return paid > 0 ? 'partial' : 'pending';
+  const paidHalalas = Math.round(paid * 100);
+  const totalHalalas = Math.round(total * 100);
+  if (paidHalalas >= totalHalalas) return 'paid';
+  return paidHalalas > 0 ? 'partial' : 'pending';
 };

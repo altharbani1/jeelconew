@@ -25,6 +25,8 @@ const dateAfterDays = (days: number) => {
     return localDateString(date);
 };
 
+const emptyItem: QuoteItem = { id: '', description: '', details: '', quantity: 1, unitPrice: 0, total: 0 };
+
 const INITIAL_CONFIG: CompanyConfig = {
     logo: null,
     stamp: null,
@@ -49,7 +51,7 @@ export const InvoiceModule: React.FC = () => {
     const { config: companyConfig } = useData();
     const { user: cloudUser } = useSupabaseAuth();
     const draftKey = invoiceDraftKey(cloudUser?.company_id, cloudUser?.id);
-    const [restoredDraft] = useState<InvoiceData | null>(() => readInvoiceDraft(localStorage, draftKey));
+    const [restoredDraft] = useState<(InvoiceData & { pendingItem?: QuoteItem }) | null>(() => readInvoiceDraft(localStorage, draftKey));
     const [hasDraft, setHasDraft] = useState(Boolean(restoredDraft));
     const [draftError, setDraftError] = useState(false);
     const [previewOpen, setPreviewOpen] = useState(false);
@@ -59,12 +61,12 @@ export const InvoiceModule: React.FC = () => {
     const editorPanel = useRef<HTMLDivElement>(null);
     const { currentUser } = useAuth();
     const {
-        invoices, customers, receipts, quotes: savedQuotes,
-        setInvoices, saveSalesRecord, deleteSalesRecord, reserveInvoiceNumber
+        invoices, customers, quotes: savedQuotes,
+        saveSalesRecord, voidInvoiceRecord, reserveInvoiceNumber
     } = useSales();
     const { contracts, tickets } = useMaintenance();
 
-    const [viewMode, setViewMode] = useState<'list' | 'editor' | 'statement'>(restoredDraft ? 'editor' : 'list');
+    const [viewMode, setViewMode] = useState<'list' | 'editor' | 'statement' | 'archive'>(restoredDraft ? 'editor' : 'list');
     useEffect(() => {
         const layout = editorLayout.current;
         if (!layout) return;
@@ -97,7 +99,8 @@ export const InvoiceModule: React.FC = () => {
         if (companyConfig) setConfig({ ...INITIAL_CONFIG, ...companyConfig });
     }, [companyConfig]);
 
-    const [currentInvoice, setCurrentInvoice] = useState<InvoiceData>(restoredDraft || {
+    const [archivedInvoice, setArchivedInvoice] = useState<InvoiceData | null>(null);
+    const [draftInvoice, setCurrentInvoice] = useState<InvoiceData>(restoredDraft || {
         number: `INV-${new Date().getFullYear()}-001`,
         date: localDateString(),
         dueDate: dateAfterDays(15),
@@ -110,16 +113,21 @@ export const InvoiceModule: React.FC = () => {
     });
 
     const [availableQuotes, setAvailableQuotes] = useState<SavedQuote[]>([]);
-    const [currentItem, setCurrentItem] = useState<QuoteItem>({
-        id: '', description: '', details: '', quantity: 1, unitPrice: 0, total: 0
-    });
+    const currentInvoice = (archivedInvoice && invoices.find(invoice => invoice.number === archivedInvoice.number)) || archivedInvoice || draftInvoice;
+    const [currentItem, setCurrentItem] = useState<QuoteItem>(restoredDraft?.pendingItem || emptyItem);
+
+    const openArchivedInvoice = (invoice: InvoiceData) => {
+        setArchivedInvoice(invoice);
+        setPreviewOpen(true);
+        setViewMode("archive");
+    };
 
     useEffect(() => {
         if (viewMode !== 'editor') return;
-        const saved = writeInvoiceDraft(localStorage, draftKey, currentInvoice);
+        const saved = writeInvoiceDraft(localStorage, draftKey, { ...draftInvoice, pendingItem: currentItem });
         setDraftError(!saved);
         if (saved) setHasDraft(true);
-    }, [currentInvoice, viewMode, draftKey]);
+    }, [draftInvoice, currentItem, viewMode, draftKey]);
 
     useEffect(() => {
         const savedConfig = localStorage.getItem('jilco_quote_data');
@@ -131,29 +139,34 @@ export const InvoiceModule: React.FC = () => {
         }
     }, []);
 
-    const handleCreateNew = async () => {
-        if (hasDraft && !window.confirm('توجد مسودة فاتورة محفوظة. هل تريد استبدالها بفاتورة جديدة؟')) return;
+    const handleCreateNew = async (source?: InvoiceData) => {
+        if (hasDraft && !window.confirm(copy('توجد مسودة فاتورة محفوظة. هل تريد استبدالها بفاتورة جديدة؟', 'Replace the saved draft with a new invoice?'))) return;
         if (creatingInvoiceRef.current) return;
         creatingInvoiceRef.current = true;
         setCreatingInvoice(true);
         try {
             const number = await reserveInvoiceNumber(new Date().getFullYear());
+            setCurrentItem(emptyItem);
             setCurrentInvoice({
                 number,
                 date: localDateString(),
                 dueDate: dateAfterDays(15),
-                customerName: '',
-                customerVatNumber: '',
-                items: [],
+                customerName: source?.customerName || '',
+                customerId: source?.customerId,
+                customerVatNumber: source?.customerVatNumber || '',
+                items: source?.items.map(item => ({ ...item })) || [],
                 status: 'pending',
-                discountAmount: 0,
-                isTaxInclusive: true // افتراضي شامل الضريبة
+                discountAmount: source?.discountAmount || 0,
+                isTaxInclusive: source?.isTaxInclusive ?? true
             });
             setAvailableQuotes([]);
+            setArchivedInvoice(null);
+            setPreviewOpen(false);
+            setEditorError(null);
             setViewMode('editor');
         } catch (error) {
             console.error('Failed to reserve an invoice number:', error);
-            alert('تعذر حجز رقم فاتورة جديد من الخادم. تحقق من الاتصال وحاول مرة أخرى.');
+            alert(copy('تعذر حجز رقم فاتورة جديد من الخادم. تحقق من الاتصال وحاول مرة أخرى.', 'Could not reserve a new invoice number. Check your connection and try again.'));
         } finally {
             creatingInvoiceRef.current = false;
             setCreatingInvoice(false);
@@ -162,7 +175,9 @@ export const InvoiceModule: React.FC = () => {
 
     const handleSaveInvoice = async () => {
         if (savingInvoiceRef.current) return;
+        if (invoices.some(invoice => invoice.number === currentInvoice.number)) return showEditorError('save', copy('هذا الرقم يعود لفاتورة محفوظة. ابدأ فاتورة جديدة للتصحيح.', 'This number belongs to a saved invoice. Start a new invoice to make a correction.'));
         if (!currentInvoice.customerName) return showEditorError('customer', copy("يرجى اختيار العميل", "Select a customer."));
+        if (currentItem.description.trim() || currentItem.quantity !== 1 || currentItem.unitPrice !== 0) return showEditorError('description', copy('أضف البند الجاري إدخاله أو امسحه قبل إصدار الفاتورة.', 'Add or clear the item you are entering before issuing the invoice.'));
         if (!currentInvoice.items.length) return showEditorError('description', copy("يرجى إضافة بند واحد على الأقل", "Add at least one item."));
         if (!currentInvoice.date) return showEditorError('date', copy("يرجى إدخال تاريخ الفاتورة.", "Enter the invoice date."));
         if (!currentInvoice.dueDate) return showEditorError('due-date', copy("يرجى إدخال تاريخ الاستحقاق.", "Enter the due date."));
@@ -171,86 +186,63 @@ export const InvoiceModule: React.FC = () => {
             !Number.isFinite(Number(item.quantity)) || Number(item.quantity) <= 0
             || !Number.isFinite(Number(item.unitPrice)) || Number(item.unitPrice) < 0
         );
-        if (invalidItem) return showEditorError('save', copy("تحقق من البنود: الكمية يجب أن تكون أكبر من صفر والسعر لا يمكن أن يكون سالباً.", "Check the items. Quantities must be positive and prices cannot be negative."));
+        if (invalidItem) return showEditorError('item-' + currentInvoice.items.indexOf(invalidItem), copy("تحقق من البنود: الكمية يجب أن تكون أكبر من صفر والسعر لا يمكن أن يكون سالباً.", "Check the items. Quantities must be positive and prices cannot be negative."));
 
         setEditorError(null);
         savingInvoiceRef.current = true;
         setSavingInvoice(true);
         try {
-        const normalizedItems = currentInvoice.items.map(item => ({
-            ...item,
-            quantity: Number(item.quantity),
-            unitPrice: Number(item.unitPrice),
-            total: Math.round((Number(item.quantity) * Number(item.unitPrice) + Number.EPSILON) * 100) / 100
-        }));
-        const amounts = calculateInvoiceAmounts(normalizedItems, currentInvoice.discountAmount, currentInvoice.isTaxInclusive);
-        if (Number(currentInvoice.paidAmount || 0) > amounts.grandTotal + 0.01) {
-            return showEditorError('save', copy("إجمالي الدفعات المسجلة أكبر من قيمة الفاتورة الجديدة. راجع سندات القبض أو عدّلها قبل تخفيض الإجمالي.", "Recorded payments exceed the new invoice total. Review the receipts before lowering the total."));
-        }
-
-        const invoiceToSave = {
-            ...currentInvoice,
-            items: normalizedItems,
-            discountAmount: amounts.discount,
-            subtotal: amounts.subtotal,
-            taxAmount: amounts.taxAmount,
-            grandTotal: amounts.grandTotal
-        };
-
-        const existingInvoice = invoices.find(invoice =>
-            invoice.number === currentInvoice.number
-            || ((currentInvoice as any).id && invoice.id === (currentInvoice as any).id)
-        );
-        const saved = await saveSalesRecord('jilco_invoices_archive', currentInvoice.number, invoiceToSave);
-        if (!saved) {
-            const restoreInvoices = (records: any[]) => {
-                const remaining = records.filter(invoice =>
-                    invoice.number !== currentInvoice.number
-                    && (!existingInvoice || invoice.number !== existingInvoice.number)
-                    && (!(currentInvoice as any).id || invoice.id !== (currentInvoice as any).id)
-                );
-                return existingInvoice ? [existingInvoice, ...remaining] : remaining;
+            const normalizedItems = currentInvoice.items.map(item => ({
+                ...item,
+                quantity: Number(item.quantity),
+                unitPrice: Number(item.unitPrice),
+                total: Math.round((Number(item.quantity) * Number(item.unitPrice) + Number.EPSILON) * 100) / 100
+            }));
+            const amounts = calculateInvoiceAmounts(normalizedItems, currentInvoice.discountAmount, currentInvoice.isTaxInclusive);
+            const invoiceToSave = {
+                ...draftInvoice,
+                pendingItem: undefined,
+                items: normalizedItems,
+                discountAmount: amounts.discount,
+                subtotal: amounts.subtotal,
+                taxAmount: amounts.taxAmount,
+                grandTotal: amounts.grandTotal
             };
-            setInvoices(restoreInvoices);
-            try {
-                const cachedInvoices = JSON.parse(localStorage.getItem('jilco_invoices_archive') || '[]');
-                localStorage.setItem('jilco_invoices_archive', JSON.stringify(restoreInvoices(Array.isArray(cachedInvoices) ? cachedInvoices : [])));
-            } catch (error) {
-                console.error('Invoice save failed and its local cache could not be rolled back:', error);
-            }
-            showEditorError('save', copy("تعذر حفظ الفاتورة في السحابة. تحقق من الاتصال أو رقم الفاتورة ثم أعد المحاولة.", "The invoice could not be saved. Check your connection or invoice number and try again."));
-            return;
-        }
 
-        const exists = invoices.find(i => i.number === currentInvoice.number);
-        if (exists) {
-            loggerService.addLog(currentUser, 'تعديل فاتورة', `رقم الفاتورة: ${currentInvoice.number}`, 'المحاسبة');
-        } else {
-            loggerService.addLog(currentUser, 'إنشاء فاتورة', `رقم الفاتورة: ${currentInvoice.number}`, 'المحاسبة');
-        }
-        try { if (draftKey) localStorage.removeItem(draftKey); } catch (error) { console.error('Could not clear invoice draft:', error); }
-        setHasDraft(false);
-        setPreviewOpen(false);
-        setViewMode('list');
+            const saved = await saveSalesRecord('jilco_invoices_archive', currentInvoice.number, invoiceToSave);
+            if (!saved) {
+                showEditorError('save', copy("تعذر حفظ الفاتورة في السحابة. تحقق من الاتصال أو رقم الفاتورة ثم أعد المحاولة.", "The invoice could not be saved. Check your connection or invoice number and try again."));
+                return;
+            }
+
+            try { loggerService.addLog(currentUser, 'إصدار فاتورة', `رقم الفاتورة: ${currentInvoice.number}`, 'المحاسبة'); } catch (error) { console.error('Could not log invoice issuance:', error); }
+            try { if (draftKey) localStorage.removeItem(draftKey); } catch (error) { console.error('Could not clear invoice draft:', error); }
+            setHasDraft(false);
+            setPreviewOpen(false);
+            setViewMode('list');
+        } catch {
+            showEditorError('save', copy('تعذر إصدار الفاتورة. أعد المحاولة.', 'Could not issue the invoice. Try again.'));
         } finally {
             savingInvoiceRef.current = false;
             setSavingInvoice(false);
         }
     };
 
-    const handleDeleteInvoice = async (invoice: InvoiceData & { id?: string }) => {
-        const number = invoice.number;
-        if (receipts.some(receipt => receipt.invoiceId === number || receipt.invoiceNumber === number)) {
-            alert('لا يمكن حذف هذه الفاتورة لأنها مرتبطة بسند قبض. احذف سند القبض أو فك ارتباطه أولاً.');
-            return;
-        }
-        if (window.confirm('هل أنت متأكد من حذف هذه الفاتورة؟')) {
-            const deleted = await deleteSalesRecord('jilco_invoices_archive', invoice.id || number);
-            if (!deleted) {
-                alert('تعذر حذف الفاتورة من السحابة. تحقق من الاتصال ثم أعد المحاولة.');
-                return;
+    const [voiding, setVoiding] = useState(false);
+    const [archiveError, setArchiveError] = useState('');
+    const handleVoidInvoice = async (invoice: InvoiceData) => {
+        const reason = window.prompt(copy('اذكر سبب إلغاء الفاتورة وإبقاء سجلها.', 'Enter the reason for voiding the invoice and keeping its record.'))?.trim();
+        if (!reason) return;
+        setVoiding(true);
+        setArchiveError('');
+        try {
+            if (!await voidInvoiceRecord(invoice.number, reason)) {
+                setArchiveError(copy('تعذر إلغاء الفاتورة. تحقق من عدم وجود دفعات ثم أعد المحاولة.', 'Could not void this invoice. Check for payments and try again.'));
             }
-            loggerService.addLog(currentUser, 'حذف فاتورة', `رقم الفاتورة: ${number}`, 'المحاسبة');
+        } catch {
+            setArchiveError(copy('تعذر الاتصال بالخادم. أعد المحاولة.', 'Could not reach the server. Try again.'));
+        } finally {
+            setVoiding(false);
         }
     };
 
@@ -269,16 +261,8 @@ export const InvoiceModule: React.FC = () => {
         }
     };
 
-    const openInvoice = (invoice: InvoiceData) => {
-        if (hasDraft && invoice.number !== currentInvoice.number
-            && !window.confirm('توجد مسودة لفاتورة أخرى. هل تريد استبدالها بهذه الفاتورة؟')) return false;
-        setCurrentInvoice(invoice);
-        setViewMode('editor');
-        return true;
-    };
-
     const handleImportQuote = (quote: SavedQuote) => {
-        if (window.confirm(`استيراد بنود عرض السعر رقم ${quote.details.number}؟`)) {
+        if (window.confirm(copy('استيراد بنود عرض السعر؟', 'Import quotation items?') + ' ' + quote.details.number)) {
             setCurrentInvoice(prev => ({
                 ...prev,
                 items: quote.items
@@ -289,8 +273,8 @@ export const InvoiceModule: React.FC = () => {
     const { subtotal, discount, taxableAmount, baseAmount, taxAmount: tax, grandTotal } =
         calculateInvoiceAmounts(currentInvoice.items || [], currentInvoice.discountAmount, currentInvoice.isTaxInclusive);
     const today = localDateString();
-    const invoiceOverdue = (invoice: InvoiceData) => invoice.status === 'overdue'
-        || (invoice.status !== 'paid' && Boolean(invoice.dueDate) && invoice.dueDate < today);
+    const invoiceOverdue = (invoice: InvoiceData) => invoice.status !== 'cancelled' && (invoice.status === 'overdue'
+        || (invoice.status !== 'paid' && Boolean(invoice.dueDate) && invoice.dueDate < today));
 
     if (viewMode === 'list') {
         return (
@@ -304,18 +288,18 @@ export const InvoiceModule: React.FC = () => {
                         <div className="flex flex-wrap items-center gap-3">
                             {hasDraft && <button onClick={() => setViewMode('editor')} className="px-4 py-2.5 rounded-lg border border-jilco-600 font-bold text-jilco-700">{copy("استكمال المسودة", "Resume draft")}</button>}
                             <button onClick={async () => {
-                                if(window.confirm('هل أنت متأكد من ترحيل الفواتير من قاعدة البيانات القديمة للجديدة؟')) {
+                                if(window.confirm(copy("ترحيل الفواتير من قاعدة البيانات القديمة؟", "Migrate invoices from the legacy database?"))) {
                                     import('../services/cloudService').then(async m => {
                                         const result = await m.cloudService.migrateLegacyInvoices();
                                         if (result.failed) {
-                                            alert(`تم ترحيل ${result.migrated} فاتورة، وتعذر ترحيل ${result.failed}. راجع الأرقام والصلاحيات ثم أعد المحاولة.`);
+                                            alert(copy(`تم ترحيل ${result.migrated} فاتورة وتعذر ترحيل ${result.failed}.`, `Migrated ${result.migrated} invoices. ${result.failed} failed.`));
                                         } else {
-                                            alert(`✅ تم ترحيل ${result.migrated} فاتورة بنجاح للجدول الجديد! يرجى تحديث الصفحة.`);
+                                            alert(copy(`تم ترحيل ${result.migrated} فاتورة. حدّث الصفحة.`, `Migrated ${result.migrated} invoices. Refresh the page.`));
                                         }
                                     });
                                 }
                             }} className="bg-orange-500 text-white px-4 py-2.5 rounded-lg font-bold flex items-center gap-2 hover:bg-orange-600 shadow-sm text-sm">{copy("ترحيل البيانات للجدول الجديد", "Migrate invoice data")}</button>
-                            <button onClick={handleCreateNew} disabled={creatingInvoice} className="bg-jilco-600 text-white px-6 py-2.5 rounded-lg font-bold flex items-center gap-2 hover:bg-jilco-700 shadow-md disabled:cursor-wait disabled:opacity-60">
+                            <button onClick={() => handleCreateNew()} disabled={creatingInvoice} className="bg-jilco-600 text-white px-6 py-2.5 rounded-lg font-bold flex items-center gap-2 hover:bg-jilco-700 shadow-md disabled:cursor-wait disabled:opacity-60">
                                 <Plus size={20} /> {creatingInvoice ? copy("جارٍ حجز رقم الفاتورة…", "Reserving invoice number…") : copy("فاتورة جديدة", "New invoice")}
                             </button>
                         </div>
@@ -328,6 +312,7 @@ export const InvoiceModule: React.FC = () => {
                             </div>
                         </div>
                         <div className="overflow-x-auto" tabIndex={0} role="region" aria-label={copy("جدول الفواتير", "Invoices table")}>
+                            {archiveError && <p role="alert" className="p-3 text-red-700">{archiveError}</p>}
                             <table className="w-full min-w-[720px] text-sm text-start">
                                 <thead className="bg-gray-900 text-white">
                                     <tr>
@@ -346,7 +331,7 @@ export const InvoiceModule: React.FC = () => {
                                             <td className="p-4 font-mono font-bold text-jilco-900">{inv.number}</td>
                                             <td className="p-4 font-bold">{inv.customerName}</td>
                                             <td className="p-4 font-mono text-xs">{inv.date}</td>
-                                            <td className={`p-4 font-mono text-xs ${invoiceOverdue(inv) ? 'font-black text-red-700' : ''}`}>
+                                            <td className={`p-4 font-mono text-xs ${inv.status === 'cancelled' ? copy('ملغاة', 'Voided') : invoiceOverdue(inv) ? 'font-black text-red-700' : ''}`}>
                                                 {inv.dueDate || '—'}{invoiceOverdue(inv) && <span className="ms-2 rounded bg-red-50 px-2 py-1 font-sans">{copy("متأخرة", "Overdue")}</span>}
                                             </td>
                                             <td className="p-4 font-black text-green-700">
@@ -359,14 +344,8 @@ export const InvoiceModule: React.FC = () => {
                                             </td>
                                             <td className="p-4 flex justify-center gap-2">
                                                 <button
-                                                    title={copy("مشاركة عبر واتساب", "Share via WhatsApp")}
-                                                    onClick={() => {
-                                                        if (!openInvoice(inv)) return;
-                                                        setTimeout(() => {
-                                                            const shareBtn = document.querySelector('[title="مشاركة المستند"]') as HTMLButtonElement;
-                                                            if (shareBtn) shareBtn.click();
-                                                        }, 300);
-                                                    }}
+                                                    title={copy("معاينة للمشاركة", "Preview to share")}
+                                                    onClick={() => openArchivedInvoice(inv)}
                                                     className="p-2 text-green-600 hover:bg-green-50 rounded-full"
                                                 >
                                                     <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current" xmlns="http://www.w3.org/2000/svg">
@@ -374,9 +353,8 @@ export const InvoiceModule: React.FC = () => {
                                                         <path d="M12 0C5.373 0 0 5.373 0 12c0 2.127.558 4.126 1.528 5.858L0 24l6.335-1.658A11.945 11.945 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 21.818a9.818 9.818 0 01-5.017-1.376l-.36-.214-3.734.979.994-3.634-.235-.374A9.818 9.818 0 1112 21.818z" />
                                                     </svg>
                                                 </button>
-                                                <button title={copy("تعديل", "Edit")} onClick={() => openInvoice(inv)} className="p-2 text-blue-600 hover:bg-blue-50 rounded-full"><Edit size={16} /></button>
-                                                <button title={copy("طباعة", "Print")} onClick={() => { if (openInvoice(inv)) setTimeout(() => window.print(), 500); }} className="p-2 text-gray-600 hover:bg-gray-50 rounded-full"><Printer size={16} /></button>
-                                                <button title={copy("حذف", "Delete")} onClick={() => handleDeleteInvoice(inv)} className="p-2 text-red-500 hover:bg-red-50 rounded-full"><Trash2 size={16} /></button>
+                                                <button title={copy("معاينة للطباعة", "Preview to print")} onClick={() => openArchivedInvoice(inv)} className="p-2 text-gray-600 hover:bg-gray-50 rounded-full"><Printer size={16} /></button>
+                                                {Number(inv.paidAmount || 0) === 0 && inv.status !== 'cancelled' && <button type="button" disabled={voiding} title={copy("إلغاء الفاتورة", "Void invoice")} onClick={() => handleVoidInvoice(inv)} className="p-2 text-red-500 hover:bg-red-50 rounded-full"><X size={16} /></button>}
                                             </td>
                                         </tr>
                                     ))}
@@ -391,6 +369,21 @@ export const InvoiceModule: React.FC = () => {
 
     return (
         <div ref={editorLayout} lang={language} dir={direction} className="relative flex flex-col lg:flex-row h-full w-full min-w-0 overflow-hidden print:block">
+            {viewMode === "archive" && <div className="no-print flex flex-wrap gap-2 bg-white p-3 lg:flex-col">
+                    <button type="button" onClick={() => { setViewMode("list"); setArchivedInvoice(null); }} className="rounded border px-3 py-2">{copy("رجوع للأرشيف", "Back to archive")}</button>
+                    {currentInvoice.status === "cancelled" && currentInvoice.voidReason && <p className="max-w-xs text-sm text-red-800">{copy("سبب الإلغاء", "Void reason")}<br />{currentInvoice.voidReason}</p>}
+                    {currentInvoice.status === "cancelled" && <button type="button" disabled={creatingInvoice} onClick={() => handleCreateNew(currentInvoice)} className="rounded border px-3 py-2">{copy("إنشاء فاتورة بديلة", "Create replacement invoice")}</button>}
+                        <button onClick={() => window.print()} className="bg-jilco-900 text-white py-2 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-jilco-800"><Printer size={18} /> {copy("طباعة", "Print")}</button>
+                        <ShareButton
+                            language={language}
+                            elementId="printable-area"
+                            fileName={`${copy("فاتورة", "Invoice")}_${currentInvoice.number}`}
+                            documentTitle={`${copy("فاتورة ضريبية رقم", "Tax invoice")} ${currentInvoice.number}`}
+                            recipientName={currentInvoice.customerName || ''}
+                            documentType="invoice"
+                        />
+            </div>}
+            {viewMode === "editor" && <>
             <div className="no-print flex shrink-0 gap-2 border-b bg-white p-2 lg:hidden" role="group" aria-label={copy("عرض الفاتورة", "Invoice view")}>
                 <button type="button" aria-pressed={!previewOpen} onClick={() => setPreviewOpen(false)} className={`flex-1 rounded p-2 font-bold ${!previewOpen ? 'bg-jilco-900 text-white' : 'bg-gray-100'}`}>{copy("تحرير", "Edit")}</button>
                 <button type="button" aria-pressed={previewOpen} onClick={() => setPreviewOpen(true)} className={`flex-1 rounded p-2 font-bold ${previewOpen ? 'bg-jilco-900 text-white' : 'bg-gray-100'}`}>{copy("معاينة", "Preview")}</button>
@@ -398,21 +391,13 @@ export const InvoiceModule: React.FC = () => {
             <div ref={editorPanel} className={`${previewOpen ? 'hidden lg:block' : ''} w-full lg:w-1/3 min-h-0 flex-1 lg:flex-none bg-white border-e border-gray-200 overflow-y-auto p-3 sm:p-6 no-print shadow-lg z-10`}>
                 <div className="mb-6 flex items-center justify-between border-b border-gray-100 pb-4">
                     <h2 className="text-xl font-bold text-jilco-900 flex items-center gap-2"><FileText className="text-blue-600" /> {copy("محرر الفاتورة", "Invoice editor")}</h2>
-                    <button title={copy("رجوع", "Back")} onClick={() => { setPreviewOpen(false); setEditorError(null); setViewMode('list'); }} className="p-2 hover:bg-gray-100 rounded-full"><ArrowLeft size={20} /></button>
+                    <button title={copy("رجوع", "Back")} disabled={savingInvoice} onClick={() => { setPreviewOpen(false); setEditorError(null); setViewMode('list'); }} className="p-2 hover:bg-gray-100 rounded-full"><ArrowLeft size={20} /></button>
                 </div>
-                <p role="status" className={`text-xs mb-4 ${draftError ? 'text-red-700' : 'text-gray-500'}`}>{draftError ? copy("تعذر حفظ المسودة على هذا الجهاز. احفظ الفاتورة قبل مغادرة الصفحة.", "The draft could not be saved on this device. Save the invoice before leaving.") : copy("تُحفظ مسودة التعديلات على هذا الجهاز. اضغط حفظ لاعتماد الفاتورة في السحابة.", "Your draft stays on this device. Select Save to save the invoice to the cloud.")}</p>
+                <p role="status" className={`text-xs mb-4 ${draftError ? 'text-red-700' : 'text-gray-500'}`}>{draftError ? copy("تعذر حفظ المسودة على هذا الجهاز. احفظ الفاتورة قبل مغادرة الصفحة.", "The draft could not be saved on this device. Save the invoice before leaving.") : copy("تُحفظ مسودة التعديلات على هذا الجهاز. اضغط إصدار الفاتورة لاعتمادها في السحابة.", "Your draft stays on this device. Select Issue invoice to confirm it in the cloud.")}</p>
 
-                <div className="space-y-6">
+                <fieldset disabled={savingInvoice} className="min-w-0 space-y-6">
                     <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                        <button id="invoice-save" aria-describedby={fieldError('save')['aria-describedby']} onClick={handleSaveInvoice} disabled={savingInvoice} className="bg-green-600 text-white py-2 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-green-700 disabled:cursor-wait disabled:opacity-60"><Save size={18} /> {savingInvoice ? copy("جارٍ الحفظ…", "Saving…") : copy("حفظ", "Save")}</button>
-                        <button onClick={() => window.print()} className="bg-jilco-900 text-white py-2 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-jilco-800"><Printer size={18} /> {copy("طباعة", "Print")}</button>
-                        <ShareButton
-                            elementId="printable-area"
-                            fileName={`فاتورة_${currentInvoice.number}`}
-                            documentTitle={`فاتورة ضريبية رقم ${currentInvoice.number}`}
-                            recipientName={currentInvoice.customerName || ''}
-                            documentType="invoice"
-                        />
+                        <button id="invoice-save" aria-describedby={fieldError('save')['aria-describedby']} onClick={handleSaveInvoice} disabled={savingInvoice} className="bg-green-600 text-white py-2 rounded-lg font-bold flex items-center justify-center gap-2 hover:bg-green-700 disabled:cursor-wait disabled:opacity-60"><Save size={18} /> {savingInvoice ? copy("جارٍ الحفظ…", "Saving…") : copy("إصدار الفاتورة", "Issue invoice")}</button>
                     </div>
 
                     {errorMessage('save')}
@@ -529,14 +514,15 @@ export const InvoiceModule: React.FC = () => {
                     <div className="bg-gray-50 p-4 rounded-lg border border-gray-200">
                         <h3 className="text-xs font-bold text-gray-700 mb-4">{copy("إضافة أصناف يدوياً", "Add items manually")}</h3>
                         <div className="space-y-3">
-                            <input id="invoice-description" {...fieldError('description')} title={copy("اسم الصنف / الوصف", "Item name or description")} type="text" placeholder={copy("اسم الصنف / الوصف", "Item name or description")} value={currentItem.description} onChange={e => setCurrentItem({ ...currentItem, description: e.target.value })} className="w-full p-2 border rounded text-sm bg-white font-bold" />
+                            <label className="block text-xs font-bold">{copy("اسم الصنف / الوصف", "Item name or description")}<input id="invoice-description" {...fieldError('description')} title={copy("اسم الصنف / الوصف", "Item name or description")} type="text" placeholder={copy("اسم الصنف / الوصف", "Item name or description")} value={currentItem.description} onChange={e => setCurrentItem({ ...currentItem, description: e.target.value })} className="w-full p-2 border rounded text-sm bg-white font-bold" /></label>
                             {errorMessage('description')}
                             <div className="grid grid-cols-2 gap-3">
-                                <input id="invoice-quantity" {...fieldError('quantity')} title={copy("الكمية", "Quantity")} type="number" min="0.01" step="0.01" placeholder={copy("الكمية", "Quantity")} value={currentItem.quantity} onChange={e => setCurrentItem({ ...currentItem, quantity: parseFloat(e.target.value) || 0 })} className="w-full min-w-0 p-2 border rounded text-sm text-center bg-white font-bold" />
-                                <input id="invoice-price" {...fieldError('price')} title={copy("سعر الوحدة", "Unit price")} type="number" min="0" step="0.01" placeholder={copy("سعر الوحدة", "Unit price")} value={currentItem.unitPrice} onChange={e => setCurrentItem({ ...currentItem, unitPrice: parseFloat(e.target.value) || 0 })} className="p-2 border rounded text-sm text-center bg-white font-bold" />
+                                <label className="block text-xs font-bold">{copy("الكمية", "Quantity")}<input id="invoice-quantity" {...fieldError('quantity')} title={copy("الكمية", "Quantity")} type="number" min="0.01" step="0.01" placeholder={copy("الكمية", "Quantity")} value={currentItem.quantity} onChange={e => setCurrentItem({ ...currentItem, quantity: parseFloat(e.target.value) || 0 })} className="w-full min-w-0 p-2 border rounded text-sm text-center bg-white font-bold" /></label>
+                                <label className="block text-xs font-bold">{copy("سعر الوحدة", "Unit price")}<input id="invoice-price" {...fieldError('price')} title={copy("سعر الوحدة", "Unit price")} type="number" min="0" step="0.01" placeholder={copy("سعر الوحدة", "Unit price")} value={currentItem.unitPrice} onChange={e => setCurrentItem({ ...currentItem, unitPrice: parseFloat(e.target.value) || 0 })} className="p-2 border rounded text-sm text-center bg-white font-bold" /></label>
                             </div>
                             {errorMessage('quantity')}
                             {errorMessage('price')}
+                            <button type="button" onClick={() => { setCurrentItem(emptyItem); setEditorError(null); }} className="text-sm text-gray-600 underline">{copy("مسح البند الجاري إدخاله", "Clear item entry")}</button>
                             <button
                                 onClick={() => {
                                     if (!currentItem.description.trim()) {
@@ -558,7 +544,7 @@ export const InvoiceModule: React.FC = () => {
                                         total: Math.round((currentItem.quantity * currentItem.unitPrice + Number.EPSILON) * 100) / 100
                                     };
                                     setCurrentInvoice(prev => ({ ...prev, items: [...(prev.items || []), item] }));
-                                    setCurrentItem({ id: '', description: '', details: '', quantity: 1, unitPrice: 0, total: 0 });
+                                    setCurrentItem(emptyItem);
                                 }}
                                 className="w-full bg-blue-600 text-white py-2 rounded font-bold text-sm hover:bg-blue-700 active:bg-blue-800 transition-colors"
                             >
@@ -583,9 +569,9 @@ export const InvoiceModule: React.FC = () => {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-100">
-                                    {(currentInvoice.items || []).map(item => (
-                                        <tr key={item.id} className="hover:bg-gray-50 group">
-                                            <td className="p-2 font-bold text-gray-800 truncate max-w-[100px]">{item.description}</td>
+                                    {(currentInvoice.items || []).map((item, index) => (
+                                        <tr key={item.id} id={"invoice-item-" + index} tabIndex={-1} {...fieldError("item-" + index)} className="hover:bg-gray-50 group">
+                                            <td className="p-2 font-bold text-gray-800 break-words max-w-[100px]">{item.description}{errorMessage("item-" + index)}</td>
                                             <td className="p-2 text-center text-gray-600 font-mono">{item.quantity}</td>
                                             <td className="p-2 text-center font-mono text-gray-700">{formatInvoiceMoney(item.unitPrice)}</td>
                                             <td className="p-2 text-center font-black text-green-700">{formatInvoiceMoney(item.total)}</td>
@@ -609,12 +595,15 @@ export const InvoiceModule: React.FC = () => {
                             </table>
                         </div>
                     )}
-                </div>
+                </fieldset>
             </div>
+            </>}
 
             {/* Invoice Preview View */}
             <div className={`${previewOpen ? 'relative' : 'absolute [inset-inline-start:100%] lg:static'} flex-1 min-h-0 min-w-0 bg-gray-200 p-3 lg:p-8 overflow-auto print:static print:p-0 print:bg-white print:overflow-visible print:block`}>
                 <div id="printable-area" lang="ar" dir="rtl" style={{ '--invoice-preview-scale': previewOpen ? previewScale : 1 } as React.CSSProperties} className="invoice-print-document bg-white shadow-2xl mx-auto w-[210mm] min-h-[297mm] p-0 relative flex flex-col [zoom:var(--invoice-preview-scale)] lg:[zoom:1] print:[zoom:1] print:shadow-none print:w-full">
+                    {currentInvoice.status === 'cancelled' && <div className="border-b bg-red-100 p-2 text-center font-bold text-red-900">{copy("فاتورة ملغاة", "Voided invoice")}</div>}
+                    {viewMode === "editor" && <div className="border-b bg-amber-100 p-2 text-center font-bold text-amber-900">{copy("مسودة غير صادرة", "Draft not issued")}</div>}
                     <div className="absolute inset-3 border-[6px] border-jilco-900 pointer-events-none z-0"></div>
                     <div className="absolute inset-[18px] border border-gold-500 pointer-events-none z-0"></div>
                     <div className="relative z-10 flex flex-col flex-1 m-[28px] bg-white">
@@ -693,7 +682,7 @@ export const InvoiceModule: React.FC = () => {
                                 <div className="w-64 space-y-2 rounded-lg border border-gray-200 p-4 text-xs">
                                     <p className="font-black text-jilco-900">حالة الفاتورة</p>
                                     <p className={`font-bold ${invoiceOverdue(currentInvoice) ? 'text-red-700' : 'text-gray-700'}`}>
-                                        {invoiceOverdue(currentInvoice) ? 'متأخرة عن السداد' : currentInvoice.status === 'paid' ? 'مدفوعة' : currentInvoice.status === 'partial' ? 'مدفوعة جزئياً' : 'بانتظار الدفع'}
+                                        {currentInvoice.status === 'cancelled' ? 'ملغاة' : invoiceOverdue(currentInvoice) ? 'متأخرة عن السداد' : currentInvoice.status === 'paid' ? 'مدفوعة' : currentInvoice.status === 'partial' ? 'مدفوعة جزئياً' : 'بانتظار الدفع'}
                                     </p>
                                     <p className="text-gray-600">المبلغ المسدد: <b>{formatInvoiceMoney(currentInvoice.paidAmount || 0)} ر.س</b></p>
                                     <p className="text-gray-600">المتبقي: <b>{formatInvoiceMoney(Math.max(0, grandTotal - (Number(currentInvoice.paidAmount) || 0)))} ر.س</b></p>

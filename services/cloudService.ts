@@ -203,6 +203,20 @@ export const cloudService = {
     return saveInvoiceRecord(recordId, record);
   },
 
+  async voidInvoiceRecord(recordId: string, reason: string): Promise<boolean> {
+    try {
+      const { data, error } = await supabase.rpc('void_invoice_record', {
+        p_legacy_id: recordId,
+        p_reason: reason
+      });
+      if (error) throw error;
+      return data === true;
+    } catch (error) {
+      console.error('Failed to void invoice:', error);
+      return false;
+    }
+  },
+
   async deleteReceiptWithInvoiceRecalculation(recordId: string) {
     return deleteReceiptWithInvoiceRecalculation(recordId);
   },
@@ -540,8 +554,11 @@ export const cloudService = {
                   customerId: row.customer_legacy_id || undefined,
                   items: row.items || [], status: row.status, grandTotal: Number(row.total) || 0,
                   paidAmount: Number(row.paid_amount) || 0,
+                  openingPaidAmount: Number(row.opening_paid_amount) || 0,
                   discountAmount: Number(row.discount_amount) || 0,
-                  isTaxInclusive: row.is_tax_inclusive
+                  isTaxInclusive: row.is_tax_inclusive,
+                  voidedAt: row.voided_at || undefined,
+                  voidReason: row.void_reason || undefined
               })
           },
           'jilco_receipts_archive': {

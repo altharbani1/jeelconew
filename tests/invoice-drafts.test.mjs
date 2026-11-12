@@ -7,7 +7,7 @@ test('invoice drafts survive reopening and remain isolated by company and user',
   const values = new Map();
   const storage = { getItem: key => values.get(key) ?? null, setItem: (key,value) => values.set(key,value) };
   const key = invoiceDraftKey('company-a','user-a');
-  const draft = {number:'INV-1',customerId:'customer-a',items:[{quantity:2,unitPrice:5,total:10}]};
+  const draft = {number:'INV-1',customerId:'customer-a',items:[{quantity:2,unitPrice:5,total:10}],pendingItem:{description:'Unfinished item',quantity:3,unitPrice:0}};
   assert.equal(writeInvoiceDraft(storage,key,draft),true);
   assert.deepEqual(readInvoiceDraft(storage,key),draft);
   assert.equal(readInvoiceDraft(storage,invoiceDraftKey('company-b','user-a')),null);

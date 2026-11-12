@@ -19,7 +19,7 @@ const STATUS_LABELS: Record<CustomerStatus, { label: string, color: string }> = 
 
 interface Transaction {
   date: string;
-  type: 'invoice' | 'receipt';
+  type: 'invoice' | 'opening' | 'receipt';
   number: string;
   description: string;
   debit: number;  // المبلغ المستحق (الفواتير)
@@ -119,16 +119,22 @@ export const CustomerModule: React.FC<{ statementOnly?: boolean }> = ({ statemen
     if (!selectedCustomer) return { transactions: [], totalDebit: 0, totalCredit: 0, balance: 0, ambiguousRecords: 0 };
     const duplicateName = customers.filter(customer => customer.fullName === selectedCustomer.fullName).length > 1;
     const ambiguousRecords = duplicateName
-      ? allInvoices.filter(invoice => !invoice.customerId && invoice.customerName === selectedCustomer.fullName).length
+      ? allInvoices.filter(invoice => invoice.status !== 'cancelled' && !invoice.customerId && invoice.customerName === selectedCustomer.fullName).length
         + allReceipts.filter(receipt => !receipt.customerId && receipt.receivedFrom === selectedCustomer.fullName).length
       : 0;
 
-    const invoices = allInvoices.filter(i => belongsToCustomer(i, selectedCustomer, customers, 'customerName')).map(i => {
-      const debit = getSalesInvoiceTotal(i);
-      return {
-        date: i.date, type: 'invoice' as const, number: i.number, description: 'فاتورة مبيعات ضريبية',
-        debit, credit: 0
-      };
+    const invoiceTransactions = allInvoices.filter(i => i.status !== 'cancelled' && belongsToCustomer(i, selectedCustomer, customers, 'customerName')).flatMap((invoice): Transaction[] => {
+      const transactions: Transaction[] = [{
+        date: invoice.date, type: 'invoice', number: invoice.number, description: 'فاتورة مبيعات ضريبية',
+        debit: getSalesInvoiceTotal(invoice), credit: 0,
+      }];
+      const openingPaid = Number(invoice.openingPaidAmount) || 0;
+      if (openingPaid > 0) transactions.push({
+        date: invoice.date, type: 'opening', number: invoice.number,
+        description: 'مدفوعات تاريخية مسجلة على الفاتورة',
+        debit: 0, credit: openingPaid,
+      });
+      return transactions;
     });
 
     const receipts = allReceipts.filter(r => belongsToCustomer(r, selectedCustomer, customers, 'receivedFrom')).map(r => ({
@@ -138,8 +144,9 @@ export const CustomerModule: React.FC<{ statementOnly?: boolean }> = ({ statemen
     }));
 
     let runningBalance = 0;
-    const transactions: Transaction[] = [...invoices, ...receipts]
-      .sort((a, b) => a.date.localeCompare(b.date) || (a.type === b.type ? a.number.localeCompare(b.number) : a.type === 'invoice' ? -1 : 1))
+    const typeOrder = { invoice: 0, opening: 1, receipt: 2 };
+    const transactions: Transaction[] = [...invoiceTransactions, ...receipts]
+      .sort((a, b) => a.date.localeCompare(b.date) || typeOrder[a.type] - typeOrder[b.type] || a.number.localeCompare(b.number))
       .map(transaction => ({ ...transaction, balance: runningBalance += transaction.debit - transaction.credit }));
 
     const totalDebit = transactions.reduce((s, t) => s + t.debit, 0);
@@ -224,7 +231,7 @@ export const CustomerModule: React.FC<{ statementOnly?: boolean }> = ({ statemen
                     <tr key={`${t.type}-${t.number}`} className="border-b border-gray-400 even:bg-slate-50 break-inside-avoid">
                       <td className="p-2 border border-gray-400 text-center font-bold">{idx + 1}</td>
                       <td className="p-2 border border-gray-400 font-mono whitespace-nowrap" dir="ltr">{t.date}</td>
-                      <td className="p-2 border border-gray-400 text-center"><span className={`inline-block px-1.5 py-0.5 rounded font-black ${t.type === 'invoice' ? 'bg-blue-100 text-blue-900' : 'bg-emerald-100 text-emerald-900'} print:bg-transparent print:text-black`}>{t.type === 'invoice' ? 'فاتورة' : 'سند قبض'}</span></td>
+                      <td className="p-2 border border-gray-400 text-center"><span className={`inline-block px-1.5 py-0.5 rounded font-black ${t.type === 'invoice' ? 'bg-blue-100 text-blue-900' : 'bg-emerald-100 text-emerald-900'} print:bg-transparent print:text-black`}>{t.type === 'invoice' ? 'فاتورة' : t.type === 'opening' ? 'رصيد افتتاحي' : 'سند قبض'}</span></td>
                       <td className="p-2 border border-gray-400 font-mono font-bold text-jilco-900 whitespace-nowrap" dir="ltr">{t.number}</td>
                       <td className="p-2 border border-gray-400 font-bold text-gray-800 leading-4">{t.description}</td>
                       <td className="p-2 border border-gray-400 text-center font-mono font-black tabular-nums whitespace-nowrap print:text-black" dir="ltr">{t.debit > 0 ? formatStatementAmount(t.debit) : '-'}</td>

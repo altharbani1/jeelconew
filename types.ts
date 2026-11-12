@@ -101,7 +101,9 @@ export interface InvoiceData {
   customerName: string;
   customerVatNumber: string;
   items: QuoteItem[];
-  status: 'paid' | 'partial' | 'pending' | 'overdue';
+  status: 'paid' | 'partial' | 'pending' | 'overdue' | 'cancelled';
+  voidedAt?: string;
+  voidReason?: string;
   customerId?: string;
   paidAmount?: number;
   subtotal?: number;

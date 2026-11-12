@@ -83,7 +83,7 @@ export const FinancialReportModule: React.FC = () => {
     };
 
     // 1. الإيرادات — فواتير العملاء المدفوعة أو المستحقة في الفترة
-    const revenueInvoices = salesInvoices.filter((inv: any) => inRange(inv.date));
+    const revenueInvoices = salesInvoices.filter((inv: any) => inv.status !== 'cancelled' && inRange(inv.date));
     const totalRevenue = revenueInvoices.reduce((s: number, inv: any) => s + getSalesInvoiceTotal(inv), 0);
     // النقد المحصل فعلياً يعتمد على سندات القبض، بينما الإيراد المفوتر
     // يعتمد على الفواتير؛ إبقاؤهما منفصلين يمنع تضخيم الربح النقدي.

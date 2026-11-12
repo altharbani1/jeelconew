@@ -173,7 +173,7 @@ export const ProjectModule: React.FC = () => {
     // --- Financial Logic ---
     const getProjectFinancials = (projectId: string) => {
         const projectExpenses = allExpenses.filter(e => e.projectId === projectId);
-        const projectInvoices = allInvoices.filter(i => i.projectId === projectId);
+        const projectInvoices = allInvoices.filter(i => i.status !== 'cancelled' && i.projectId === projectId);
         const projectMaterials = inventoryTransactions.filter(t => t.type === 'out' && t.referenceSource === 'project' && t.referenceId === projectId);
 
         const totalExpenses = projectExpenses.reduce((sum, e) => sum + e.amount, 0);

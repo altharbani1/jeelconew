@@ -13,6 +13,7 @@ interface SalesContextType {
     setReceipts: React.Dispatch<React.SetStateAction<any[]>>;
     saveSalesRecord: (collection: string, id: string, data: any) => Promise<boolean>;
     deleteSalesRecord: (collection: string, id: string) => Promise<boolean>;
+    voidInvoiceRecord: (id: string, reason: string) => Promise<boolean>;
     reserveInvoiceNumber: (year: number) => Promise<string>;
     saveQuote: (id: string, quote: any) => Promise<boolean>;
     deleteQuote: (id: string) => Promise<boolean>;
@@ -37,7 +38,7 @@ export const SalesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
     // SupabaseAuthContext contains the verified cloud identity, unlike a local
     // session mirror that may still refer to the previous user during startup.
-    const { syncStatus, saveRecord, deleteRecord, reserveInvoiceNumber } = useCloudSync(modules, cloudUser?.id);
+    const { syncStatus, saveRecord, deleteRecord, voidInvoiceRecord, reserveInvoiceNumber } = useCloudSync(modules, cloudUser?.id);
 
     const saveSalesRecord = (collection: string, id: string, data: any) =>
         saveRecord(collection, id, data);
@@ -55,7 +56,7 @@ export const SalesProvider: React.FC<{ children: ReactNode }> = ({ children }) =
         <SalesContext.Provider value={{
             quotes, customers, invoices, receipts,
             setQuotes, setCustomers, setInvoices, setReceipts,
-            saveSalesRecord, deleteSalesRecord, reserveInvoiceNumber, saveQuote, deleteQuote, syncStatus
+            saveSalesRecord, deleteSalesRecord, voidInvoiceRecord, reserveInvoiceNumber, saveQuote, deleteQuote, syncStatus
         }}>
             {children}
         </SalesContext.Provider>
