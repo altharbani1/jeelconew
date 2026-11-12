@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
 import { useCloudSync } from '../lib/useCloudSync';
 import { cloudService } from '../services/cloudService';
-import { PayrollRecord, EmployeePayment, EmployeeLoan, AttendanceRecord, LeaveRequest } from '../types';
+import { PayrollRecord, EmployeePayment, EmployeeLoan, AttendanceRecord, LeaveRequest, HRPayrollRules } from '../types';
 
 interface HRContextType {
     hrEmployees: any[];
@@ -22,6 +22,8 @@ interface HRContextType {
     
     saveHRRecord: (collection: string, id: string, data: any) => Promise<boolean>;
     deleteHRRecord: (collection: string, id: string) => Promise<boolean>;
+    resolveHRLeave: (leaveId: string, status: 'approved' | 'rejected') => Promise<{ success: boolean; error?: string }>;
+    getHRPayrollRules: (month: string) => Promise<HRPayrollRules>;
     approveHRPayrollBatch: (
         payrolls: PayrollRecord[],
         payments: EmployeePayment[],
@@ -52,7 +54,19 @@ export const HRProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
         { collection: 'jilco_hr_leaves', stateSetter: setHrLeaves }
     ];
 
-    const { syncStatus, saveRecord, deleteRecord } = useCloudSync(modules);
+    const { syncStatus, saveRecord, deleteRecord, loadAll } = useCloudSync(modules);
+
+    const resolveHRLeave: HRContextType['resolveHRLeave'] = async (leaveId, status) => {
+        const result = await cloudService.resolveHRLeave(leaveId, status);
+        if (result.success) await loadAll();
+        return result;
+    };
+
+    const approveHRPayrollBatch: HRContextType['approveHRPayrollBatch'] = async (...args) => {
+        const result = await cloudService.approveHRPayrollBatch(...args);
+        if (result.success) await loadAll();
+        return result;
+    };
 
     return (
         <HRContext.Provider value={{
@@ -60,7 +74,9 @@ export const HRProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
             setHrEmployees, setHrCommissions, setHrPayrolls, setHrEmployeePayments, setHrLoans, setHrAttendance, setHrLeaves,
             saveHRRecord: saveRecord,
             deleteHRRecord: deleteRecord,
-            approveHRPayrollBatch: cloudService.approveHRPayrollBatch,
+            resolveHRLeave,
+            getHRPayrollRules: cloudService.getHRPayrollRules,
+            approveHRPayrollBatch,
             syncStatus
         }}>
             {children}

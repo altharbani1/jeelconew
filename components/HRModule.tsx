@@ -38,6 +38,14 @@ const INITIAL_EMPLOYEES: Employee[] = [
     }
 ];
 
+const normalizeEmployeeSearch = (value: string) => value.normalize('NFKC').toLowerCase()
+    .replace(/[٠-٩۰-۹]/g, digit => String(digit.charCodeAt(0) & 15))
+    .replace(/[\s()+-]/g, '');
+
+const roundMoney = (value: number) => Math.round((value + Number.EPSILON) * 100) / 100;
+
+const calculateLoanInstallment = (amount: number, installments: number) => Math.ceil(Math.round(amount * 100) / installments) / 100;
+
 const calculateEOS = (joinDate: string, totalSalary: number) => {
     if (!joinDate) return 0;
     const start = new Date(joinDate);
@@ -45,7 +53,7 @@ const calculateEOS = (joinDate: string, totalSalary: number) => {
     const diffTime = end.getTime() - start.getTime();
     const diffYears = diffTime / (1000 * 60 * 60 * 24 * 365.25);
     if (diffYears <= 0) return 0;
-    
+
     if (diffYears <= 5) {
         return (totalSalary / 2) * diffYears;
     } else {
@@ -67,11 +75,7 @@ export const HRModule: React.FC = () => {
         hrLoans: loans,
         hrAttendance: attendance,
         hrLeaves: leaves,
-        setHrPayrolls,
-        setHrEmployeePayments,
-        setHrCommissions,
-        setHrLoans, setHrAttendance, setHrLeaves,
-        saveHRRecord, deleteHRRecord, approveHRPayrollBatch
+        saveHRRecord, deleteHRRecord, approveHRPayrollBatch, resolveHRLeave, getHRPayrollRules
     } = useHR();
 
     const [activeTab, setActiveTab] = useState<'employees' | 'commissions' | 'payrolls' | 'loans' | 'attendance' | 'leaves'>('employees');
@@ -79,6 +83,14 @@ export const HRModule: React.FC = () => {
     // Search & Filter
     const [searchTerm, setSearchTerm] = useState('');
     const [roleFilter, setRoleFilter] = useState<EmployeeRole | 'all'>('all');
+
+    const searchQuery = normalizeEmployeeSearch(searchTerm);
+    const visibleEmployees = employees.filter(employee =>
+        (roleFilter === 'all' || employee.role === roleFilter) &&
+        [employee.name, employee.phone, employee.nationalId].some(value =>
+            normalizeEmployeeSearch(value ?? '').includes(searchQuery)
+        )
+    );
 
     // Forms
     const [showEmployeeForm, setShowEmployeeForm] = useState(false);
@@ -102,6 +114,58 @@ export const HRModule: React.FC = () => {
     const [selectedEmployeeForPayroll, setSelectedEmployeeForPayroll] = useState<string>('all');
     const [applyGosiDeduction, setApplyGosiDeduction] = useState(true);
 
+    const [generatingPayroll, setGeneratingPayroll] = useState(false);
+    const [approvingPayroll, setApprovingPayroll] = useState(false);
+    const [payrollMessage, setPayrollMessage] = useState('');
+    const [resolvingLeaveId, setResolvingLeaveId] = useState<string | null>(null);
+    const [leaveMessage, setLeaveMessage] = useState('');
+    const [formError, setFormError] = useState('');
+    const canApprovePayroll = canManageHR && hasPermission('approve_payments');
+
+    useEffect(() => {
+        setFormError('');
+
+        const formName = showEmployeeForm ? 'employee'
+            : showCommissionForm ? 'commission'
+            : showLoanForm ? 'loan'
+            : showAttendanceForm ? 'attendance'
+            : showLeaveForm ? 'leave' : null;
+        if (!formName) return;
+        const dialog = document.getElementById('hr-' + formName + '-title')?.parentElement;
+        if (!dialog) return;
+        const previousFocus = document.activeElement;
+        const getControls = () => Array.from(dialog.querySelectorAll<HTMLElement>(
+            'button:not(:disabled), input:not(:disabled), select:not(:disabled), textarea:not(:disabled)'
+        ));
+        getControls()[0]?.focus();
+        const onKeyDown = (event: KeyboardEvent) => {
+            if (event.key === 'Escape') {
+                event.preventDefault();
+                setShowEmployeeForm(false);
+                setShowCommissionForm(false);
+                setShowLoanForm(false);
+                setShowAttendanceForm(false);
+                setShowLeaveForm(false);
+            } else if (event.key === 'Tab') {
+                const controls = getControls();
+                const first = controls[0];
+                const last = controls[controls.length - 1];
+                if (event.shiftKey && document.activeElement === first) {
+                    event.preventDefault();
+                    last?.focus();
+                } else if (!event.shiftKey && document.activeElement === last) {
+                    event.preventDefault();
+                    first?.focus();
+                }
+            }
+        };
+        document.addEventListener('keydown', onKeyDown);
+        return () => {
+            document.removeEventListener('keydown', onKeyDown);
+            if (previousFocus instanceof HTMLElement && previousFocus.isConnected) previousFocus.focus();
+        };
+    }, [showEmployeeForm, showCommissionForm, showLoanForm, showAttendanceForm, showLeaveForm]);
+
     // Employee Statement Modals
     const [viewStatementEmployeeId, setViewStatementEmployeeId] = useState<string | null>(null);
 
@@ -124,12 +188,23 @@ export const HRModule: React.FC = () => {
         return saved;
     };
 
+    const reportFormError = (message: string, fieldId?: string) => {
+        setFormError(message);
+        if (fieldId) document.getElementById(fieldId)?.focus();
+    };
+    const formFeedback = formError && <p role="alert" className="mb-3 rounded bg-red-50 p-2 text-sm text-red-700">{formError}</p>;
+
     const handleSaveEmployee = async () => {
         if (!canManageHR) return;
-        if (!currentEmployee.name || !currentEmployee.role) return alert('الاسم والوظيفة مطلوبان');
+        if (!currentEmployee.name?.trim()) return reportFormError('أدخل الاسم الكامل.', 'hr-employee-1');
+        const employeeAmounts = [currentEmployee.basicSalary, currentEmployee.housingAllowance,
+            currentEmployee.transportAllowance, currentEmployee.otherAllowances, currentEmployee.annualLeaveBalance];
+        const invalidAmount = employeeAmounts.findIndex(value => value != null && (!Number.isFinite(value) || value < 0));
+        if (invalidAmount !== -1) return reportFormError('أدخل قيمة صالحة غير سالبة.', 'hr-employee-' + (7 + invalidAmount));
 
         const empData: Employee = {
             ...currentEmployee as Employee,
+            name: currentEmployee.name.trim(),
             id: currentEmployee.id || `E-${Date.now()}`,
             role: currentEmployee.role || 'technician',
             status: currentEmployee.status || 'active',
@@ -137,7 +212,7 @@ export const HRModule: React.FC = () => {
             housingAllowance: currentEmployee.housingAllowance || 0,
             transportAllowance: currentEmployee.transportAllowance || 0,
             otherAllowances: currentEmployee.otherAllowances || 0,
-            annualLeaveBalance: currentEmployee.annualLeaveBalance || 21,
+            annualLeaveBalance: currentEmployee.annualLeaveBalance ?? 21,
             nationalIdType: currentEmployee.nationalIdType || 'saudi',
             phone: currentEmployee.phone || '',
             joinDate: currentEmployee.joinDate || new Date().toISOString().split('T')[0],
@@ -145,7 +220,7 @@ export const HRModule: React.FC = () => {
         };
 
         const saved = await saveHRRecord('jilco_hr_employees', empData.id, empData);
-        if (!ensureSaved(saved)) return;
+        if (!saved) return reportFormError('تعذر حفظ البيانات. تحقق من الاتصال ثم أعد المحاولة.');
 
         setShowEmployeeForm(false);
         setCurrentEmployee({ role: 'technician', custodyItems: [], status: 'active', nationalIdType: 'saudi', annualLeaveBalance: 21 });
@@ -153,9 +228,16 @@ export const HRModule: React.FC = () => {
 
     const handleSaveCommission = async () => {
         if (!canManageHR) return;
-        if (!currentCommission.employeeId || !currentCommission.contractValue) return;
+        if (!currentCommission.employeeId) return reportFormError('اختر الموظف المستحق.', 'hr-commission-1');
+        if (!currentCommission.contractValue || !Number.isFinite(currentCommission.contractValue) || currentCommission.contractValue <= 0) {
+            return reportFormError('أدخل قيمة عقد موجبة.', 'hr-commission-5');
+        }
+        const percentage = currentCommission.commissionPercentage ?? 0;
+        if (!Number.isFinite(percentage) || percentage < 0 || percentage > 100) {
+            return reportFormError('أدخل نسبة عمولة بين ٠ و١٠٠.', 'hr-commission-6');
+        }
 
-        const amount = (currentCommission.contractValue * (currentCommission.commissionPercentage || 0)) / 100;
+        const amount = roundMoney((currentCommission.contractValue * percentage) / 100);
         const emp = employees.find(e => e.id === currentCommission.employeeId);
 
         const commData: Commission = {
@@ -167,7 +249,7 @@ export const HRModule: React.FC = () => {
         };
 
         const saved = await saveHRRecord('jilco_hr_commissions', commData.id, commData);
-        if (!ensureSaved(saved)) return;
+        if (!saved) return reportFormError('تعذر حفظ البيانات. تحقق من الاتصال ثم أعد المحاولة.');
 
         setShowCommissionForm(false);
         setCurrentCommission({ status: 'pending', date: new Date().toISOString().split('T')[0] });
@@ -175,46 +257,65 @@ export const HRModule: React.FC = () => {
 
     const handleSaveLoan = async () => {
         if (!canManageHR) return;
-        if (!currentLoan.employeeId || !currentLoan.amount || !currentLoan.installmentsCount) return alert('أكمل بيانات السلفة');
+        const { employeeId, amount, installmentsCount, startDate } = currentLoan;
+        if (!employeeId) return reportFormError('اختر الموظف.', 'hr-loan-1');
+        if (amount == null || !Number.isFinite(amount) || amount < 0.01) return reportFormError('أدخل مبلغ سلفة موجبًا.', 'hr-loan-2');
+        if (installmentsCount == null || !Number.isSafeInteger(installmentsCount) || installmentsCount < 1 || installmentsCount > Math.round(amount * 100)) {
+            return reportFormError('أدخل عدد أقساط صحيحًا بحيث لا يقل القسط عن هللة.', 'hr-loan-3');
+        }
+        if (!startDate) return reportFormError('اختر شهر بداية السلفة.', 'hr-loan-4');
         const loanData: EmployeeLoan = {
             ...currentLoan as EmployeeLoan,
             id: currentLoan.id || `LOAN-${Date.now()}`,
-            monthlyInstallment: currentLoan.amount / currentLoan.installmentsCount,
-            remainingAmount: currentLoan.amount,
+            amount: roundMoney(amount),
+            monthlyInstallment: calculateLoanInstallment(amount, installmentsCount),
+            remainingAmount: roundMoney(amount),
             status: 'active'
         };
         const saved = await saveHRRecord('jilco_hr_loans', loanData.id, loanData);
-        if (!ensureSaved(saved)) return;
+        if (!saved) return reportFormError('تعذر حفظ البيانات. تحقق من الاتصال ثم أعد المحاولة.');
         setShowLoanForm(false);
         setCurrentLoan({ status: 'active', startDate: new Date().toISOString().slice(0, 7) });
     };
 
     const handleSaveAttendance = async () => {
         if (!canManageHR) return;
-        if (!currentAttendance.employeeId || !currentAttendance.month) return alert('أكمل بيانات الحضور');
+        const { employeeId, month, absenceDays, delayHours } = currentAttendance;
+        if (!employeeId) return reportFormError('اختر الموظف.', 'hr-attendance-1');
+        if (!month) return reportFormError('اختر شهر التقرير.', 'hr-attendance-2');
+        const [year, monthNumber] = month.split('-').map(Number);
+        const daysInMonth = new Date(Date.UTC(year, monthNumber, 0)).getUTCDate();
+        if (absenceDays == null || !Number.isFinite(absenceDays) || absenceDays < 0 || absenceDays > daysInMonth) {
+            return reportFormError('أدخل عدد أيام غياب صالحًا لهذا الشهر.', 'hr-attendance-3');
+        }
+        if (delayHours == null || !Number.isFinite(delayHours) || delayHours < 0 || delayHours > daysInMonth * 24) {
+            return reportFormError('أدخل عدد ساعات تأخير صالحًا لهذا الشهر.', 'hr-attendance-4');
+        }
         const attData: AttendanceRecord = {
             ...currentAttendance as AttendanceRecord,
             id: currentAttendance.id || `ATT-${currentAttendance.employeeId}-${currentAttendance.month}`,
         };
         const saved = await saveHRRecord('jilco_hr_attendance', attData.id, attData);
-        if (!ensureSaved(saved)) return;
+        if (!saved) return reportFormError('تعذر حفظ البيانات. تحقق من الاتصال ثم أعد المحاولة.');
         setShowAttendanceForm(false);
         setCurrentAttendance({ month: new Date().toISOString().slice(0, 7), absenceDays: 0, delayHours: 0 });
     };
 
     const handleSaveLeave = async () => {
         if (!canManageHR) return;
-        if (!currentLeave.employeeId || !currentLeave.startDate || !currentLeave.endDate) return alert('أكمل بيانات الإجازة');
-        if (currentLeave.endDate < currentLeave.startDate) return alert('تاريخ نهاية الإجازة يجب أن يكون بعد تاريخ البداية.');
+        if (!currentLeave.employeeId || !currentLeave.startDate || !currentLeave.endDate) {
+            return reportFormError('أكمل بيانات الإجازة.', !currentLeave.employeeId ? 'hr-leave-1' : !currentLeave.startDate ? 'hr-leave-2' : 'hr-leave-3');
+        }
+        if (currentLeave.endDate < currentLeave.startDate) return reportFormError('تاريخ نهاية الإجازة يجب ألا يسبق تاريخ البداية.', 'hr-leave-3');
         const hasOverlap = leaves.some(l => l.employeeId === currentLeave.employeeId && l.id !== currentLeave.id && l.status !== 'rejected' && l.startDate <= currentLeave.endDate! && l.endDate >= currentLeave.startDate!);
-        if (hasOverlap) return alert('يوجد طلب إجازة آخر متداخل مع هذه الفترة.');
+        if (hasOverlap) return reportFormError('يوجد طلب إجازة آخر متداخل مع هذه الفترة.', 'hr-leave-3');
         const leaveData: LeaveRequest = {
             ...currentLeave as LeaveRequest,
             id: currentLeave.id || `LEAVE-${Date.now()}`,
             status: 'pending' // Force pending initially
         };
         const saved = await saveHRRecord('jilco_hr_leaves', leaveData.id, leaveData);
-        if (!ensureSaved(saved)) return;
+        if (!saved) return reportFormError('تعذر حفظ البيانات. تحقق من الاتصال ثم أعد المحاولة.');
         setShowLeaveForm(false);
         setCurrentLeave({ status: 'pending', type: 'annual' });
     };
@@ -240,31 +341,24 @@ export const HRModule: React.FC = () => {
         ensureSaved(deleted, `تعذر حذف ${label}. تحقق من الاتصال ثم أعد المحاولة.`);
     };
 
+    const archiveEmployee = async (employee: Employee) => {
+        if (!canManageHR || !hasPermission('delete_records') || employee.status === 'terminated') return;
+        if (!window.confirm(`هل تريد أرشفة ملف ${employee.name} مع الاحتفاظ بسجلاته؟`)) return;
+        const saved = await saveHRRecord('jilco_hr_employees', employee.id, { ...employee, status: 'terminated' });
+        ensureSaved(saved, 'تعذرت أرشفة الموظف. تحقق من الاتصال ثم أعد المحاولة.');
+    };
+
     const updateLeaveStatus = async (leave: LeaveRequest, status: 'approved' | 'rejected') => {
-        if (!canManageHR) return;
-        if (status === 'rejected') {
-            const saved = await saveHRRecord('jilco_hr_leaves', leave.id, { ...leave, status });
-            ensureSaved(saved);
-            return;
-        }
-
-        const employee = employees.find(e => e.id === leave.employeeId);
-        if (!employee) return alert('تعذر العثور على الموظف المرتبط بالطلب.');
-        const overlapping = leaves.some(l => l.id !== leave.id && l.employeeId === leave.employeeId && l.status === 'approved' && l.startDate <= leave.endDate && l.endDate >= leave.startDate);
-        if (overlapping) return alert('لا يمكن اعتماد الطلب لوجود إجازة معتمدة متداخلة.');
-        const days = Math.floor((new Date(leave.endDate).getTime() - new Date(leave.startDate).getTime()) / 86400000) + 1;
-        if (!Number.isFinite(days) || days <= 0) return alert('مدة الإجازة غير صحيحة.');
-        const oldBalance = employee.annualLeaveBalance ?? 0;
-        if (leave.type === 'annual' && oldBalance < days) return alert(`رصيد الإجازة غير كافٍ. الرصيد الحالي ${oldBalance} يوم.`);
-
-        if (leave.type === 'annual') {
-            const employeeSaved = await saveHRRecord('jilco_hr_employees', employee.id, { ...employee, annualLeaveBalance: oldBalance - days });
-            if (!ensureSaved(employeeSaved, 'تعذر تحديث رصيد الإجازة؛ لم يتم اعتماد الطلب.')) return;
-        }
-        const leaveSaved = await saveHRRecord('jilco_hr_leaves', leave.id, { ...leave, status });
-        if (!leaveSaved) {
-            if (leave.type === 'annual') await saveHRRecord('jilco_hr_employees', employee.id, employee);
-            ensureSaved(false, 'تعذر اعتماد الطلب، وتمت محاولة استعادة رصيد الموظف.');
+        if (!canManageHR || leave.status !== 'pending' || resolvingLeaveId) return;
+        setResolvingLeaveId(leave.id);
+        setLeaveMessage('');
+        try {
+            const result = await resolveHRLeave(leave.id, status);
+            setLeaveMessage(result.success ? 'تم تحديث طلب الإجازة.' : result.error || 'تعذر تحديث طلب الإجازة.');
+        } catch {
+            setLeaveMessage('تعذر التحقق من نتيجة الطلب. حدّث البيانات قبل إعادة المحاولة.');
+        } finally {
+            setResolvingLeaveId(null);
         }
     };
 
@@ -282,92 +376,118 @@ export const HRModule: React.FC = () => {
     };
 
     // --- PAYROLL ACTIONS ---
-    const handleGeneratePayroll = () => {
-        // Find active employees and generate their payroll for the selected month
+    const handleGeneratePayroll = async () => {
+        if (approvingPayroll || generatingPayroll) return;
+        if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(payrollMonth)) return setPayrollMessage('اختر شهر المسير.');
+        setPayrollMessage('');
+        setGeneratedPayrolls([]);
         let activeEmployees = employees.filter(e => e.status === 'active');
-        
+
         if (selectedEmployeeForPayroll !== 'all') {
             activeEmployees = activeEmployees.filter(e => e.id === selectedEmployeeForPayroll);
         }
 
         if (activeEmployees.length === 0) {
-            alert('لا يوجد موظفين لتوليد رواتبهم بناءً على التحديد.');
+            setPayrollMessage('لا يوجد موظفون لتوليد رواتبهم بناءً على التحديد.');
             return;
         }
 
-        const newPayrolls: PayrollRecord[] = activeEmployees.map(emp => {
-            // Find existing if already generated but not paid
-            const existing = payrolls.find(p => p.employeeId === emp.id && p.month === payrollMonth);
-            if (existing) return existing;
+        setGeneratingPayroll(true);
+        try {
+            const rules = await getHRPayrollRules(payrollMonth);
+            if (!rules) {
+                setPayrollMessage('تعذر تحميل قواعد الرواتب لهذا الشهر. أعد المحاولة.');
+                return;
+            }
+            const newPayrolls: PayrollRecord[] = activeEmployees.map(emp => {
+                // Keep paid rows visible without recalculating them.
+                const existing = payrolls.find(p => p.employeeId === emp.id && p.month === payrollMonth);
+                if (existing?.status === 'paid') return existing;
 
-            // Calculate unpaid commissions for this month
-            const empCommissions = commissions
-                .filter(c => c.employeeId === emp.id && c.status === 'approved' && c.approvalDate?.startsWith(payrollMonth))
-                .reduce((sum, c) => sum + c.commissionAmount, 0);
-            
-            // GOSI Calc: 9.75% of (Basic + Housing) for Saudis
-            const gosi = applyGosiDeduction && emp.nationalIdType === 'saudi'
-                ? ((emp.basicSalary || 0) + (emp.housingAllowance || 0)) * 0.0975
-                : 0;
+                // Calculate unpaid commissions for this month
+                const empCommissions = commissions
+                    .filter(c => c.employeeId === emp.id && c.status === 'approved' && c.approvalDate?.startsWith(payrollMonth))
+                    .reduce((sum, c) => sum + c.commissionAmount, 0);
 
-            // Calculate active loan deductions
-            const activeLoans = loans.filter(l => l.employeeId === emp.id && l.status === 'active' && l.startDate <= payrollMonth && l.remainingAmount > 0);
-            const loanDed = activeLoans.reduce((sum, l) => sum + Math.min(l.monthlyInstallment, l.remainingAmount), 0);
-            
-            // Calculate absence deductions
-            const currentAtt = attendance.find(a => a.employeeId === emp.id && a.month === payrollMonth);
-            const totalSalaryForAbsence = (emp.basicSalary || 0) + (emp.housingAllowance || 0) + (emp.transportAllowance || 0) + (emp.otherAllowances || 0);
-            const dailyRate = totalSalaryForAbsence / 30;
-            const hourlyRate = dailyRate / 8;
-            const absDed = currentAtt ? (currentAtt.absenceDays * dailyRate) + (currentAtt.delayHours * hourlyRate) : 0;
+                // Apply the policy effective for the selected payroll month.
+                const gosi = applyGosiDeduction && emp.nationalIdType === 'saudi'
+                    ? ((emp.basicSalary || 0) + (emp.housingAllowance || 0)) * rules.gosiRate
+                    : 0;
 
-            const totalAllowances = (emp.housingAllowance || 0) + (emp.transportAllowance || 0) + (emp.otherAllowances || 0);
-            const totalAdditions = (emp.basicSalary || 0) + totalAllowances + empCommissions;
-            const totalDeductions = gosi + loanDed + absDed;
+                // Calculate active loan deductions
+                const activeLoans = loans.filter(l => l.employeeId === emp.id && l.status === 'active' && l.startDate <= payrollMonth && l.remainingAmount > 0);
+                const loanDed = activeLoans.reduce((sum, l) => sum + Math.min(l.monthlyInstallment, l.remainingAmount), 0);
 
-            return {
-                id: `PR-${Date.now()}-${emp.id}`,
-                employeeId: emp.id,
-                employeeName: emp.name,
-                month: payrollMonth,
-                basicSalary: emp.basicSalary || 0,
-                housingAllowance: emp.housingAllowance || 0,
-                transportAllowance: emp.transportAllowance || 0,
-                otherAllowances: emp.otherAllowances || 0,
-                commissions: empCommissions,
-                gosiDeduction: gosi,
-                loanDeduction: loanDed,
-                absenceDeduction: absDed,
-                otherDeductions: 0,
-                bonuses: 0,
-                netSalary: totalAdditions - totalDeductions,
-                status: 'pending'
-            };
-        });
-        setGeneratedPayrolls(newPayrolls);
+                // Calculate absence deductions
+                const totalSalaryForAbsence = (emp.basicSalary || 0) + (emp.housingAllowance || 0) + (emp.transportAllowance || 0) + (emp.otherAllowances || 0);
+                const dailyRate = totalSalaryForAbsence / rules.daysPerMonth;
+                const hourlyRate = dailyRate / rules.hoursPerDay;
+                const absDed = attendance
+                    .filter(row => row.employeeId === emp.id && row.month === payrollMonth)
+                    .reduce((sum, row) => sum + (row.absenceDays || 0) * dailyRate + (row.delayHours || 0) * hourlyRate, 0);
+
+                const totalAllowances = (emp.housingAllowance || 0) + (emp.transportAllowance || 0) + (emp.otherAllowances || 0);
+                const totalAdditions = (emp.basicSalary || 0) + totalAllowances + empCommissions;
+                const totalDeductions = gosi + loanDed + absDed;
+
+                return {
+                    id: existing?.id ?? `PR-${crypto.randomUUID()}`,
+                    employeeId: emp.id,
+                    employeeName: emp.name,
+                    month: payrollMonth,
+                    basicSalary: emp.basicSalary || 0,
+                    housingAllowance: emp.housingAllowance || 0,
+                    transportAllowance: emp.transportAllowance || 0,
+                    otherAllowances: emp.otherAllowances || 0,
+                    commissions: empCommissions,
+                    gosiDeduction: gosi,
+                    loanDeduction: loanDed,
+                    absenceDeduction: absDed,
+                    otherDeductions: 0,
+                    bonuses: 0,
+                    netSalary: roundMoney(totalAdditions - totalDeductions),
+                    status: 'pending'
+                };
+            });
+            setGeneratedPayrolls(newPayrolls);
+        } catch {
+            setPayrollMessage('تعذر تحميل قواعد الرواتب لهذا الشهر. أعد المحاولة.');
+        } finally {
+            setGeneratingPayroll(false);
+        }
     };
 
-    const updateGeneratedPayroll = (index: number, field: keyof PayrollRecord, value: number) => {
-        if (!canManageHR) return;
+    const updateGeneratedPayroll = (index: number, field: 'bonuses' | 'otherDeductions', value: number) => {
+        if (!canApprovePayroll || approvingPayroll || !Number.isFinite(value) || value < 0) return;
         const updated = [...generatedPayrolls];
-        const record = updated[index];
-        (record as any)[field] = value;
+        if (updated[index]?.status !== 'pending') return;
+        const record = { ...updated[index], [field]: roundMoney(value) };
+        updated[index] = record;
         // Recalculate net
         const totalAdditions = record.basicSalary + record.housingAllowance + record.transportAllowance + record.otherAllowances + record.commissions + record.bonuses;
         const totalDeductions = record.gosiDeduction + record.loanDeduction + record.absenceDeduction + record.otherDeductions;
-        record.netSalary = totalAdditions - totalDeductions;
+        record.netSalary = roundMoney(totalAdditions - totalDeductions);
         setGeneratedPayrolls(updated);
     };
 
     const handleApprovePayroll = async () => {
-        if (!canManageHR || !hasPermission('approve_payments')) return;
+        if (!canApprovePayroll || approvingPayroll) return;
+        setPayrollMessage('');
         const pendingRecords = generatedPayrolls.filter(record => record.status === 'pending');
-        if (pendingRecords.length === 0) return alert('لا يوجد مسير معلق للاعتماد.');
+        if (pendingRecords.length === 0) return setPayrollMessage('لا يوجد مسير معلق للاعتماد.');
+        const approvalMonth = pendingRecords[0].month;
+        if (approvalMonth !== payrollMonth || pendingRecords.some(record => record.month !== approvalMonth)) {
+            setGeneratedPayrolls([]);
+            return setPayrollMessage('أعد توليد المسير للشهر المختار قبل الاعتماد.');
+        }
+        if (pendingRecords.some(record => !Number.isFinite(record.netSalary) || record.netSalary < 0)) {
+            return setPayrollMessage('لا يمكن اعتماد مسير يتضمن صافي راتب سالبًا أو غير صالح.');
+        }
         const duplicate = pendingRecords.find(record => payrolls.some(p => p.employeeId === record.employeeId && p.month === record.month && p.status === 'paid'));
-        if (duplicate) return alert(`راتب ${duplicate.employeeName} للشهر ${duplicate.month} مصروف مسبقاً.`);
-        if (!window.confirm(`هل أنت متأكد من اعتماد رواتب شهر ${payrollMonth} وإصدار سندات الصرف تلقائياً؟`)) return;
+        if (duplicate) return setPayrollMessage(`راتب ${duplicate.employeeName} للشهر ${duplicate.month} مصروف مسبقاً.`);
+        if (!window.confirm(`هل أنت متأكد من اعتماد رواتب شهر ${approvalMonth} وإصدار سندات الصرف تلقائياً؟`)) return;
 
-        const approvedPayrolls: PayrollRecord[] = pendingRecords.map(record => ({ ...record, status: 'paid' as const }));
+        const approvedPayrolls = pendingRecords.map(record => ({ ...record, applyGosiDeduction, status: 'paid' as const }));
         const payments: EmployeePayment[] = approvedPayrolls.map(record => {
             const totalDed = record.gosiDeduction + record.loanDeduction + record.absenceDeduction + record.otherDeductions;
             return {
@@ -382,126 +502,99 @@ export const HRModule: React.FC = () => {
                 status: 'completed'
             };
         });
-        const employeeIds = new Set(approvedPayrolls.map(record => record.employeeId));
-        const paymentDate = new Date().toISOString().split('T')[0];
-        const commissionUpdates = commissions
-            .filter(c => employeeIds.has(c.employeeId) && c.status === 'approved' && c.approvalDate?.startsWith(payrollMonth))
-            .map(c => ({ ...c, status: 'paid' as const, paymentDate }));
-        const loanUpdates: EmployeeLoan[] = [];
-        for (const record of approvedPayrolls) {
-            let toDeduct = record.loanDeduction;
-            const activeLoans = loans.filter(l => l.employeeId === record.employeeId && l.status === 'active' && l.startDate <= record.month && l.remainingAmount > 0);
-            for (const loan of activeLoans) {
-                if (toDeduct <= 0) break;
-                const deduction = Math.min(loan.monthlyInstallment, loan.remainingAmount, toDeduct);
-                const remainingAmount = Math.max(0, loan.remainingAmount - deduction);
-                loanUpdates.push({ ...loan, remainingAmount, status: remainingAmount === 0 ? 'paid' : 'active' });
-                toDeduct -= deduction;
-            }
+        setApprovingPayroll(true);
+        try {
+            const result = await approveHRPayrollBatch(approvedPayrolls, payments, [], []);
+            if (!result.success) return setPayrollMessage(result.error || 'تعذر اعتماد المسير.');
+            setPayrollMessage('تم اعتماد الرواتب وإنشاء سندات الصرف بنجاح.');
+            setGeneratedPayrolls([]);
+        } catch {
+            setPayrollMessage('تعذر التحقق من الاعتماد. حدّث البيانات قبل إعادة المحاولة.');
+        } finally {
+            setApprovingPayroll(false);
         }
-
-        const result = await approveHRPayrollBatch(approvedPayrolls, payments, commissionUpdates, loanUpdates);
-        if (!result.success) return alert(`فشل اعتماد المسير دون حفظ أي تغييرات: ${result.error || 'خطأ غير معروف'}`);
-
-        // The RPC commits all records atomically; mirror that commit locally so
-        // the Expenses screen reflects the new salary vouchers immediately.
-        setHrPayrolls(prev => [
-            ...prev.filter(existing => !approvedPayrolls.some(saved => saved.id === existing.id)),
-            ...approvedPayrolls
-        ]);
-        setHrEmployeePayments(prev => [
-            ...prev.filter(existing => !payments.some(saved => saved.id === existing.id)),
-            ...payments
-        ]);
-        if (commissionUpdates.length > 0) {
-            setHrCommissions(prev => prev.map(existing => commissionUpdates.find(updated => updated.id === existing.id) || existing));
-        }
-        if (loanUpdates.length > 0) {
-            setHrLoans(prev => prev.map(existing => loanUpdates.find(updated => updated.id === existing.id) || existing));
-        }
-        alert('تم اعتماد الرواتب وإنشاء سندات الصرف بنجاح.');
-        setGeneratedPayrolls([]);
     };
 
     // --- RENDERERS ---
 
     const renderEmployeeForm = () => (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-xl shadow-xl w-full max-w-lg p-6 animate-fade-in">
-                <h3 className="font-bold text-lg mb-4 text-jilco-900 flex items-center gap-2">
+            <div role="dialog" aria-modal="true" aria-labelledby="hr-employee-title" className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[95dvh] overflow-y-auto p-4 sm:p-6 animate-fade-in">
+                <h3 id="hr-employee-title" className="font-bold text-lg mb-4 text-jilco-900 flex items-center gap-2">
                     <UserPlus size={20} /> {currentEmployee.id ? 'تعديل ملف موظف' : 'تسجيل موظف جديد'}
                 </h3>
+                {formFeedback}
                 <div className="space-y-4 max-h-[70vh] overflow-y-auto p-1">
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-xs font-bold mb-1">الاسم الكامل</label>
-                            <input title="الاسم الكامل" type="text" className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold" value={currentEmployee.name || ''} onChange={e => setCurrentEmployee({ ...currentEmployee, name: e.target.value })} />
+                            <label htmlFor="hr-employee-1" className="block text-xs font-bold mb-1">الاسم الكامل</label>
+                            <input id="hr-employee-1" title="الاسم الكامل" type="text" className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold" value={currentEmployee.name || ''} onChange={e => setCurrentEmployee({ ...currentEmployee, name: e.target.value })} />
                         </div>
                         <div>
-                            <label className="block text-xs font-bold mb-1">المسمى الوظيفي</label>
-                            <select title="المسمى الوظيفي" className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold" value={currentEmployee.role || 'technician'} onChange={e => setCurrentEmployee({ ...currentEmployee, role: e.target.value as EmployeeRole })}>
+                            <label htmlFor="hr-employee-2" className="block text-xs font-bold mb-1">المسمى الوظيفي</label>
+                            <select id="hr-employee-2" title="المسمى الوظيفي" className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold" value={currentEmployee.role || 'technician'} onChange={e => setCurrentEmployee({ ...currentEmployee, role: e.target.value as EmployeeRole })}>
                                 {Object.entries(ROLES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                             </select>
                         </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-xs font-bold mb-1">نوع الهوية</label>
-                            <select title="نوع الهوية" className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold" value={currentEmployee.nationalIdType || 'saudi'} onChange={e => setCurrentEmployee({ ...currentEmployee, nationalIdType: e.target.value as 'saudi' | 'non_saudi' })}>
+                            <label htmlFor="hr-employee-3" className="block text-xs font-bold mb-1">نوع الهوية</label>
+                            <select id="hr-employee-3" title="نوع الهوية" className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold" value={currentEmployee.nationalIdType || 'saudi'} onChange={e => setCurrentEmployee({ ...currentEmployee, nationalIdType: e.target.value as 'saudi' | 'non_saudi' })}>
                                 <option value="saudi">مواطن (سعودي)</option>
                                 <option value="non_saudi">مقيم (غير سعودي)</option>
                             </select>
                         </div>
                         <div>
-                            <label className="block text-xs font-bold mb-1">رقم الهوية / الإقامة</label>
-                            <input title="رقم الهوية / الإقامة" type="text" className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold" value={currentEmployee.nationalId || ''} onChange={e => setCurrentEmployee({ ...currentEmployee, nationalId: e.target.value })} />
+                            <label htmlFor="hr-employee-4" className="block text-xs font-bold mb-1">رقم الهوية / الإقامة</label>
+                            <input id="hr-employee-4" title="رقم الهوية / الإقامة" type="text" className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold" value={currentEmployee.nationalId || ''} onChange={e => setCurrentEmployee({ ...currentEmployee, nationalId: e.target.value })} />
                         </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-xs font-bold mb-1">رقم الجوال</label>
-                            <input title="رقم الجوال" type="text" className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold" value={currentEmployee.phone || ''} onChange={e => setCurrentEmployee({ ...currentEmployee, phone: e.target.value })} />
+                            <label htmlFor="hr-employee-5" className="block text-xs font-bold mb-1">رقم الجوال</label>
+                            <input id="hr-employee-5" title="رقم الجوال" type="text" className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold" value={currentEmployee.phone || ''} onChange={e => setCurrentEmployee({ ...currentEmployee, phone: e.target.value })} />
                         </div>
                         <div>
-                            <label className="block text-xs font-bold mb-1">تاريخ المباشرة</label>
-                            <input title="تاريخ المباشرة" type="date" className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold" value={currentEmployee.joinDate || ''} onChange={e => setCurrentEmployee({ ...currentEmployee, joinDate: e.target.value })} />
-                        </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4 mb-2 bg-gray-50 p-2 rounded border border-gray-200">
-                        <div>
-                            <label className="block text-xs font-bold mb-1">الراتب الأساسي</label>
-                            <input title="الراتب الأساسي" type="number" className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold" value={currentEmployee.basicSalary || ''} onChange={e => setCurrentEmployee({ ...currentEmployee, basicSalary: parseFloat(e.target.value) || 0 })} />
-                        </div>
-                        <div>
-                            <label className="block text-xs font-bold mb-1">بدل السكن</label>
-                            <input title="بدل السكن" type="number" className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold" value={currentEmployee.housingAllowance || ''} onChange={e => setCurrentEmployee({ ...currentEmployee, housingAllowance: parseFloat(e.target.value) || 0 })} />
+                            <label htmlFor="hr-employee-6" className="block text-xs font-bold mb-1">تاريخ المباشرة</label>
+                            <input id="hr-employee-6" title="تاريخ المباشرة" type="date" className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold" value={currentEmployee.joinDate || ''} onChange={e => setCurrentEmployee({ ...currentEmployee, joinDate: e.target.value })} />
                         </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-4 mb-2 bg-gray-50 p-2 rounded border border-gray-200">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-2 bg-gray-50 p-2 rounded border border-gray-200">
                         <div>
-                            <label className="block text-xs font-bold mb-1">بدل النقل</label>
-                            <input title="بدل النقل" type="number" className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold" value={currentEmployee.transportAllowance || ''} onChange={e => setCurrentEmployee({ ...currentEmployee, transportAllowance: parseFloat(e.target.value) || 0 })} />
+                            <label htmlFor="hr-employee-7" className="block text-xs font-bold mb-1">الراتب الأساسي</label>
+                            <input id="hr-employee-7" title="الراتب الأساسي" type="number" min={0} className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold" value={currentEmployee.basicSalary || ''} onChange={e => setCurrentEmployee({ ...currentEmployee, basicSalary: parseFloat(e.target.value) || 0 })} />
                         </div>
                         <div>
-                            <label className="block text-xs font-bold mb-1">بدلات أخرى</label>
-                            <input title="بدلات أخرى" type="number" className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold" value={currentEmployee.otherAllowances || ''} onChange={e => setCurrentEmployee({ ...currentEmployee, otherAllowances: parseFloat(e.target.value) || 0 })} />
+                            <label htmlFor="hr-employee-8" className="block text-xs font-bold mb-1">بدل السكن</label>
+                            <input id="hr-employee-8" title="بدل السكن" type="number" min={0} className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold" value={currentEmployee.housingAllowance || ''} onChange={e => setCurrentEmployee({ ...currentEmployee, housingAllowance: parseFloat(e.target.value) || 0 })} />
                         </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-2 bg-gray-50 p-2 rounded border border-gray-200">
                         <div>
-                            <label className="block text-xs font-bold mb-1">رصيد الإجازات السنوي (أيام)</label>
-                            <input title="رصيد الإجازات السنوي" type="number" className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold" value={currentEmployee.annualLeaveBalance || ''} onChange={e => setCurrentEmployee({ ...currentEmployee, annualLeaveBalance: parseFloat(e.target.value) || 0 })} />
+                            <label htmlFor="hr-employee-9" className="block text-xs font-bold mb-1">بدل النقل</label>
+                            <input id="hr-employee-9" title="بدل النقل" type="number" min={0} className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold" value={currentEmployee.transportAllowance || ''} onChange={e => setCurrentEmployee({ ...currentEmployee, transportAllowance: parseFloat(e.target.value) || 0 })} />
                         </div>
                         <div>
-                            <label className="block text-xs font-bold mb-1">الحالة الوظيفية</label>
-                            <select title="الحالة الوظيفية" className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold" value={currentEmployee.status || 'active'} onChange={e => setCurrentEmployee({ ...currentEmployee, status: e.target.value as EmployeeStatus })}>
+                            <label htmlFor="hr-employee-10" className="block text-xs font-bold mb-1">بدلات أخرى</label>
+                            <input id="hr-employee-10" title="بدلات أخرى" type="number" min={0} className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold" value={currentEmployee.otherAllowances || ''} onChange={e => setCurrentEmployee({ ...currentEmployee, otherAllowances: parseFloat(e.target.value) || 0 })} />
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label htmlFor="hr-employee-11" className="block text-xs font-bold mb-1">رصيد الإجازات السنوي (أيام)</label>
+                            <input id="hr-employee-11" title="رصيد الإجازات السنوي" type="number" min={0} className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold" value={currentEmployee.annualLeaveBalance ?? ''} onChange={e => setCurrentEmployee({ ...currentEmployee, annualLeaveBalance: parseFloat(e.target.value) || 0 })} />
+                        </div>
+                        <div>
+                            <label htmlFor="hr-employee-12" className="block text-xs font-bold mb-1">الحالة الوظيفية</label>
+                            <select id="hr-employee-12" title="الحالة الوظيفية" className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold" value={currentEmployee.status || 'active'} onChange={e => setCurrentEmployee({ ...currentEmployee, status: e.target.value as EmployeeStatus })}>
                                 {Object.entries(STATUSES).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
                             </select>
                         </div>
                     </div>
                     <div>
-                        <label className="block text-xs font-bold text-gray-500 mb-1 flex items-center gap-1"><Wrench size={12} /> العهد المستلمة (افصل بفاصلة)</label>
-                        <textarea
+                        <label htmlFor="hr-employee-13" className="block text-xs font-bold text-gray-500 mb-1 flex items-center gap-1"><Wrench size={12} /> العهد المستلمة (افصل بفاصلة)</label>
+                        <textarea id="hr-employee-13"
                             title="العهد المستلمة"
                             className="w-full p-2 border border-gray-400 rounded h-20 text-sm text-black bg-white font-bold"
                             placeholder="مثال: سيارة رقم 123، لابتوب عهدة، جهاز قياس..."
@@ -520,22 +613,23 @@ export const HRModule: React.FC = () => {
 
     const renderCommissionForm = () => (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-xl shadow-xl w-full max-w-lg p-6 animate-fade-in">
-                <h3 className="font-bold text-lg mb-4 text-jilco-900 flex items-center gap-2">
+            <div role="dialog" aria-modal="true" aria-labelledby="hr-commission-title" className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[95dvh] overflow-y-auto p-4 sm:p-6 animate-fade-in">
+                <h3 id="hr-commission-title" className="font-bold text-lg mb-4 text-jilco-900 flex items-center gap-2">
                     <Award size={20} /> تسجيل استحقاق عمولة
                 </h3>
+                {formFeedback}
                 <div className="space-y-4">
                     <div>
-                        <label className="block text-xs font-bold mb-1">الموظف المستحق</label>
-                        <select title="الموظف المستحق للعمولة" className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold" value={currentCommission.employeeId || ''} onChange={e => setCurrentCommission({ ...currentCommission, employeeId: e.target.value })}>
+                        <label htmlFor="hr-commission-1" className="block text-xs font-bold mb-1">الموظف المستحق</label>
+                        <select id="hr-commission-1" title="الموظف المستحق للعمولة" className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold" value={currentCommission.employeeId || ''} onChange={e => setCurrentCommission({ ...currentCommission, employeeId: e.target.value })}>
                             <option value="">-- اختر موظف --</option>
-                            {employees.filter(e => e.role === 'sales' || e.role === 'manager').map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
+                            {employees.filter(e => e.status === 'active' && (e.role === 'sales' || e.role === 'manager')).map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
                         </select>
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-xs font-bold mb-1">استيراد من عقد</label>
-                            <input
+                            <label htmlFor="hr-commission-2" className="block text-xs font-bold mb-1">استيراد من عقد</label>
+                            <input id="hr-commission-2"
                                 title="استيراد من عقد"
                                 type="text"
                                 className="w-full p-2 border border-gray-400 rounded text-xs text-black bg-white font-bold"
@@ -550,22 +644,22 @@ export const HRModule: React.FC = () => {
                             </datalist>
                         </div>
                         <div>
-                            <label className="block text-xs font-bold mb-1">رقم العقد المرجعي</label>
-                            <input title="رقم العقد المرجعي" type="text" className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold" value={currentCommission.contractNumber || ''} onChange={e => setCurrentCommission({ ...currentCommission, contractNumber: e.target.value })} placeholder="CN-2024-..." />
+                            <label htmlFor="hr-commission-3" className="block text-xs font-bold mb-1">رقم العقد المرجعي</label>
+                            <input id="hr-commission-3" title="رقم العقد المرجعي" type="text" className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold" value={currentCommission.contractNumber || ''} onChange={e => setCurrentCommission({ ...currentCommission, contractNumber: e.target.value })} placeholder="CN-2024-..." />
                         </div>
                     </div>
                     <div>
-                        <label className="block text-xs font-bold mb-1">تاريخ الاستحقاق</label>
-                        <input title="تاريخ الاستحقاق" type="date" className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold" value={currentCommission.date || ''} onChange={e => setCurrentCommission({ ...currentCommission, date: e.target.value })} />
+                        <label htmlFor="hr-commission-4" className="block text-xs font-bold mb-1">تاريخ الاستحقاق</label>
+                        <input id="hr-commission-4" title="تاريخ الاستحقاق" type="date" className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold" value={currentCommission.date || ''} onChange={e => setCurrentCommission({ ...currentCommission, date: e.target.value })} />
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-xs font-bold mb-1">قيمة العقد (ر.س)</label>
-                            <input title="قيمة العقد" type="number" className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold" value={currentCommission.contractValue || ''} onChange={e => setCurrentCommission({ ...currentCommission, contractValue: parseFloat(e.target.value) })} />
+                            <label htmlFor="hr-commission-5" className="block text-xs font-bold mb-1">قيمة العقد (ر.س)</label>
+                            <input id="hr-commission-5" title="قيمة العقد" type="number" className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold" value={currentCommission.contractValue || ''} onChange={e => setCurrentCommission({ ...currentCommission, contractValue: parseFloat(e.target.value) })} />
                         </div>
                         <div>
-                            <label className="block text-xs font-bold mb-1">نسبة العمولة (%)</label>
-                            <input title="نسبة العمولة" type="number" className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold" value={currentCommission.commissionPercentage || ''} onChange={e => setCurrentCommission({ ...currentCommission, commissionPercentage: parseFloat(e.target.value) })} />
+                            <label htmlFor="hr-commission-6" className="block text-xs font-bold mb-1">نسبة العمولة (%)</label>
+                            <input id="hr-commission-6" title="نسبة العمولة" type="number" className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold" value={currentCommission.commissionPercentage || ''} onChange={e => setCurrentCommission({ ...currentCommission, commissionPercentage: parseFloat(e.target.value) })} />
                         </div>
                     </div>
 
@@ -577,8 +671,8 @@ export const HRModule: React.FC = () => {
                     </div>
 
                     <div>
-                        <label className="block text-xs font-bold mb-1">ملاحظات</label>
-                        <input title="ملاحظات" type="text" className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold" value={currentCommission.notes || ''} onChange={e => setCurrentCommission({ ...currentCommission, notes: e.target.value })} />
+                        <label htmlFor="hr-commission-7" className="block text-xs font-bold mb-1">ملاحظات</label>
+                        <input id="hr-commission-7" title="ملاحظات" type="text" className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold" value={currentCommission.notes || ''} onChange={e => setCurrentCommission({ ...currentCommission, notes: e.target.value })} />
                     </div>
                 </div>
                 <div className="flex justify-end gap-2 mt-6 pt-4 border-t border-gray-100">
@@ -591,43 +685,44 @@ export const HRModule: React.FC = () => {
 
     const renderLoanForm = () => (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-xl shadow-xl w-full max-w-lg p-6 animate-fade-in">
-                <h3 className="font-bold text-lg mb-4 text-jilco-900 flex items-center gap-2">
+            <div role="dialog" aria-modal="true" aria-labelledby="hr-loan-title" className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[95dvh] overflow-y-auto p-4 sm:p-6 animate-fade-in">
+                <h3 id="hr-loan-title" className="font-bold text-lg mb-4 text-jilco-900 flex items-center gap-2">
                     <DollarSign size={20} /> تسجيل سلفة جديدة
                 </h3>
+                {formFeedback}
                 <div className="space-y-4">
                     <div>
-                        <label className="block text-xs font-bold mb-1">الموظف</label>
-                        <select title="الموظف" className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold" value={currentLoan.employeeId || ''} onChange={e => setCurrentLoan({ ...currentLoan, employeeId: e.target.value })}>
+                        <label htmlFor="hr-loan-1" className="block text-xs font-bold mb-1">الموظف</label>
+                        <select id="hr-loan-1" title="الموظف" className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold" value={currentLoan.employeeId || ''} onChange={e => setCurrentLoan({ ...currentLoan, employeeId: e.target.value })}>
                             <option value="">-- اختر الموظف --</option>
                             {employees.filter(e => e.status === 'active').map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
                         </select>
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-xs font-bold mb-1">مبلغ السلفة (ريال)</label>
-                            <input title="المبلغ" type="number" className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold" value={currentLoan.amount || ''} onChange={e => setCurrentLoan({ ...currentLoan, amount: parseFloat(e.target.value) || 0 })} />
+                            <label htmlFor="hr-loan-2" className="block text-xs font-bold mb-1">مبلغ السلفة (ريال)</label>
+                            <input id="hr-loan-2" title="المبلغ" type="number" min={0.01} step={0.01} className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold" value={currentLoan.amount || ''} onChange={e => setCurrentLoan({ ...currentLoan, amount: e.target.value === '' ? undefined : Number(e.target.value) })} />
                         </div>
                         <div>
-                            <label className="block text-xs font-bold mb-1">عدد الأقساط (أشهر)</label>
-                            <input title="عدد الأقساط" type="number" className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold" value={currentLoan.installmentsCount || ''} onChange={e => setCurrentLoan({ ...currentLoan, installmentsCount: parseInt(e.target.value) || 1 })} />
+                            <label htmlFor="hr-loan-3" className="block text-xs font-bold mb-1">عدد الأقساط (أشهر)</label>
+                            <input id="hr-loan-3" title="عدد الأقساط" type="number" min={1} step={1} className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold" value={currentLoan.installmentsCount || ''} onChange={e => setCurrentLoan({ ...currentLoan, installmentsCount: e.target.value === '' ? undefined : Number(e.target.value) })} />
                         </div>
                     </div>
                     {currentLoan.amount && currentLoan.installmentsCount ? (
                         <div className="bg-blue-50 p-4 rounded-xl border border-blue-200 text-center">
                             <p className="text-xs text-blue-800 font-bold mb-1">القسط الشهري</p>
                             <p className="text-2xl font-black text-blue-700 font-mono">
-                                {(currentLoan.amount / currentLoan.installmentsCount).toLocaleString(undefined, { maximumFractionDigits: 2 })} <span className="text-sm">SAR</span>
+                                {calculateLoanInstallment(currentLoan.amount, currentLoan.installmentsCount).toLocaleString(undefined, { maximumFractionDigits: 2 })} <span className="text-sm">SAR</span>
                             </p>
                         </div>
                     ) : null}
                     <div>
-                        <label className="block text-xs font-bold mb-1">شهر البداية</label>
-                        <input title="شهر البداية" placeholder="YYYY-MM" type="month" className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold h-[42px]" value={currentLoan.startDate || ''} onChange={e => setCurrentLoan({ ...currentLoan, startDate: e.target.value })} />
+                        <label htmlFor="hr-loan-4" className="block text-xs font-bold mb-1">شهر البداية</label>
+                        <input id="hr-loan-4" title="شهر البداية" placeholder="YYYY-MM" type="month" className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold h-[42px]" value={currentLoan.startDate || ''} onChange={e => setCurrentLoan({ ...currentLoan, startDate: e.target.value })} />
                     </div>
                     <div>
-                        <label className="block text-xs font-bold mb-1">ملاحظات / سبب السلفة</label>
-                        <input title="ملاحظات" type="text" className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold" value={currentLoan.notes || ''} onChange={e => setCurrentLoan({ ...currentLoan, notes: e.target.value })} />
+                        <label htmlFor="hr-loan-5" className="block text-xs font-bold mb-1">ملاحظات / سبب السلفة</label>
+                        <input id="hr-loan-5" title="ملاحظات" type="text" className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold" value={currentLoan.notes || ''} onChange={e => setCurrentLoan({ ...currentLoan, notes: e.target.value })} />
                     </div>
                 </div>
                 <div className="flex justify-end gap-2 mt-6 pt-4 border-t border-gray-100">
@@ -640,37 +735,38 @@ export const HRModule: React.FC = () => {
 
     const renderAttendanceForm = () => (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-xl shadow-xl w-full max-w-lg p-6 animate-fade-in">
-                <h3 className="font-bold text-lg mb-4 text-jilco-900 flex items-center gap-2">
+            <div role="dialog" aria-modal="true" aria-labelledby="hr-attendance-title" className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[95dvh] overflow-y-auto p-4 sm:p-6 animate-fade-in">
+                <h3 id="hr-attendance-title" className="font-bold text-lg mb-4 text-jilco-900 flex items-center gap-2">
                     <Calendar size={20} /> تسجيل حضور وغياب شهري
                 </h3>
+                {formFeedback}
                 <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-xs font-bold mb-1">الموظف</label>
-                            <select title="الموظف" className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold" value={currentAttendance.employeeId || ''} onChange={e => setCurrentAttendance({ ...currentAttendance, employeeId: e.target.value })}>
+                            <label htmlFor="hr-attendance-1" className="block text-xs font-bold mb-1">الموظف</label>
+                            <select id="hr-attendance-1" title="الموظف" className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold" value={currentAttendance.employeeId || ''} onChange={e => setCurrentAttendance({ ...currentAttendance, employeeId: e.target.value })}>
                                 <option value="">-- اختر --</option>
                                 {employees.filter(e => e.status === 'active').map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
                             </select>
                         </div>
                         <div>
-                            <label className="block text-xs font-bold mb-1">شهر التقرير</label>
-                            <input title="شهر التقرير" placeholder="YYYY-MM" type="month" className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold h-[42px]" value={currentAttendance.month || ''} onChange={e => setCurrentAttendance({ ...currentAttendance, month: e.target.value })} />
+                            <label htmlFor="hr-attendance-2" className="block text-xs font-bold mb-1">شهر التقرير</label>
+                            <input id="hr-attendance-2" title="شهر التقرير" placeholder="YYYY-MM" type="month" className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold h-[42px]" value={currentAttendance.month || ''} onChange={e => setCurrentAttendance({ ...currentAttendance, month: e.target.value })} />
                         </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-xs font-bold mb-1 text-red-600">أيام الغياب (بدون عذر)</label>
-                            <input title="أيام الغياب" type="number" step="0.5" className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold border-red-200 focus:ring-red-500" value={currentAttendance.absenceDays || ''} onChange={e => setCurrentAttendance({ ...currentAttendance, absenceDays: parseFloat(e.target.value) || 0 })} />
+                            <label htmlFor="hr-attendance-3" className="block text-xs font-bold mb-1 text-red-600">أيام الغياب (بدون عذر)</label>
+                            <input id="hr-attendance-3" title="أيام الغياب" type="number" min={0} step="0.5" className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold border-red-200 focus:ring-red-500" value={currentAttendance.absenceDays ?? ''} onChange={e => setCurrentAttendance({ ...currentAttendance, absenceDays: e.target.value === '' ? 0 : Number(e.target.value) })} />
                         </div>
                         <div>
-                            <label className="block text-xs font-bold mb-1 text-orange-600">ساعات التأخير</label>
-                            <input title="ساعات التأخير" type="number" step="0.5" className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold border-orange-200 focus:ring-orange-500" value={currentAttendance.delayHours || ''} onChange={e => setCurrentAttendance({ ...currentAttendance, delayHours: parseFloat(e.target.value) || 0 })} />
+                            <label htmlFor="hr-attendance-4" className="block text-xs font-bold mb-1 text-orange-600">ساعات التأخير</label>
+                            <input id="hr-attendance-4" title="ساعات التأخير" type="number" min={0} step="0.5" className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold border-orange-200 focus:ring-orange-500" value={currentAttendance.delayHours ?? ''} onChange={e => setCurrentAttendance({ ...currentAttendance, delayHours: parseFloat(e.target.value) || 0 })} />
                         </div>
                     </div>
                     <div>
-                        <label className="block text-xs font-bold mb-1">ملاحظات إضافية</label>
-                        <input title="ملاحظات" type="text" className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold" value={currentAttendance.notes || ''} onChange={e => setCurrentAttendance({ ...currentAttendance, notes: e.target.value })} />
+                        <label htmlFor="hr-attendance-5" className="block text-xs font-bold mb-1">ملاحظات إضافية</label>
+                        <input id="hr-attendance-5" title="ملاحظات" type="text" className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold" value={currentAttendance.notes || ''} onChange={e => setCurrentAttendance({ ...currentAttendance, notes: e.target.value })} />
                     </div>
                 </div>
                 <div className="flex justify-end gap-2 mt-6 pt-4 border-t border-gray-100">
@@ -683,39 +779,40 @@ export const HRModule: React.FC = () => {
 
     const renderLeaveForm = () => (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-xl shadow-xl w-full max-w-lg p-6 animate-fade-in">
-                <h3 className="font-bold text-lg mb-4 text-jilco-900 flex items-center gap-2">
+            <div role="dialog" aria-modal="true" aria-labelledby="hr-leave-title" className="bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[95dvh] overflow-y-auto p-4 sm:p-6 animate-fade-in">
+                <h3 id="hr-leave-title" className="font-bold text-lg mb-4 text-jilco-900 flex items-center gap-2">
                     <Calendar size={20} /> رفع طلب إجازة
                 </h3>
+                {formFeedback}
                 <div className="space-y-4">
                     <div>
-                        <label className="block text-xs font-bold mb-1">الموظف</label>
-                        <select title="الموظف" className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold" value={currentLeave.employeeId || ''} onChange={e => setCurrentLeave({ ...currentLeave, employeeId: e.target.value })}>
+                        <label htmlFor="hr-leave-1" className="block text-xs font-bold mb-1">الموظف</label>
+                        <select id="hr-leave-1" title="الموظف" className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold" value={currentLeave.employeeId || ''} onChange={e => setCurrentLeave({ ...currentLeave, employeeId: e.target.value })}>
                             <option value="">-- اختر --</option>
                             {employees.filter(e => e.status === 'active').map(e => <option key={e.id} value={e.id}>{e.name}</option>)}
                         </select>
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
-                            <label className="block text-xs font-bold mb-1">تاريخ البداية</label>
-                            <input title="البداية" type="date" className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold" value={currentLeave.startDate || ''} onChange={e => setCurrentLeave({ ...currentLeave, startDate: e.target.value })} />
+                            <label htmlFor="hr-leave-2" className="block text-xs font-bold mb-1">تاريخ البداية</label>
+                            <input id="hr-leave-2" title="البداية" type="date" className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold" value={currentLeave.startDate || ''} onChange={e => setCurrentLeave({ ...currentLeave, startDate: e.target.value })} />
                         </div>
                         <div>
-                            <label className="block text-xs font-bold mb-1">تاريخ النهاية</label>
-                            <input title="النهاية" type="date" className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold" value={currentLeave.endDate || ''} onChange={e => setCurrentLeave({ ...currentLeave, endDate: e.target.value })} />
+                            <label htmlFor="hr-leave-3" className="block text-xs font-bold mb-1">تاريخ النهاية</label>
+                            <input id="hr-leave-3" title="النهاية" type="date" className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold" value={currentLeave.endDate || ''} onChange={e => setCurrentLeave({ ...currentLeave, endDate: e.target.value })} />
                         </div>
                     </div>
                     <div>
-                        <label className="block text-xs font-bold mb-1">نوع الإجازة</label>
-                        <select title="النوع" className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold" value={currentLeave.type || 'annual'} onChange={e => setCurrentLeave({ ...currentLeave, type: e.target.value as any })}>
+                        <label htmlFor="hr-leave-4" className="block text-xs font-bold mb-1">نوع الإجازة</label>
+                        <select id="hr-leave-4" title="النوع" className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold" value={currentLeave.type || 'annual'} onChange={e => setCurrentLeave({ ...currentLeave, type: e.target.value as any })}>
                             <option value="annual">سنوية مدفوعة (تخصم من الرصيد)</option>
                             <option value="sick">مرضية مدفوعة</option>
                             <option value="unpaid">بدون راتب (يخصم غياب)</option>
                         </select>
                     </div>
                     <div>
-                        <label className="block text-xs font-bold mb-1">مبررات إضافية / عذر طبي</label>
-                        <input title="ملاحظات" type="text" className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold" value={currentLeave.notes || ''} onChange={e => setCurrentLeave({ ...currentLeave, notes: e.target.value })} />
+                        <label htmlFor="hr-leave-5" className="block text-xs font-bold mb-1">مبررات إضافية / عذر طبي</label>
+                        <input id="hr-leave-5" title="ملاحظات" type="text" className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold" value={currentLeave.notes || ''} onChange={e => setCurrentLeave({ ...currentLeave, notes: e.target.value })} />
                     </div>
                 </div>
                 <div className="flex justify-end gap-2 mt-6 pt-4 border-t border-gray-100">
@@ -767,7 +864,7 @@ export const HRModule: React.FC = () => {
                                   <p className="text-xs text-gray-500 font-bold">تاريخ المباشرة: {employee.joinDate}</p>
                               </div>
                          </div>
-                         
+
                          {/* Statement Summary */}
                          <div className="grid grid-cols-3 gap-4 mb-6 print:grid-cols-3">
                              <div className="bg-green-50 p-4 rounded-xl border border-green-200 text-center">
@@ -875,12 +972,12 @@ export const HRModule: React.FC = () => {
 
                 {/* Navigation Tabs */}
                 <div className="flex bg-white rounded-xl shadow-sm border border-gray-200 mb-6 overflow-hidden w-full overflow-x-auto">
-                    <button onClick={() => setActiveTab('employees')} className={`whitespace-nowrap flex-1 px-4 py-3 text-sm font-bold flex justify-center items-center gap-2 transition-colors ${activeTab === 'employees' ? 'bg-jilco-50 text-jilco-800 border-b-4 border-jilco-600' : 'text-gray-500 hover:bg-gray-50'}`}><Briefcase size={18} /> الموظفين</button>
-                    <button onClick={() => setActiveTab('payrolls')} className={`whitespace-nowrap flex-1 px-4 py-3 text-sm font-bold flex justify-center items-center gap-2 transition-colors ${activeTab === 'payrolls' ? 'bg-jilco-50 text-jilco-800 border-b-4 border-jilco-600' : 'text-gray-500 hover:bg-gray-50'}`}><FileSpreadsheet size={18} /> الرواتب</button>
-                    <button onClick={() => setActiveTab('loans')} className={`whitespace-nowrap flex-1 px-4 py-3 text-sm font-bold flex justify-center items-center gap-2 transition-colors ${activeTab === 'loans' ? 'bg-jilco-50 text-jilco-800 border-b-4 border-jilco-600' : 'text-gray-500 hover:bg-gray-50'}`}><DollarSign size={18} /> السلف</button>
-                    <button onClick={() => setActiveTab('attendance')} className={`whitespace-nowrap flex-1 px-4 py-3 text-sm font-bold flex justify-center items-center gap-2 transition-colors ${activeTab === 'attendance' ? 'bg-jilco-50 text-jilco-800 border-b-4 border-jilco-600' : 'text-gray-500 hover:bg-gray-50'}`}><Calendar size={18} /> الحضور</button>
-                    <button onClick={() => setActiveTab('leaves')} className={`whitespace-nowrap flex-1 px-4 py-3 text-sm font-bold flex justify-center items-center gap-2 transition-colors ${activeTab === 'leaves' ? 'bg-jilco-50 text-jilco-800 border-b-4 border-jilco-600' : 'text-gray-500 hover:bg-gray-50'}`}><Calendar size={18} /> الإجازات</button>
-                    <button onClick={() => setActiveTab('commissions')} className={`whitespace-nowrap flex-1 px-4 py-3 text-sm font-bold flex justify-center items-center gap-2 transition-colors ${activeTab === 'commissions' ? 'bg-jilco-50 text-jilco-800 border-b-4 border-jilco-600' : 'text-gray-500 hover:bg-gray-50'}`}><Award size={18} /> العمولات</button>
+                    <button aria-pressed={activeTab === 'employees'} onClick={() => setActiveTab('employees')} className={`whitespace-nowrap flex-1 px-4 py-3 text-sm font-bold flex justify-center items-center gap-2 transition-colors ${activeTab === 'employees' ? 'bg-jilco-50 text-jilco-800 border-b-4 border-jilco-600' : 'text-gray-500 hover:bg-gray-50'}`}><Briefcase size={18} /> الموظفين</button>
+                    <button aria-pressed={activeTab === 'payrolls'} onClick={() => setActiveTab('payrolls')} className={`whitespace-nowrap flex-1 px-4 py-3 text-sm font-bold flex justify-center items-center gap-2 transition-colors ${activeTab === 'payrolls' ? 'bg-jilco-50 text-jilco-800 border-b-4 border-jilco-600' : 'text-gray-500 hover:bg-gray-50'}`}><FileSpreadsheet size={18} /> الرواتب</button>
+                    <button aria-pressed={activeTab === 'loans'} onClick={() => setActiveTab('loans')} className={`whitespace-nowrap flex-1 px-4 py-3 text-sm font-bold flex justify-center items-center gap-2 transition-colors ${activeTab === 'loans' ? 'bg-jilco-50 text-jilco-800 border-b-4 border-jilco-600' : 'text-gray-500 hover:bg-gray-50'}`}><DollarSign size={18} /> السلف</button>
+                    <button aria-pressed={activeTab === 'attendance'} onClick={() => setActiveTab('attendance')} className={`whitespace-nowrap flex-1 px-4 py-3 text-sm font-bold flex justify-center items-center gap-2 transition-colors ${activeTab === 'attendance' ? 'bg-jilco-50 text-jilco-800 border-b-4 border-jilco-600' : 'text-gray-500 hover:bg-gray-50'}`}><Calendar size={18} /> الحضور</button>
+                    <button aria-pressed={activeTab === 'leaves'} onClick={() => setActiveTab('leaves')} className={`whitespace-nowrap flex-1 px-4 py-3 text-sm font-bold flex justify-center items-center gap-2 transition-colors ${activeTab === 'leaves' ? 'bg-jilco-50 text-jilco-800 border-b-4 border-jilco-600' : 'text-gray-500 hover:bg-gray-50'}`}><Calendar size={18} /> الإجازات</button>
+                    <button aria-pressed={activeTab === 'commissions'} onClick={() => setActiveTab('commissions')} className={`whitespace-nowrap flex-1 px-4 py-3 text-sm font-bold flex justify-center items-center gap-2 transition-colors ${activeTab === 'commissions' ? 'bg-jilco-50 text-jilco-800 border-b-4 border-jilco-600' : 'text-gray-500 hover:bg-gray-50'}`}><Award size={18} /> العمولات</button>
                 </div>
 
                 {/* Employees View */}
@@ -888,11 +985,11 @@ export const HRModule: React.FC = () => {
                     <div className="animate-fade-in space-y-6">
                         {/* Toolbar */}
                         <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm flex flex-wrap gap-4 items-center">
-                            <div className="relative max-w-md flex-1">
+                            <div className="relative min-w-0 w-full max-w-md sm:flex-1">
                                 <Search className="absolute right-3 top-2.5 text-gray-400" size={18} />
                                 <input
                                     title="بحث بالاسم، الهوية، الجوال"
-                                    type="text" placeholder="بحث بالاسم، الهوية، الجوال..."
+                                    type="search" placeholder="بحث بالاسم، الهوية، الجوال..."
                                     value={searchTerm} onChange={e => setSearchTerm(e.target.value)}
                                     className="w-full pr-10 pl-4 py-2 border border-gray-400 rounded-lg focus:ring-2 focus:ring-jilco-500 outline-none text-sm bg-white text-black font-bold"
                                 />
@@ -911,12 +1008,10 @@ export const HRModule: React.FC = () => {
                             </div>
                         </div>
 
+                        {visibleEmployees.length === 0 && <p role="status" className="rounded-lg bg-white p-4 text-center text-sm text-gray-600">لا يوجد موظفون يطابقون البحث أو التصفية.</p>}
                         {/* Grid */}
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {employees.filter(e =>
-                                (roleFilter === 'all' || e.role === roleFilter) &&
-                                (e.name.includes(searchTerm) || e.phone.includes(searchTerm))
-                            ).map(emp => (
+                            {visibleEmployees.map(emp => (
                                 <div key={emp.id} className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden hover:shadow-md transition-all group flex flex-col">
                                     <div className="p-5 flex items-start justify-between border-b border-gray-50">
                                         <div className="flex gap-3">
@@ -968,12 +1063,12 @@ export const HRModule: React.FC = () => {
                                             const eos = calculateEOS(emp.joinDate, total);
                                             alert(`مكافأة نهاية الخدمة التقديرية للموظف ${emp.name}:\n\nتاريخ المباشرة: ${emp.joinDate}\nالراتب الإجمالي: ${total} ريال\n\nالمكافأة المستحقة: ${eos.toLocaleString(undefined, {maximumFractionDigits:2})} ريال`);
                                         }} className="px-3 py-1.5 text-blue-700 bg-blue-50 hover:bg-blue-100 border border-blue-200 rounded-lg flex items-center justify-center gap-1 font-bold text-xs"><Award size={14} /> نهاية الخدمة</button>
-                                        
+
                                         <button title="كشف حساب موظف" onClick={() => setViewStatementEmployeeId(emp.id)} className="px-3 py-1.5 text-jilco-700 bg-jilco-50 hover:bg-jilco-100 border border-jilco-200 rounded-lg flex items-center justify-center gap-1 font-bold text-xs"><FileSpreadsheet size={14} /> كشف الحساب</button>
-                                        
+
                                         {canManageHR && <div className="flex gap-1 ml-auto">
                                             <button title="تعديل الموظف" onClick={() => { setCurrentEmployee(emp); setShowEmployeeForm(true); }} className="p-1.5 text-blue-600 hover:bg-blue-100 rounded-lg"><Edit size={16} /></button>
-                                            {hasPermission('delete_records') && <button title="حذف الموظف" onClick={() => handleDeleteRecord('jilco_hr_employees', emp.id, `الموظف ${emp.name}`)} className="p-1.5 text-red-600 hover:bg-red-100 rounded-lg"><Trash2 size={16} /></button>}
+                                            {hasPermission('delete_records') && emp.status !== 'terminated' && <button title="أرشفة الموظف" onClick={() => archiveEmployee(emp)} className="p-1.5 text-red-600 hover:bg-red-100 rounded-lg"><Trash2 size={16} /></button>}
                                         </div>}
                                     </div>
                                 </div>
@@ -984,7 +1079,7 @@ export const HRModule: React.FC = () => {
 
                 {/* Commissions View */}
                 {activeTab === 'commissions' && (
-                    <div className="animate-fade-in bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                    <div className="animate-fade-in bg-white rounded-xl border border-gray-200 shadow-sm overflow-x-auto" tabIndex={0} role="region" aria-label="جدول العمولات">
                         <table className="w-full text-sm text-right">
                             <thead className="bg-gray-50 text-gray-500 font-medium">
                                 <tr>
@@ -1056,29 +1151,29 @@ export const HRModule: React.FC = () => {
                 {/* Payrolls View */}
                 {activeTab === 'payrolls' && (
                     <div className="animate-fade-in space-y-6">
-                        <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm flex flex-col md:flex-row gap-4 items-end justify-between">
+                        <div className="bg-white p-6 rounded-xl border border-gray-200 shadow-sm flex flex-col xl:flex-row gap-4 items-start xl:items-end justify-between">
                             <div>
                                 <h3 className="font-bold text-gray-800 mb-1">إصدار مسير رواتب موظفين</h3>
                                 <p className="text-sm text-gray-500">اختر الشهر واضغط توليد لاحتساب الرواتب والعمولات والخصومات</p>
                             </div>
-                            <div className="flex items-center gap-3">
+                            <fieldset disabled={approvingPayroll || generatingPayroll} className="flex min-w-0 flex-wrap items-end gap-3">
                                 <div>
-                                    <label className="block text-xs font-bold text-gray-600 mb-1">حدد الشهر (YYYY-MM)</label>
+                                    <label htmlFor="hr-payroll-month" className="block text-xs font-bold text-gray-600 mb-1">حدد الشهر (YYYY-MM)</label>
                                     <input 
-                                        title="حدد الشهر"
+                                        id="hr-payroll-month"
                                         placeholder="YYYY-MM"
                                         type="month" 
                                         value={payrollMonth} 
-                                        onChange={e => setPayrollMonth(e.target.value)}
+                                        onChange={e => { setPayrollMonth(e.target.value); setGeneratedPayrolls([]); setPayrollMessage(''); }}
                                         className="p-2 border border-gray-400 rounded-lg text-sm bg-white text-black font-bold outline-none h-[42px]" 
                                     />
                                 </div>
                                 <div>
-                                    <label className="block text-xs font-bold text-gray-600 mb-1">الموظف (اختياري)</label>
+                                    <label htmlFor="hr-payroll-employee" className="block text-xs font-bold text-gray-600 mb-1">الموظف (اختياري)</label>
                                     <select
-                                        title="اختر الموظف"
+                                        id="hr-payroll-employee"
                                         value={selectedEmployeeForPayroll}
-                                        onChange={e => setSelectedEmployeeForPayroll(e.target.value)}
+                                        onChange={e => { setSelectedEmployeeForPayroll(e.target.value); setGeneratedPayrolls([]); setPayrollMessage(''); }}
                                         className="p-2 border border-gray-400 rounded-lg text-sm bg-white text-black font-bold outline-none h-[42px]"
                                     >
                                         <option value="all">الكل</option>
@@ -1089,7 +1184,7 @@ export const HRModule: React.FC = () => {
                                     <input
                                         type="checkbox"
                                         checked={applyGosiDeduction}
-                                        onChange={e => setApplyGosiDeduction(e.target.checked)}
+                                        onChange={e => { setApplyGosiDeduction(e.target.checked); setGeneratedPayrolls([]); setPayrollMessage(''); }}
                                         className="w-4 h-4 accent-jilco-600"
                                     />
                                     خصم التأمينات
@@ -1098,20 +1193,22 @@ export const HRModule: React.FC = () => {
                                     onClick={handleGeneratePayroll}
                                     className="h-[42px] px-6 bg-jilco-600 text-white rounded-lg font-bold shadow hover:bg-jilco-700 flex items-center justify-center gap-2"
                                 >
-                                    <Calendar size={18} /> توليد المسير
+                                    <Calendar size={18} /> {generatingPayroll ? 'جارٍ التوليد…' : 'توليد المسير'}
                                 </button>
-                            </div>
+                            </fieldset>
                         </div>
 
+                        {payrollMessage && <p role="status" className="rounded-lg bg-white p-3 text-sm font-bold text-gray-800">{payrollMessage}</p>}
                         {generatedPayrolls.length > 0 && (
                             <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-                                <div className="p-4 bg-gray-50 border-b border-gray-200 flex justify-between items-center">
-                                     <h3 className="font-bold text-jilco-900 flex items-center gap-2"><CheckCircle2 size={18} className="text-green-600"/> مسير شهر {payrollMonth} ({generatedPayrolls.length} موظف)</h3>
-                                     {canManageHR && <button
+                                <div className="p-4 bg-gray-50 border-b border-gray-200 flex flex-wrap gap-2 justify-between items-center">
+                                     <h3 className="font-bold text-jilco-900 flex items-center gap-2"><CheckCircle2 size={18} className="text-green-600"/> مسير شهر {generatedPayrolls[0].month} ({generatedPayrolls.length} موظف)</h3>
+                                     {canApprovePayroll && generatedPayrolls.some(record => record.status === 'pending') && <button
+                                        disabled={approvingPayroll}
                                         onClick={handleApprovePayroll}
                                         className="bg-green-600 text-white px-4 py-2 rounded-lg font-bold text-sm hover:bg-green-700 shadow flex items-center gap-2"
                                      >
-                                         <Save size={16} /> اعتماد وصرف الرواتب آلياً
+                                         <Save size={16} /> {approvingPayroll ? 'جارٍ الاعتماد…' : 'اعتماد وصرف الرواتب آلياً'}
                                      </button>}
                                 </div>
                                 <div className="overflow-x-auto">
@@ -1139,26 +1236,26 @@ export const HRModule: React.FC = () => {
                                                     <td className="p-3 font-mono text-red-600">{(pr.gosiDeduction).toLocaleString()}</td>
                                                     <td className="p-3 font-mono text-blue-600 font-bold">{pr.commissions.toLocaleString()}</td>
                                                     <td className="p-3">
-                                                        {canManageHR ? <>
+                                                        {canApprovePayroll ? <>
                                                         <input 
                                                             type="number" 
-                                                            value={pr.bonuses || ''} 
+                                                            aria-label={`مكافآت ${pr.employeeName}`} min={0} step={0.01} value={pr.bonuses || ''}
                                                             onChange={e => updateGeneratedPayroll(idx, 'bonuses', parseFloat(e.target.value) || 0)}
                                                             className="w-20 p-1 border rounded text-xs outline-none bg-white text-black focus:ring-1 focus:ring-jilco-500"
-                                                            disabled={pr.status === 'paid'}
+                                                            disabled={approvingPayroll || pr.status === 'paid'}
                                                             placeholder="0"
                                                         />
                                                         </> : pr.bonuses.toLocaleString()}
                                                     </td>
                                                     <td className="p-3 font-mono text-red-600">{(pr.loanDeduction + pr.absenceDeduction).toLocaleString()}</td>
                                                     <td className="p-3">
-                                                        {canManageHR ? <>
+                                                        {canApprovePayroll ? <>
                                                         <input 
                                                             type="number" 
-                                                            value={pr.otherDeductions || ''} 
+                                                            aria-label={`خصومات أخرى لـ ${pr.employeeName}`} min={0} step={0.01} value={pr.otherDeductions || ''}
                                                             onChange={e => updateGeneratedPayroll(idx, 'otherDeductions', parseFloat(e.target.value) || 0)}
                                                             className="w-20 p-1 border rounded text-xs outline-none bg-white text-black focus:ring-1 focus:ring-red-500"
-                                                            disabled={pr.status === 'paid'}
+                                                            disabled={approvingPayroll || pr.status === 'paid'}
                                                             placeholder="0"
                                                         />
                                                         </> : pr.otherDeductions.toLocaleString()}
@@ -1276,6 +1373,7 @@ export const HRModule: React.FC = () => {
                     </div>
                 )}
 
+                {activeTab === 'leaves' && leaveMessage && <p role="status" className="mb-3 rounded bg-white p-3 text-sm">{leaveMessage}</p>}
                 {/* Leaves View */}
                 {activeTab === 'leaves' && (
                     <div className="animate-fade-in space-y-6">
@@ -1320,8 +1418,8 @@ export const HRModule: React.FC = () => {
                                                 <td className="p-4">
                                                     {canManageHR && lv.status === 'pending' && (
                                                         <div className="flex gap-2">
-                                                            <button onClick={() => updateLeaveStatus(lv, 'approved')} className="p-1.5 text-green-600 hover:bg-green-100 rounded" title="قبول الطلب"><Check size={16} /></button>
-                                                            <button onClick={() => updateLeaveStatus(lv, 'rejected')} className="p-1.5 text-red-600 hover:bg-red-100 rounded" title="رفض الطلب"><XCircle size={16} /></button>
+                                                            <button disabled={!!resolvingLeaveId} onClick={() => updateLeaveStatus(lv, 'approved')} className="p-1.5 text-green-600 hover:bg-green-100 rounded" title="قبول الطلب"><Check size={16} /></button>
+                                                            <button disabled={!!resolvingLeaveId} onClick={() => updateLeaveStatus(lv, 'rejected')} className="p-1.5 text-red-600 hover:bg-red-100 rounded" title="رفض الطلب"><XCircle size={16} /></button>
                                                         </div>
                                                     )}
                                                 </td>

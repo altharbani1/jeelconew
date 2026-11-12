@@ -891,6 +891,29 @@ export const cloudService = {
     }
   },
 
+  async getHRPayrollRules(month: string): Promise<import('../types').HRPayrollRules> {
+    const { data, error } = await supabase.rpc('get_hr_payroll_rules', { p_month: month });
+    if (error) throw error;
+    if (!data || !Number.isFinite(data.gosiRate) || !Number.isFinite(data.daysPerMonth) ||
+        !Number.isFinite(data.hoursPerDay) || data.daysPerMonth <= 0 || data.hoursPerDay <= 0 ||
+        data.gosiRate < 0 || data.gosiRate > 1) {
+      throw new Error('Invalid payroll rules');
+    }
+    return data;
+  },
+
+  async resolveHRLeave(leaveId: string, status: 'approved' | 'rejected'): Promise<{ success: boolean; error?: string }> {
+    try {
+      const { error } = await supabase.rpc('resolve_hr_leave', {
+        p_leave_id: leaveId,
+        p_status: status
+      });
+      return error ? { success: false, error: error.message } : { success: true };
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : undefined };
+    }
+  },
+
   async approveHRPayrollBatch(
     payrolls: any[],
     payments: any[],

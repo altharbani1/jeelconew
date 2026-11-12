@@ -180,6 +180,30 @@ export const useCloudSync = (modules: SyncModule[], cacheScope?: string) => {
         setSyncStatus('syncing');
         try {
             const mod = modulesRef.current.find(m => m.collection === collection);
+            if (collection.startsWith('jilco_hr_')) {
+                const saved = await cloudService.saveRecord(collection, id, data);
+                if (!saved) {
+                    setSyncStatus('error');
+                    return false;
+                }
+                const apply = (records: any[]) => sortNewestFirst(
+                    records.some(record => matchesRecordId(record, collection, id))
+                        ? records.map(record => matchesRecordId(record, collection, id) ? data : record)
+                        : [data, ...records]
+                );
+                mod?.stateSetter(apply);
+                try {
+                    const key = getLocalCacheKey(collection, cacheScope);
+                    if (key) {
+                        const records = JSON.parse(localStorage.getItem(key) || '[]');
+                        localStorage.setItem(key, JSON.stringify(apply(Array.isArray(records) ? records : [])));
+                    }
+                } catch (error) {
+                    console.error('HR record saved, but its cache could not be updated:', error);
+                }
+                setSyncStatus('synced');
+                return true;
+            }
             if (collection === 'jilco_invoices_archive') {
                 const result = await cloudService.saveInvoiceRecord(id, data);
                 if (!result.success || !result.invoice) {

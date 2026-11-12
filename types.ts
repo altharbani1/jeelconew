@@ -550,6 +550,12 @@ export interface Commission {
   notes?: string;
 }
 
+export interface HRPayrollRules {
+  gosiRate: number;
+  daysPerMonth: number;
+  hoursPerDay: number;
+}
+
 export interface PayrollRecord {
   id: string;
   employeeId: string;
