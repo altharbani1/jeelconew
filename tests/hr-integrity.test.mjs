@@ -32,6 +32,7 @@ try {
     grant select, insert, update, delete on public.jilco_realtime_data to authenticated;
   `);
   await db.exec(readFileSync(migration, 'utf8'));
+  await db.exec(readFileSync(new URL('../supabase/migrations/20261112173000_hr_variable_pay.sql', import.meta.url), 'utf8'));
   await db.query("insert into public.app_users values ($1,$2,'manager')", [user, company]);
   await db.query("select set_config('request.jwt.claim.sub',$1,false)", [user]);
   await db.exec('set role authenticated');
@@ -43,7 +44,11 @@ try {
   await assert.rejects(add('loans', 'bad', { employeeId: 'E-1', amount: -1 }), /Invalid employee loan/);
   await assert.rejects(add('attendance', 'bad', { employeeId: 'E-1', month: '2026-11', absenceDays: 32, delayHours: 0 }), /Invalid attendance record/);
   await add('loans', 'L-1', { employeeId: 'E-1', amount: 100, remainingAmount: 100, monthlyInstallment: 50, installmentsCount: 2, startDate: '2026-11', status: 'active' });
-  await add('commissions', 'C-1', { employeeId: 'E-1', commissionAmount: 20, status: 'approved', approvalDate: '2026-11-15' });
+  await add('commissions', 'C-1', { employeeId: 'E-1', contractValue: 200, commissionPercentage: 10, commissionAmount: 999, status: 'approved', date: '2026-10-15', approvalDate: '2026-12-15' });
+  assert.equal((await get('commissions', 'C-1')).commissionAmount, 20);
+  await assert.rejects(add('commissions', 'bad-paid', { status: 'paid' }), /paid through payroll/);
+  await assert.rejects(add('attendance', 'bad-overtime', { employeeId: 'E-1', month: '2026-11', absenceDays: 0, delayHours: 0, overtimeHours: 2 }), /Invalid overtime/);
+  await add('attendance', 'A-1', { employeeId: 'E-1', month: '2026-11', absenceDays: 0, delayHours: 0, overtimeHours: 2.5, overtimeRate: 20 });
   await add('leaves', 'LE-1', { employeeId: 'E-1', status: 'pending', type: 'annual', startDate: '2026-11-01', endDate: '2026-11-03' });
   await add('leaves', 'LE-2', { employeeId: 'E-1', status: 'pending', type: 'annual', startDate: '2026-11-03', endDate: '2026-11-04' });
   await assert.rejects(db.query("select public.resolve_hr_leave('LE-2','invalid')"), /Invalid leave decision/);
@@ -54,21 +59,24 @@ try {
   assert.equal((await get('leaves', 'LE-2')).status, 'pending');
   await assert.rejects(db.query("delete from public.jilco_realtime_data where record_id = 'E-1'"), /Archive the employee/);
 
-  const payroll = { id: 'PR-1', employeeId: 'E-1', status: 'paid', month: '2026-11', bonuses: 0, otherDeductions: 0, netSalary: 970 };
-  const payment = { id: 'EP-2026-11-E-1', employeeId: 'E-1', payrollId: 'PR-1', status: 'completed', amount: 970 };
+  const payroll = { id: 'PR-1', employeeId: 'E-1', status: 'paid', month: '2026-11', bonuses: 0, otherDeductions: 0, netSalary: 1020 };
+  const payment = { id: 'EP-2026-11-E-1', employeeId: 'E-1', payrollId: 'PR-1', status: 'completed', amount: 1020 };
   const approve = async (record, voucher) => (await db.query(
     'select public.approve_hr_payroll_batch($1,$2) as result',
     [JSON.stringify([record]), JSON.stringify([voucher])],
   )).rows[0].result;
 
-  await assert.rejects(approve({ ...payroll, netSalary: 970.01 }, payment), /net salary is invalid/);
-  await assert.rejects(approve(payroll, { ...payment, amount: 969.99 }), /Invalid employee payment/);
+  await assert.rejects(approve({ ...payroll, netSalary: 1020.01 }, payment), /net salary is invalid/);
+  await assert.rejects(approve(payroll, { ...payment, amount: 1019.99 }), /Invalid employee payment/);
   assert.equal(await get('payrolls', payroll.id), undefined);
   await assert.rejects(add('payrolls', 'direct', payroll), /Use the HR approval procedure/);
   const result = await approve(payroll, payment);
-  assert.equal(result.payrolls[0].netSalary, 970);
-  assert.equal(result.payments[0].amount, 970);
+  assert.equal(result.payrolls[0].netSalary, 1020);
+  assert.equal(result.payments[0].amount, 1020);
+  assert.equal(result.payrolls[0].overtimeAmount, 50);
   assert.equal(result.commissionUpdates[0].status, 'paid');
+  assert.equal(result.commissionUpdates[0].payrollId, payroll.id);
+  await assert.rejects(db.query("delete from public.jilco_realtime_data where record_id = 'C-1'"), /Paid commission cannot be changed/);
   assert.equal(result.loanUpdates[0].remainingAmount, 50);
   await assert.rejects(approve({ ...payroll, id: 'PR-2' }, { ...payment, payrollId: 'PR-2' }));
   assert.equal((await get('loans', 'L-1')).remainingAmount, 50);

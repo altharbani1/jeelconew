@@ -535,6 +535,7 @@ export interface Employee {
 }
 
 export interface Commission {
+    payrollId?: string;
   id: string;
   employeeId: string;
   employeeName: string;
@@ -557,6 +558,7 @@ export interface HRPayrollRules {
 }
 
 export interface PayrollRecord {
+    overtimeAmount?: number;
   id: string;
   employeeId: string;
   employeeName: string;
@@ -589,6 +591,8 @@ export interface EmployeeLoan {
 }
 
 export interface AttendanceRecord {
+    overtimeHours?: number;
+    overtimeRate?: number;
   id: string;
   employeeId: string;
   month: string; // YYYY-MM

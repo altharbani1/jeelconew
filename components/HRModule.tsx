@@ -232,6 +232,7 @@ export const HRModule: React.FC = () => {
         if (!currentCommission.contractValue || !Number.isFinite(currentCommission.contractValue) || currentCommission.contractValue <= 0) {
             return reportFormError('أدخل قيمة عقد موجبة.', 'hr-commission-5');
         }
+        if (!currentCommission.date) return reportFormError('اختر تاريخ الاستحقاق.', 'hr-commission-4');
         const percentage = currentCommission.commissionPercentage ?? 0;
         if (!Number.isFinite(percentage) || percentage < 0 || percentage > 100) {
             return reportFormError('أدخل نسبة عمولة بين ٠ و١٠٠.', 'hr-commission-6');
@@ -291,6 +292,13 @@ export const HRModule: React.FC = () => {
         if (delayHours == null || !Number.isFinite(delayHours) || delayHours < 0 || delayHours > daysInMonth * 24) {
             return reportFormError('أدخل عدد ساعات تأخير صالحًا لهذا الشهر.', 'hr-attendance-4');
         }
+        const { overtimeHours = 0, overtimeRate = 0 } = currentAttendance;
+        if (!Number.isFinite(overtimeHours) || overtimeHours < 0 || overtimeHours > daysInMonth * 24) {
+            return reportFormError('أدخل عدد ساعات إضافية صالحًا.', 'hr-overtime-hours');
+        }
+        if (!Number.isFinite(overtimeRate) || overtimeRate < 0 || (overtimeHours > 0 && overtimeRate === 0)) {
+            return reportFormError('أدخل أجر الساعة الإضافية المعتمد.', 'hr-overtime-rate');
+        }
         const attData: AttendanceRecord = {
             ...currentAttendance as AttendanceRecord,
             id: currentAttendance.id || `ATT-${currentAttendance.employeeId}-${currentAttendance.month}`,
@@ -320,14 +328,13 @@ export const HRModule: React.FC = () => {
         setCurrentLeave({ status: 'pending', type: 'annual' });
     };
 
-    const updateCommissionStatus = async (id: string, newStatus: 'approved' | 'paid') => {
+    const updateCommissionStatus = async (id: string, newStatus: 'approved') => {
         if (!canManageHR) return;
         const c = commissions.find(comm => comm.id === id);
         if (!c) return;
 
         const updates: Partial<Commission> = { status: newStatus };
         if (newStatus === 'approved') updates.approvalDate = new Date().toISOString().split('T')[0];
-        if (newStatus === 'paid') updates.paymentDate = new Date().toISOString().split('T')[0];
 
         const updatedComm = { ...c, ...updates };
         const saved = await saveHRRecord('jilco_hr_commissions', id, updatedComm);
@@ -406,7 +413,7 @@ export const HRModule: React.FC = () => {
 
                 // Calculate unpaid commissions for this month
                 const empCommissions = commissions
-                    .filter(c => c.employeeId === emp.id && c.status === 'approved' && c.approvalDate?.startsWith(payrollMonth))
+                    .filter(c => c.employeeId === emp.id && c.status === 'approved' && Boolean(c.date || c.approvalDate) && (c.date || c.approvalDate || '').slice(0, 7) <= payrollMonth)
                     .reduce((sum, c) => sum + c.commissionAmount, 0);
 
                 // Apply the policy effective for the selected payroll month.
@@ -427,11 +434,14 @@ export const HRModule: React.FC = () => {
                     .reduce((sum, row) => sum + (row.absenceDays || 0) * dailyRate + (row.delayHours || 0) * hourlyRate, 0);
 
                 const totalAllowances = (emp.housingAllowance || 0) + (emp.transportAllowance || 0) + (emp.otherAllowances || 0);
-                const totalAdditions = (emp.basicSalary || 0) + totalAllowances + empCommissions;
+                const overtimeAmount = roundMoney(attendance
+                    .filter(row => row.employeeId === emp.id && row.month === payrollMonth)
+                    .reduce((sum, row) => sum + (row.overtimeHours ?? 0) * (row.overtimeRate ?? 0), 0));
+                const totalAdditions = (emp.basicSalary || 0) + totalAllowances + empCommissions + overtimeAmount;
                 const totalDeductions = gosi + loanDed + absDed;
 
                 return {
-                    id: existing?.id ?? `PR-${crypto.randomUUID()}`,
+                    id: existing?.id ?? `PR-${Array.from(crypto.getRandomValues(new Uint8Array(16)), byte => byte.toString(16).padStart(2, '0')).join('')}`,
                     employeeId: emp.id,
                     employeeName: emp.name,
                     month: payrollMonth,
@@ -440,6 +450,7 @@ export const HRModule: React.FC = () => {
                     transportAllowance: emp.transportAllowance || 0,
                     otherAllowances: emp.otherAllowances || 0,
                     commissions: empCommissions,
+                    overtimeAmount,
                     gosiDeduction: gosi,
                     loanDeduction: loanDed,
                     absenceDeduction: absDed,
@@ -450,8 +461,11 @@ export const HRModule: React.FC = () => {
                 };
             });
             setGeneratedPayrolls(newPayrolls);
-        } catch {
-            setPayrollMessage('تعذر تحميل قواعد الرواتب لهذا الشهر. أعد المحاولة.');
+        } catch (error) {
+            const code = (error as { code?: string } | null)?.code;
+            setPayrollMessage(code === 'PGRST202' || code === '42883'
+                ? 'إجراء قواعد الرواتب غير متاح في قاعدة البيانات. يلزم تطبيق ترحيل نظام الموظفين وتحديث مخطط Supabase.'
+                : 'تعذر توليد المسير. تحقق من الاتصال وبيانات الموظفين ثم أعد المحاولة.');
         } finally {
             setGeneratingPayroll(false);
         }
@@ -464,7 +478,7 @@ export const HRModule: React.FC = () => {
         const record = { ...updated[index], [field]: roundMoney(value) };
         updated[index] = record;
         // Recalculate net
-        const totalAdditions = record.basicSalary + record.housingAllowance + record.transportAllowance + record.otherAllowances + record.commissions + record.bonuses;
+        const totalAdditions = record.basicSalary + record.housingAllowance + record.transportAllowance + record.otherAllowances + record.commissions + (record.overtimeAmount ?? 0) + record.bonuses;
         const totalDeductions = record.gosiDeduction + record.loanDeduction + record.absenceDeduction + record.otherDeductions;
         record.netSalary = roundMoney(totalAdditions - totalDeductions);
         setGeneratedPayrolls(updated);
@@ -764,6 +778,16 @@ export const HRModule: React.FC = () => {
                             <input id="hr-attendance-4" title="ساعات التأخير" type="number" min={0} step="0.5" className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold border-orange-200 focus:ring-orange-500" value={currentAttendance.delayHours ?? ''} onChange={e => setCurrentAttendance({ ...currentAttendance, delayHours: parseFloat(e.target.value) || 0 })} />
                         </div>
                     </div>
+                    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                        <div>
+                            <label htmlFor="hr-overtime-hours" className="block text-xs font-bold mb-1">ساعات العمل الإضافي</label>
+                            <input id="hr-overtime-hours" type="number" min={0} step="0.01" className="w-full p-2 border rounded" value={currentAttendance.overtimeHours ?? ''} onChange={e => setCurrentAttendance({ ...currentAttendance, overtimeHours: Number(e.target.value) })} />
+                        </div>
+                        <div>
+                            <label htmlFor="hr-overtime-rate" className="block text-xs font-bold mb-1">أجر الساعة الإضافية المعتمد (ر.س)</label>
+                            <input id="hr-overtime-rate" type="number" min={0} step="0.01" className="w-full p-2 border rounded" value={currentAttendance.overtimeRate ?? ''} onChange={e => setCurrentAttendance({ ...currentAttendance, overtimeRate: Number(e.target.value) })} />
+                        </div>
+                    </div>
                     <div>
                         <label htmlFor="hr-attendance-5" className="block text-xs font-bold mb-1">ملاحظات إضافية</label>
                         <input id="hr-attendance-5" title="ملاحظات" type="text" className="w-full p-2 border border-gray-400 rounded text-black bg-white font-bold" value={currentAttendance.notes || ''} onChange={e => setCurrentAttendance({ ...currentAttendance, notes: e.target.value })} />
@@ -834,9 +858,9 @@ export const HRModule: React.FC = () => {
 
         // calculate totals
         const totalBasicSalaries = employeePayrolls.reduce((sum, p) => sum + p.basicSalary, 0);
-        const totalBonuses = employeePayrolls.reduce((sum, p) => sum + p.bonuses, 0);
+        const totalBonuses = employeePayrolls.reduce((sum, p) => sum + p.bonuses + (p.overtimeAmount ?? 0), 0);
         const totalCommissions = employeePayrolls.reduce((sum, p) => sum + p.commissions, 0); // included in payroll
-        const standaloneCommissions = empCommissions.filter(c => !employeePayrolls.some(p => p.month === c.approvalDate?.substring(0,7))).reduce((sum, c) => sum + c.commissionAmount, 0);
+        const standaloneCommissions = empCommissions.filter(c => !employeePayrolls.some(p => c.payrollId ? p.id === c.payrollId : p.month === c.approvalDate?.slice(0, 7))).reduce((sum, c) => sum + c.commissionAmount, 0);
         const totalDeductions = employeePayrolls.reduce((sum, p) => sum + p.gosiDeduction + p.loanDeduction + p.absenceDeduction + p.otherDeductions, 0);
 
         const totalEntitlements = totalBasicSalaries + totalBonuses + totalCommissions + standaloneCommissions - totalDeductions;
@@ -1127,17 +1151,8 @@ export const HRModule: React.FC = () => {
                                                         اعتماد
                                                     </button>
                                                 )}
-                                                {canManageHR && comm.status === 'approved' && (
-                                                    <button
-                                                        onClick={() => updateCommissionStatus(comm.id, 'paid')}
-                                                        className="bg-green-50 text-green-600 px-3 py-1 rounded text-xs font-bold border border-green-200 hover:bg-green-100"
-                                                        title="تأكيد الصرف"
-                                                    >
-                                                        صرف
-                                                    </button>
-                                                )}
                                                 <button title="طباعة العمولة" onClick={() => window.print()} className="p-1.5 text-gray-400 hover:text-jilco-600 rounded"><Printer size={16} /></button>
-                                                {canManageHR && hasPermission('delete_records') && <button title="حذف العمولة" onClick={() => handleDeleteRecord('jilco_hr_commissions', comm.id, `عمولة ${comm.employeeName}`)} className="p-1.5 text-red-400 hover:text-red-600 rounded opacity-0 group-hover:opacity-100"><Trash2 size={16} /></button>}
+                                                {canManageHR && hasPermission('delete_records') && comm.status === 'pending' && <button title="حذف العمولة" onClick={() => handleDeleteRecord('jilco_hr_commissions', comm.id, `عمولة ${comm.employeeName}`)} className="p-1.5 text-red-400 hover:text-red-600 rounded opacity-0 group-hover:opacity-100"><Trash2 size={16} /></button>}
                                             </div>
                                         </td>
                                     </tr>
@@ -1234,7 +1249,7 @@ export const HRModule: React.FC = () => {
                                                     <td className="p-3 font-mono text-gray-600">{pr.basicSalary.toLocaleString()}</td>
                                                     <td className="p-3 font-mono text-gray-600">{(pr.housingAllowance + pr.transportAllowance + pr.otherAllowances).toLocaleString()}</td>
                                                     <td className="p-3 font-mono text-red-600">{(pr.gosiDeduction).toLocaleString()}</td>
-                                                    <td className="p-3 font-mono text-blue-600 font-bold">{pr.commissions.toLocaleString()}</td>
+                                                    <td className="p-3 font-mono text-blue-600 font-bold">{pr.commissions.toLocaleString()}{(pr.overtimeAmount ?? 0) > 0 && <span className="block text-xs text-gray-600">إضافي: {pr.overtimeAmount?.toLocaleString()}</span>}</td>
                                                     <td className="p-3">
                                                         {canApprovePayroll ? <>
                                                         <input 
